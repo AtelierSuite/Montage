@@ -1,6 +1,61 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Export.Error.EncoderFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The video couldn’t be encoded."
+          }
+        }
+      }
+    },
+    "Export.Error.FormatUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This format can’t be exported."
+          }
+        }
+      }
+    },
+    "Export.Error.NothingToExport" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There’s nothing in the project to export."
+          }
+        }
+      }
+    },
+    "Export.Error.ReadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The project’s media couldn’t be read."
+          }
+        }
+      }
+    },
+    "Export.Error.WriteFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The video couldn’t be written."
+          }
+        }
+      }
+    },
     "MediaProbe.Error.Unsupported" : {
       "extractionState" : "manual",
       "localizations" : {

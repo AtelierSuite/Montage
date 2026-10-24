@@ -2,7 +2,7 @@
 import Foundation
 
 /// Why an export stopped.
-public enum ExportError: Error, Sendable {
+public enum ExportError: LocalizedError, Sendable {
     /// The render source has no video or audio in the range asked for.
     case nothingToExport
     /// AVI was asked for, but no AVI writer was supplied.
@@ -12,6 +12,23 @@ public enum ExportError: Error, Sendable {
     case readFailed((any Error)?)
     case writeFailed((any Error)?)
     case encoderFailed(OSStatus)
+
+    public var errorDescription: String? {
+        switch self {
+        case .nothingToExport: String(localized: "Export.Error.NothingToExport", bundle: #bundle)
+        case .formatUnavailable, .codecUnsupported: String(localized: "Export.Error.FormatUnavailable", bundle: #bundle)
+        case .readFailed: String(localized: "Export.Error.ReadFailed", bundle: #bundle)
+        case .writeFailed: String(localized: "Export.Error.WriteFailed", bundle: #bundle)
+        case .encoderFailed: String(localized: "Export.Error.EncoderFailed", bundle: #bundle)
+        }
+    }
+
+    public var failureReason: String? {
+        switch self {
+        case .readFailed(let error?), .writeFailed(let error?): error.localizedDescription
+        default: nil
+        }
+    }
 }
 
 /// Renders a render source to a file.

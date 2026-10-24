@@ -265,3 +265,71 @@ private final class MockSink: EncodedFrameSink, @unchecked Sendable {
         lock.withLock { _record.cancelled = true }
     }
 }
+
+@MainActor
+@Suite(.enabled(if: Samples.isAvailable, "Needs the sample media"))
+struct ExportQueueTests {
+    private static func source() async throws -> RenderSource {
+        let range = CMTimeRange(start: .zero, duration: CMTime(value: 1, timescale: 2))
+        return try await RenderSource.file(at: Samples.url("IMG_3311.mp4"), timeRange: range)
+    }
+
+    private func waitUntilDone(_ queue: ExportQueue) async {
+        while queue.hasActiveJobs { try? await Task.sleep(for: .milliseconds(20)) }
+    }
+
+    @Test func runsJobsOneAtATimeAndCleansUp() async throws {
+        let queue = ExportQueue(exporter: Exporter())
+        var delivered: [String] = []
+        var files: [URL] = []
+        let settings = ExportSettings(resolution: .hd720, quality: .low)
+        for title in ["First", "Second"] {
+            queue.enqueue(title: title, settings: settings, delivery: .deliver { url in
+                #expect(queue.jobs.filter { $0.state == .rendering }.isEmpty)
+                #expect(url.lastPathComponent == "\(title).mp4")
+                delivered.append(title)
+                files.append(url)
+            }) { _ in try await Self.source() }
+        }
+        let cancelled = queue.enqueue(title: "Third", settings: settings, delivery: .hold) { _ in try await Self.source() }
+        queue.cancel(cancelled)
+        await waitUntilDone(queue)
+
+        #expect(delivered == ["First", "Second"])
+        #expect(queue.jobs.map(\.state) == [.finished, .finished, .cancelled])
+        #expect(queue.jobs.allSatisfy { $0.progress == 1 || $0.state == .cancelled })
+        // Delivered files are deleted with their folders.
+        #expect(files.allSatisfy { !FileManager.default.fileExists(atPath: $0.deletingLastPathComponent().path) })
+        queue.clearFinished()
+        #expect(queue.jobs.isEmpty)
+    }
+
+    @Test func holdsTheFileUntilItsSaved() async throws {
+        let queue = ExportQueue(exporter: Exporter())
+        let job = queue.enqueue(title: "Held", settings: ExportSettings(resolution: .hd720), delivery: .hold) { _ in
+            try await Self.source()
+        }
+        await waitUntilDone(queue)
+        guard case .readyToSave(let url) = job.state else {
+            Issue.record("Not ready to save: \(job.state)")
+            return
+        }
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        job.discardFile()
+        #expect(job.state == .finished)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+    }
+
+    @Test func failuresAreReported() async throws {
+        let queue = ExportQueue(exporter: Exporter())
+        let job = queue.enqueue(title: "AVI", settings: ExportSettings(format: .avi), delivery: .hold) { _ in
+            try await Self.source()
+        }
+        await waitUntilDone(queue)
+        guard case .failed(let message) = job.state else {
+            Issue.record("Didn't fail: \(job.state)")
+            return
+        }
+        #expect(!message.isEmpty)
+    }
+}
