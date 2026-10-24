@@ -135,8 +135,9 @@ public final class PlaybackController {
     }
 
     /// Whether a change could change the composition. Conservative: anything
-    /// but how clips' pictures look (their transform, opacity, blend mode and
-    /// effects), which the compositor reads from the snapshot, rebuilds. The
+    /// but how clips' pictures look (their transform, opacity, blend mode,
+    /// fit, effects, and the look of text and shapes), which the compositor
+    /// reads from the snapshot, rebuilds. The
     /// audio taps read the snapshot too, and only need building again when a
     /// clip's audio effects change shape: one is added, removed or moved, or
     /// its tail gets longer or shorter.
@@ -150,6 +151,15 @@ public final class PlaybackController {
                         $0.opacity = Animatable(1)
                         $0.transform = ClipTransform()
                         $0.blendMode = .normal
+                        $0.fit = .fit
+                        $0.kenBurns = nil
+                        // How text and shapes look is drawn from the
+                        // snapshot too; only what kind of clip it is counts.
+                        switch $0.content {
+                        case .text: $0.content = .text(TextContent())
+                        case .shape: $0.content = .shape(ShapeContent())
+                        case .media, .image: break
+                        }
                     }
                 }
             }

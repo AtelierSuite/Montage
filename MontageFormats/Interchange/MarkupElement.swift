@@ -12,7 +12,8 @@ struct MarkupElement: Equatable, Sendable {
     /// keeps them that way.
     var attributes: [(name: String, value: String)]
     var children: [MarkupElement]
-    /// The text directly inside the element, trimmed of surrounding space.
+    /// The text directly inside the element, trimmed of surrounding space
+    /// except in a title's words.
     var text: String
 
     init(_ name: String, _ attributes: [(String, String?)] = [], children: [MarkupElement] = [], text: String = "") {
@@ -106,7 +107,10 @@ struct MarkupElement: Equatable, Sendable {
             _ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?
         ) {
             guard var element = stack.popLast() else { return }
-            element.text = texts.removeLast().trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = texts.removeLast()
+            // A title's words keep their spaces and line breaks.
+            let keepsSpace = elementName == "text-style" && element.children.isEmpty
+            element.text = keepsSpace ? text : text.trimmingCharacters(in: .whitespacesAndNewlines)
             if stack.isEmpty {
                 root = element
             } else {

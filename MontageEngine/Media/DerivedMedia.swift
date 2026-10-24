@@ -65,15 +65,17 @@ public enum DerivedMedia: String, CaseIterable, Sendable {
         var needed = Set<MediaItem.ID>()
         for track in project.tracks {
             for clip in track.clips {
+                // Text and shapes have no media to copy.
+                guard let mediaID = clip.mediaID else { continue }
                 switch self {
                 case .stereoAudio:
                     let isHeard = !track.isMuted && (track.kind == .audio || !clip.isAudioDetached)
                     let isPanned = clip.effects.contains { effect in
                         if case .pan = effect.kind { effect.isEnabled } else { false }
                     }
-                    if isHeard, isPanned { needed.insert(clip.mediaID) }
+                    if isHeard, isPanned { needed.insert(mediaID) }
                 case .proxy:
-                    if track.kind == .video, !track.isHidden { needed.insert(clip.mediaID) }
+                    if track.kind == .video, !track.isHidden { needed.insert(mediaID) }
                 }
             }
         }

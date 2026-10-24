@@ -23,6 +23,18 @@ struct AudioParameterSlider: View {
     let format: (Double) -> String
     let onPreview: (Double) -> Void
     let onCommit: (Double) -> Void
+    /// The parameter's keyframe at the playhead, for a diamond to set or
+    /// take away; nil leaves the diamond out.
+    var keyframe: Keyframing?
+
+    /// Whether there's a keyframe at the playhead, whether there are any,
+    /// and what the diamond does.
+    struct Keyframing {
+        var isOnKeyframe: Bool
+        var isAnimated: Bool
+        var isEnabled: Bool
+        var toggle: () -> Void
+    }
 
     @State private var draft: Double?
     @State private var isEditing = false
@@ -35,6 +47,17 @@ struct AudioParameterSlider: View {
                 Text(verbatim: format(draft ?? value))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
+                if let keyframe {
+                    Button(action: keyframe.toggle) {
+                        Label(keyframe.isOnKeyframe ? "Inspector.Keyframe.Remove" : "Inspector.Keyframe.Add",
+                              systemImage: keyframe.isOnKeyframe ? "diamond.fill" : "diamond")
+                            .labelStyle(.iconOnly)
+                            .foregroundStyle(keyframe.isAnimated ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(!keyframe.isEnabled)
+                    .help(Text(keyframe.isOnKeyframe ? "Inspector.Keyframe.Remove" : "Inspector.Keyframe.Add"))
+                }
             }
             .font(.callout)
             Slider(value: position, in: positionRange) { editing in

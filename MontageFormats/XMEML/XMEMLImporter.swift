@@ -173,7 +173,7 @@ struct XMEMLImporter {
 
         let mediaItem = mediaItem(for: file)
         var clip = Clip(
-            mediaID: mediaItem.id,
+            content: mediaItem.content,
             sourceRange: CMTimeRange(start: mediaItem.kind == .image ? .zero : sourceIn, duration: duration),
             timelineStart: timelineStart
         )

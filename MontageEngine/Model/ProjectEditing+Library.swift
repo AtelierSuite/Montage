@@ -8,13 +8,13 @@ extension Project {
 
     /// The media with at least one clip on the timeline.
     public var usedMediaIDs: Set<MediaItem.ID> {
-        Set(tracks.flatMap { $0.clips.map(\.mediaID) })
+        Set(tracks.flatMap { $0.clips.compactMap(\.mediaID) })
     }
 
     /// How many clips on the timeline are made from each media item. Items
     /// with none aren't listed.
     public var clipCounts: [MediaItem.ID: Int] {
-        tracks.flatMap(\.clips).reduce(into: [:]) { counts, clip in counts[clip.mediaID, default: 0] += 1 }
+        tracks.flatMap(\.clips).reduce(into: [:]) { counts, clip in if let id = clip.mediaID { counts[id, default: 0] += 1 } }
     }
 
     /// The media with no clip on the timeline, in library order.
@@ -83,13 +83,40 @@ extension Project {
             guard let item = mediaItem(id: id) else { continue }
             let duration = item.kind == .image ? Self.defaultImageDuration : item.metadata.duration
             guard duration.isNumeric, duration > .zero else { continue }
-            let clip = Clip(mediaID: id, sourceRange: CMTimeRange(start: .zero, duration: duration), timelineStart: start)
+            let clip = Clip(content: item.content, sourceRange: CMTimeRange(start: .zero, duration: duration), timelineStart: start)
             let index = trackIndex(for: Self.trackKind(for: item.kind), fitting: clip.timelineRange, preferring: trackID)
             tracks[index].insert(clip)
             added.append(clip.id)
             start = clip.timelineRange.end
         }
         return added
+    }
+
+    /// Puts a clip of text or a shape on the timeline at `time`, lasting
+    /// `duration`, over whatever video is there: on the first video track
+    /// above the clips under it with room, or a new track on top. Hidden
+    /// tracks are passed over, since nothing on them shows. Returns the new
+    /// clip's ID.
+    @discardableResult
+    public mutating func insertClip(
+        of content: ClipContent, at time: CMTime, duration: CMTime = Project.defaultImageDuration
+    ) -> Clip.ID {
+        let start = time.isNumeric ? CMTimeMaximum(time, .zero) : .zero
+        let clip = Clip(content: content, sourceRange: CMTimeRange(start: .zero, duration: duration), timelineStart: start)
+        let range = clip.timelineRange
+        func isFree(_ index: Int) -> Bool {
+            !tracks[index].clips.contains { !$0.timelineRange.intersection(range).isEmpty }
+        }
+        let video = tracks.indices.filter { tracks[$0].kind == .video }
+        let visible = video.filter { !tracks[$0].isHidden }
+        let covered = visible.last { !isFree($0) }
+        let index = visible.first { $0 > (covered ?? -1) && isFree($0) } ?? {
+            let index = video.last.map { $0 + 1 } ?? tracks.firstIndex { $0.kind == .audio } ?? tracks.endIndex
+            tracks.insert(Track(kind: .video), at: index)
+            return index
+        }()
+        tracks[index].insert(clip)
+        return clip.id
     }
 
     /// A track of a kind that's empty over `range`: the preferred one, the

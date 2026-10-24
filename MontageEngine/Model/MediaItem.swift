@@ -36,6 +36,13 @@ public struct MediaItem: Identifiable, Equatable, Sendable {
 
 extension MediaItem: Codable {}
 
+extension MediaItem {
+    /// What a clip of the item holds: a still for an image, else media.
+    public var content: ClipContent {
+        kind == .image ? .image(id) : .media(id)
+    }
+}
+
 /// Where a media item's file is.
 public enum MediaLocation: Equatable, Sendable {
     /// Copied into the project package, at a path relative to the package,

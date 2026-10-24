@@ -1,5 +1,7 @@
 import AppKit
+import MontageEngine
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// A project's window: the library in the sidebar, the editor beside it,
 /// and the inspector on the other side.
@@ -98,6 +100,32 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         return container
     }
 
+    // MARK: - Inserting
+
+    @objc func insertTextLayer(_ sender: Any?) { editor.addText() }
+
+    /// Insert > Shape: the menu item's tag is the shape's place in the list.
+    @objc func insertShapeLayer(_ sender: Any?) {
+        let kinds = ShapeContent.Kind.allCases
+        let index = (sender as? NSMenuItem)?.tag ?? 0
+        editor.addShape(kinds.indices.contains(index) ? kinds[index] : .rectangle)
+    }
+
+    /// Insert > Image: chooses images to import and put at the playhead.
+    @objc func insertImageLayer(_ sender: Any?) {
+        guard let window else { return }
+        let time = editor.insertionTime
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.prompt = String(localized: "Mac.Menu.InsertImage.Prompt")
+        panel.beginSheetModal(for: window) { [importer] response in
+            guard response == .OK else { return }
+            MainActor.assumeIsolated { importer.importFiles(panel.urls, placingAt: time) }
+        }
+    }
+
     // MARK: - Exporting
 
     /// File > Export, and the toolbar's Export button.
@@ -117,12 +145,23 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     @objc func splitClips(_ sender: Any?) { editor.splitAtPlayhead() }
     @objc func detachAudio(_ sender: Any?) { editor.detachAudio() }
     @objc func addMarker(_ sender: Any?) { editor.addMarkerAtPlayhead() }
+    @objc func goToPreviousKeyframe(_ sender: Any?) { editor.goToPreviousKeyframe() }
+    @objc func goToNextKeyframe(_ sender: Any?) { editor.goToNextKeyframe() }
     @objc func toggleSnapping(_ sender: Any?) { editor.timeline.isSnapping.toggle() }
     @objc func zoomInTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1.5) }
     @objc func zoomOutTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1 / 1.5) }
     @objc func toggleProxies(_ sender: Any?) { editor.usesProxies.toggle() }
 
+    /// What the menus can't do while words are typed in the preview: the
+    /// keys would edit the timeline or move the playhead from under them.
+    private static let unavailableWhileTyping: Set<Selector> = [
+        #selector(splitClips(_:)), #selector(detachAudio(_:)), #selector(rippleDelete(_:)), #selector(delete(_:)),
+        #selector(addMarker(_:)), #selector(goToPreviousKeyframe(_:)), #selector(goToNextKeyframe(_:)),
+    ]
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if editor.timeline.editedTextClipID != nil, let action = menuItem.action,
+           Self.unavailableWhileTyping.contains(action) { return false }
         switch menuItem.action {
         case #selector(exportMovie(_:)), #selector(exportFCPXML(_:)): return editor.canExport
         case #selector(importProject(_:)): return !projectImport.isImporting
@@ -130,6 +169,8 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         case #selector(splitClips(_:)): return editor.canSplit
         case #selector(detachAudio(_:)): return editor.canDetachAudio
         case #selector(addMarker(_:)): return editor.playback.hasContent
+        case #selector(goToPreviousKeyframe(_:)): return editor.previousKeyframeTime != nil
+        case #selector(goToNextKeyframe(_:)): return editor.nextKeyframeTime != nil
         case #selector(toggleSnapping(_:)):
             menuItem.state = editor.timeline.isSnapping ? .on : .off
             return true

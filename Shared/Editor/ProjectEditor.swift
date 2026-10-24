@@ -138,6 +138,9 @@ final class ProjectEditor {
     /// there's none.
     var gestureBaseline: Project? { gesture?.baseline }
 
+    /// The name of the gesture under way, or nil when there's none.
+    var gestureActionName: String? { gesture?.actionName }
+
     /// Starts a continuous change, such as a drag, that ends as one undo
     /// step with the given name.
     func beginGesture(_ actionName: String) {

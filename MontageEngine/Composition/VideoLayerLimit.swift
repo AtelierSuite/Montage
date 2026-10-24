@@ -32,7 +32,8 @@ public enum VideoLayerLimit {
         var over = Set<Clip.ID>()
         for track in project.tracks where track.kind == .video && !track.isHidden {
             var placedOnTrack: [CMTimeRange] = []
-            for clip in track.clips {
+            // Only video needs a decoder; stills, text and shapes are drawn.
+            for clip in track.clips where clip.content.hasSourceTime && project.mediaItem(id: clip.mediaID)?.kind != .image {
                 let range = clip.timelineRange
                 if peakOverlap(of: placed, within: range) >= limit {
                     over.insert(clip.id)

@@ -87,6 +87,12 @@ extension ProjectWindowController {
                 do {
                     try self.editor.fcpxml(named: destination.deletingPathExtension().lastPathComponent)
                         .write(to: destination, options: .atomic)
+                    if let message = self.editor.fcpxmlOmissionMessage {
+                        let alert = NSAlert()
+                        alert.messageText = String(localized: "FCPXMLExport.LeftOut.Title")
+                        alert.informativeText = message
+                        alert.beginSheetModal(for: window)
+                    }
                 } catch {
                     NSAlert(error: error).beginSheetModal(for: window)
                 }

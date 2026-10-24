@@ -21,7 +21,7 @@ extension Project {
     public mutating func removeMedia(_ ids: Set<MediaItem.ID>) {
         media.removeAll { ids.contains($0.id) }
         for index in tracks.indices {
-            for clip in tracks[index].clips where ids.contains(clip.mediaID) {
+            for clip in tracks[index].clips where clip.mediaID.map(ids.contains) == true {
                 tracks[index].remove(clip.id)
             }
         }
@@ -36,10 +36,16 @@ extension Project {
         guard let item = mediaItem(id: mediaID) else { return nil }
         let duration = item.kind == .image ? Self.defaultImageDuration : item.metadata.duration
         guard duration.isNumeric, duration > .zero else { return nil }
-        let clip = Clip(mediaID: mediaID, sourceRange: CMTimeRange(start: .zero, duration: duration))
+        let clip = Clip(content: item.content, sourceRange: CMTimeRange(start: .zero, duration: duration))
         let index = firstTrackIndex(of: Self.trackKind(for: item.kind))
         tracks[index].append(clip)
         return clip.id
+    }
+
+    /// Changes a clip in place, on whichever track holds it.
+    public mutating func updateClip(_ id: Clip.ID, _ change: (inout Clip) -> Void) {
+        guard let index = tracks.firstIndex(where: { $0.clip(id: id) != nil }) else { return }
+        tracks[index].update(id, change)
     }
 
     /// The first track of a kind, made if there's none. Video tracks come

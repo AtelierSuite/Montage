@@ -28,6 +28,13 @@ struct EditorControlBar: View {
             .disabled(!playback.hasContent)
 
             HStack(spacing: 16) {
+                AddLayerMenu {
+                    Label("Add.Menu", systemImage: "plus")
+                        .labelStyle(.iconOnly)
+                }
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help(Text("Add.Menu"))
                 control("Edit.Split", systemImage: "scissors") { editor.splitAtPlayhead() }
                     .disabled(!editor.canSplit)
                 control("Edit.DetachAudio", systemImage: "waveform") { editor.detachAudio() }

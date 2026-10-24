@@ -1,4 +1,6 @@
+import CoreGraphics
 import CoreMedia
+import Foundation
 import MontageEngine
 import Observation
 
@@ -13,7 +15,10 @@ final class TimelineState {
     /// The clips selected on the timeline, for the inspector and the edit
     /// commands to act on. IDs of clips since taken off the timeline can
     /// linger; `ProjectEditor.selectedClipIDs` leaves them out.
-    var selectedClipIDs: Set<Clip.ID> = []
+    var selectedClipIDs: Set<Clip.ID> = [] {
+        // Another clip's handles, or none, take the place of a mask's.
+        didSet { if selectedClipIDs != oldValue { editedMaskEffectID = nil } }
+    }
     /// Whether tapping a clip adds it to the selection, or takes it out,
     /// rather than selecting it alone. A modifier key does the same on a Mac.
     var selectsMultiple = false
@@ -27,6 +32,14 @@ final class TimelineState {
     /// the timeline. Either end can be marked without the other.
     var markedIn: CMTime?
     var markedOut: CMTime?
+    /// The effect of the selected clip whose mask the preview has handles
+    /// for, in place of the clip's own.
+    var editedMaskEffectID: Effect.ID?
+    /// The text clip whose words are being typed into in the preview, in
+    /// place of its handles. `ProjectEditor.beginEditingText` starts it.
+    var editedTextClipID: Clip.ID?
+    /// The last tap on the preview's picture, to tell a double tap by.
+    @ObservationIgnored var lastPictureTap: PictureTap?
     /// Whether media from the library is being dragged, for the editor to
     /// give the timeline room to take it.
     var isDraggingMedia = false
@@ -38,4 +51,10 @@ final class TimelineState {
     func zoom(by factor: Double) {
         pointsPerSecond = min(max(pointsPerSecond * factor, Self.zoomRange.lowerBound), Self.zoomRange.upperBound)
     }
+}
+
+/// A tap on the preview's picture: when, and where in the frame.
+struct PictureTap {
+    var date: Date
+    var point: CGPoint
 }

@@ -135,7 +135,7 @@ extension Project {
     public mutating func detachAudio(from id: Clip.ID) -> Clip.ID? {
         guard canDetachAudio(from: id), let (trackIndex, clip) = location(of: id) else { return nil }
         let audio = Clip(
-            mediaID: clip.mediaID, sourceRange: clip.sourceRange, timelineStart: clip.timelineStart,
+            content: clip.content, sourceRange: clip.sourceRange, timelineStart: clip.timelineStart,
             volume: clip.volume, effects: clip.effects.filter { !$0.kind.isVideo }
         )
         tracks[trackIndex].update(id) { clip in

@@ -20,6 +20,7 @@ struct EditorActionBar: View {
                     if let showLibrary {
                         LibraryActions(axis: .horizontal, showLibrary: showLibrary)
                     }
+                    AddActions(axis: .horizontal)
                     EditActions(axis: .horizontal)
                     InspectorActions(axis: .horizontal, isShowingInspector: $isShowingInspector)
                 }
@@ -51,7 +52,10 @@ struct EditorActionPanel: View {
         ScrollView(.vertical) {
             GlassEffectContainer(spacing: 10) {
                 RowsLayout(spacing: 10) {
-                    EditActions(axis: .horizontal)
+                    HStack(spacing: 10) {
+                        AddActions(axis: .horizontal)
+                        EditActions(axis: .horizontal)
+                    }
                     // Kept together, so they don't split across rows.
                     HStack(spacing: 10) {
                         if let showLibrary {
@@ -128,6 +132,24 @@ private struct LibraryActions: View {
     var body: some View {
         ActionGroup(axis: axis) {
             ActionButton("photo.on.rectangle.angled", label: "Toolbar.Library", perform: showLibrary)
+        }
+    }
+}
+
+/// Adds text, a shape or an image at the playhead.
+private struct AddActions: View {
+    let axis: Axis
+
+    var body: some View {
+        ActionGroup(axis: axis) {
+            AddLayerMenu {
+                Image(systemName: "plus")
+                    .font(.system(size: 17))
+                    .frame(width: 42, height: 44)
+                    .contentShape(.circle)
+                    .foregroundStyle(.primary)
+            }
+            .accessibilityLabel(Text("Add.Menu"))
         }
     }
 }

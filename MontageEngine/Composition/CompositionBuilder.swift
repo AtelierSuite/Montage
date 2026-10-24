@@ -15,9 +15,9 @@ import CoreMedia
 /// video clip's own sound goes on its track's audio track unless it has been
 /// detached, and an audio track's clips go on its own. Clips are cut out of
 /// their media with `insertTimeRange`, and gaps between them are empty time,
-/// which draws black and plays silence. A still image's clip is placed with
-/// filler that the compositor draws the image over (see `StillFiller`), and
-/// has no sound. Each audio track of the composition
+/// which draws black and plays silence. Stills, text and shapes are placed
+/// with filler that the compositor draws them over (see `StillFiller`), and
+/// have no sound. Each audio track of the composition
 /// has a tap that runs its clips' audio effects (see `audioTail(for:)` for
 /// the room left for them to ring out).
 ///
@@ -100,6 +100,27 @@ public struct CompositionBuilder: Sendable {
                     skipped.append(SkippedClip(clipID: clip.id, mediaID: clip.mediaID, reason: reason))
                 }
 
+                // Text and shapes have no media: like stills, they're placed
+                // with filler, and the compositor draws them over it.
+                if clip.content.isGenerated {
+                    if track.kind != .video {
+                        skip(.noUsableTrack)
+                    } else if picture != nil {
+                        switch await media.loadFiller() {
+                        case .success(let filler):
+                            do {
+                                if try !picture!.place(clip, drawing: .drawn, naturalSize: .zero, filler: filler, in: composition) {
+                                    skip(.outsideMedia)
+                                }
+                            } catch {
+                                skip(.unreadable)
+                            }
+                        case .failure(let failure):
+                            skip(failure.reason)
+                        }
+                    }
+                    continue
+                }
                 guard let item = project.mediaItem(id: clip.mediaID) else {
                     skip(.mediaNotInProject)
                     continue
@@ -111,10 +132,6 @@ public struct CompositionBuilder: Sendable {
                         continue
                     }
                     guard picture != nil else { continue }
-                    guard !overLimit.contains(clip.id) else {
-                        skip(.tooManyLayers)
-                        continue
-                    }
                     let still: (image: StillImage, filler: SourceTrack)
                     switch await media.loadStill(item) {
                     case .success(let loaded): still = loaded
@@ -123,7 +140,8 @@ public struct CompositionBuilder: Sendable {
                         continue
                     }
                     do {
-                        if try !picture!.place(clip, still: still.image, filler: still.filler, in: composition) {
+                        if try !picture!.place(clip, drawing: .still(still.image), naturalSize: still.image.size,
+                                               filler: still.filler, in: composition) {
                             skip(.outsideMedia)
                         }
                     } catch {
@@ -258,9 +276,11 @@ public struct CompositionBuilder: Sendable {
     /// start at the top left.
     static func layerTransform(
         naturalSize: CGSize, preferredTransform: CGAffineTransform, clipTransform: ClipTransform,
-        renderSize: CGSize, at localTime: CMTime
+        renderSize: CGSize, at localTime: CMTime, fit: FrameFit = .fit
     ) -> CGAffineTransform {
-        FrameComposer.fitTransform(naturalSize: naturalSize, preferredTransform: preferredTransform, renderSize: renderSize)
+        FrameComposer.fitTransform(
+            naturalSize: naturalSize, preferredTransform: preferredTransform, renderSize: renderSize, fit: fit
+        )
             .concatenating(FrameComposer.clipTransform(clipTransform, renderSize: renderSize, at: localTime))
     }
 }
@@ -336,8 +356,8 @@ private struct LayerWriter {
         switch kind {
         case .video:
             placements.append(CompositorLayer(
-                trackID: compositionTrack.trackID, clip: clip,
-                naturalSize: source.naturalSize, preferredTransform: source.preferredTransform, still: nil
+                source: .track(compositionTrack.trackID), clip: clip,
+                naturalSize: source.naturalSize, preferredTransform: source.preferredTransform
             ))
         case .audio:
             let ramps = clip.volume.ramps(over: timelineRange, clipStart: clip.timelineStart)
@@ -351,12 +371,14 @@ private struct LayerWriter {
         return true
     }
 
-    /// Puts a still image's clip at its place on the timeline, after empty
-    /// time from the clip before: the filler, stretched to the clip's
-    /// length, holds its time, and the compositor draws the image over it.
-    /// False when an earlier clip covers all of it.
+    /// Puts a clip the compositor draws itself (a still, text or a shape) at
+    /// its place on the timeline, after empty time from the clip before: the
+    /// filler, stretched to the clip's length, holds its time, and the
+    /// compositor draws the picture over it. False when an earlier clip
+    /// covers all of it.
     mutating func place(
-        _ clip: Clip, still: StillImage, filler: SourceTrack, in composition: AVMutableComposition
+        _ clip: Clip, drawing source: CompositorLayer.Source, naturalSize: CGSize, filler: SourceTrack,
+        in composition: AVMutableComposition
     ) throws -> Bool {
         var sourceRange = clip.sourceRange
         var start = clip.timelineStart
@@ -380,9 +402,7 @@ private struct LayerWriter {
         ringsUntil = .negativeInfinity
         lastPlaced = nil
         segments.append(CompositionLayer.Segment(clipID: clip.id, mediaID: clip.mediaID, timelineRange: timelineRange, sourceRange: sourceRange))
-        placements.append(CompositorLayer(
-            trackID: compositionTrack.trackID, clip: clip, naturalSize: still.size, preferredTransform: .identity, still: still
-        ))
+        placements.append(CompositorLayer(source: source, clip: clip, naturalSize: naturalSize, preferredTransform: .identity))
         return true
     }
 
@@ -469,17 +489,24 @@ private struct MediaLoader {
             stills[item.id] = .failure(failure)
             return .failure(failure)
         }
+        return await loadFiller().map { (image, $0) }
+    }
+
+    /// The filler that stills, text and shapes are placed with, opened once
+    /// per build.
+    mutating func loadFiller() async -> Result<SourceTrack, LoadFailure> {
         if filler == nil {
-            filler = if let url = try? await StillFiller.shared.url() {
-                await Self.open(url)
-            } else {
-                .failure(LoadFailure(reason: .unreadable))
+            do {
+                filler = await Self.open(try await StillFiller.shared.url())
+            } catch {
+                StillFiller.logger.error("Couldn't make the filler: \(error.localizedDescription, privacy: .public)")
+                filler = .failure(LoadFailure(reason: .unreadable))
             }
         }
         switch filler! {
         case .success(let loaded):
             guard let video = loaded.video else { return .failure(LoadFailure(reason: .unreadable)) }
-            return .success((image, video))
+            return .success(video)
         case .failure(let failure): return .failure(failure)
         }
     }
@@ -488,7 +515,7 @@ private struct MediaLoader {
         guard let url = resolver.url(for: item), (try? url.checkResourceIsReachable()) == true else {
             return .failure(LoadFailure(reason: .fileNotFound))
         }
-        guard let image = StillImage(url: url) else { return .failure(LoadFailure(reason: .unreadable)) }
+        guard let image = StillImage(id: item.id, url: url) else { return .failure(LoadFailure(reason: .unreadable)) }
         return .success(image)
     }
 

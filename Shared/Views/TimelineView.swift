@@ -171,6 +171,7 @@ struct TimelineView: View {
                 .contentShape(.rect)
                 .gesture(scrubbing(layout))
             trimHandles(layout, visible: origin...(origin + canvasWidth))
+            TimelineKeyframes(layout: layout, space: Self.space)
         }
         .frame(width: width, height: height, alignment: .topLeading)
         .overlay(alignment: .topLeading) {
@@ -502,7 +503,7 @@ struct TimelineView: View {
         var heard = Set<MediaItem.ID>()
         for track in editor.project.tracks {
             for clip in track.clips where track.kind == .audio || !clip.isAudioDetached {
-                heard.insert(clip.mediaID)
+                if let mediaID = clip.mediaID { heard.insert(mediaID) }
             }
         }
         return editor.project.media.filter { heard.contains($0.id) && $0.kind != .image && $0.metadata.hasAudio }

@@ -31,6 +31,12 @@ struct TimelineOptionsMenu<Label: View>: View {
                 Button("Edit.SelectAll", systemImage: "checklist") { editor.selectAllClips() }
             }
             Section {
+                Button("Inspector.Keyframes.Previous", systemImage: "chevron.left.2") { editor.goToPreviousKeyframe() }
+                    .disabled(editor.previousKeyframeTime == nil)
+                Button("Inspector.Keyframes.Next", systemImage: "chevron.right.2") { editor.goToNextKeyframe() }
+                    .disabled(editor.nextKeyframeTime == nil)
+            }
+            Section {
                 Toggle("Preview.UseProxies", systemImage: "rectangle.compress.vertical", isOn: $editor.usesProxies)
             }
             Section {

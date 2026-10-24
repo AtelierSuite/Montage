@@ -112,4 +112,12 @@ public enum ProjectInterchange {
     public static func fcpxml(for project: Project, named name: String, mediaResolver: MediaResolver) -> Data {
         FCPXMLExporter(project: project, name: name, mediaResolver: mediaResolver).document()
     }
+
+    /// The clips FCPXML can't carry, which are left out: shapes, which have
+    /// no generator of Final Cut's to map to, and text with no words, which
+    /// Final Cut would fill with its title's own. Other text goes out as
+    /// titles.
+    public static func clipsLeftOutOfFCPXML(in project: Project) -> [Clip.ID] {
+        project.tracks.flatMap(\.clips).filter(FCPXMLExporter.isLeftOut).map(\.id)
+    }
 }

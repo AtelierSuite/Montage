@@ -1,3 +1,4 @@
+import MontageEngine
 import SwiftUI
 
 /// Where the project plays back: a frame the shape of the project's video,
@@ -17,6 +18,9 @@ struct PreviewArea: View {
     @Environment(\.previewFrameReporter) private var previewFrameReporter
     @Environment(\.hidesPreviewPicture) private var hidesPreviewPicture
     @State private var showsControls = true
+    /// The size the picture's laid out at, for taps on it to find the
+    /// layer under them.
+    @State private var pictureSize = CGSize.zero
 
     var body: some View {
         if fillsWidth {
@@ -44,6 +48,7 @@ struct PreviewArea: View {
                 .opacity(hidesPreviewPicture ? 0 : 1)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
                     previewFrameReporter?(frame)
+                    pictureSize = frame.size
                 }
                 .modifier(PreviewTransitionSource(transition: previewTransition))
                 .accessibilityElement()
@@ -57,6 +62,11 @@ struct PreviewArea: View {
                     }
                 }
                 .overlay { ScreenshotStill(playback: editor.playback) }
+                .overlay {
+                    if !showsPlaybackOverlay && !hidesPreviewPicture {
+                        PreviewCanvas()
+                    }
+                }
                 .overlay {
                     if showsPlaybackOverlay && !hidesPreviewPicture {
                         PlaybackOverlay(playback: editor.playback, isShown: $showsControls) {
@@ -72,6 +82,9 @@ struct PreviewArea: View {
                                 }
                             }
                         }
+                        .canvas(onTapPicture: tapPicture(at:)) { tap in
+                            PreviewCanvas(catchesTaps: false, onTapPicture: tap)
+                        }
                     }
                 }
         } else {
@@ -81,6 +94,31 @@ struct PreviewArea: View {
                     message(systemImage: "film", title: "Preview.Empty.Title", detail: Text("Preview.Empty.Message"))
                 }
         }
+    }
+
+    /// A tap on the picture under the playback controls: picks the layer
+    /// under it, or types into text tapped twice, and says so, unless it's
+    /// picked already, when the tap shows or hides the controls as ever.
+    /// Away from every layer, it lets go of the selection.
+    private func tapPicture(at location: CGPoint) -> Bool {
+        guard !editor.playback.isPlaying else { return false }
+        let mapping = PreviewMapping(renderSize: editor.project.settings.renderSize, viewSize: pictureSize)
+        let point = mapping.renderPoint(fromView: location)
+        // A double tap on text types into it, with the controls out of the
+        // way; any other tap stops typing.
+        if editor.doubleTapEditsText(at: point) {
+            showsControls = false
+            return true
+        }
+        if editor.timeline.editedTextClipID != nil {
+            editor.endEditingText()
+            return true
+        }
+        let layer = editor.project.layer(at: point, time: editor.playback.currentTime, excluding: editor.clipsLeftOutOfPicture)
+        guard layer?.clipID != editor.selectedClip?.id || layer == nil else { return false }
+        if layer == nil && editor.selectedClipIDs.isEmpty { return false }
+        editor.selectLayer(at: point)
+        return layer != nil
     }
 
     private func message(systemImage: String, title: LocalizedStringKey, detail: Text) -> some View {

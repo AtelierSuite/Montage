@@ -28,7 +28,7 @@ final class CompositorInstruction: NSObject, AVVideoCompositionInstructionProtoc
     let enablePostProcessing = false
     let containsTweening = true
     let passthroughTrackID = kCMPersistentTrackID_Invalid
-    var requiredSourceTrackIDs: [NSValue]? { layers.map { NSNumber(value: $0.trackID) } }
+    var requiredSourceTrackIDs: [NSValue]? { layers.compactMap { $0.trackID.map { NSNumber(value: $0) } } }
 
     init(timeRange: CMTimeRange, layers: [CompositorLayer], snapshot: ProjectSnapshot, renderSize: CGSize, usesGPU: Bool) {
         self.timeRange = timeRange
@@ -39,11 +39,21 @@ final class CompositorInstruction: NSObject, AVVideoCompositionInstructionProtoc
     }
 }
 
-/// A clip as one layer of a frame: which composition track carries its
-/// picture, and how to turn that picture upright.
+/// A clip as one layer of a frame: where its picture comes from, and how to
+/// turn that picture upright.
 struct CompositorLayer: Sendable {
-    /// The composition track carrying the clip's picture.
-    let trackID: CMPersistentTrackID
+    enum Source: Sendable {
+        /// A frame of the composition track carrying the clip's video.
+        case track(CMPersistentTrackID)
+        /// A still image, drawn in place of the frames of the filler its
+        /// clip is placed with.
+        case still(StillImage)
+        /// Text or a shape, drawn from the clip as it is at each frame, in
+        /// place of the filler's frames.
+        case drawn
+    }
+
+    let source: Source
     /// The clip as it was when the composition was built: where it starts,
     /// which its keyframes are timed from, and its parameters should it be
     /// gone from the snapshot before the rebuild that drops it.
@@ -52,7 +62,10 @@ struct CompositorLayer: Sendable {
     let naturalSize: CGSize
     /// How the media's frames are turned to show upright.
     let preferredTransform: CGAffineTransform
-    /// For a still image's clip, the image drawn in place of the track's
-    /// frames, which are only filler.
-    let still: StillImage?
+
+    /// The composition track carrying the clip's picture, if it's video.
+    var trackID: CMPersistentTrackID? {
+        if case .track(let id) = source { return id }
+        return nil
+    }
 }

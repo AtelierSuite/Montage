@@ -2,7 +2,8 @@ import CoreMedia
 import MontageEngine
 import SwiftUI
 
-/// The inspector for a clip: its video effects in the order they apply,
+/// The inspector for a clip: the formatting of text or a shape, where the
+/// picture sits in the frame, its video effects in the order they apply,
 /// each with its parameters at the playhead, and a menu to add more, then
 /// its sound and audio effects.
 struct ClipInspector: View {
@@ -14,10 +15,18 @@ struct ClipInspector: View {
         let effects = clip.effects.filter(\.kind.isVideo)
         Form {
             Section {
-                Text(verbatim: editor.project.mediaItem(id: clip.mediaID)?.name ?? "")
+                Text(verbatim: name)
                     .font(.headline)
             }
+            KeyframeControls(clip: clip)
             if track.kind == .video {
+                let editing = ClipEditing(editor: editor, clip: clip)
+                switch clip.content {
+                case .text: TextInspector(editing: editing)
+                case .shape: ShapeInspector(editing: editing)
+                case .media, .image: EmptyView()
+                }
+                LayerControls(clip: clip)
                 ForEach(effects) { effect in
                     EffectSection(
                         editing: EffectEditing(editor: editor, clip: clip, effect: effect),
@@ -40,6 +49,15 @@ struct ClipInspector: View {
             AudioEffectsSection(clipID: clip.id)
         }
         .formStyle(.grouped)
+    }
+
+    /// The media's name, or what kind of layer the clip is.
+    private var name: String {
+        switch clip.content {
+        case .media(let id), .image(let id): editor.project.mediaItem(id: id)?.name ?? ""
+        case .text: String(localized: "Inspector.Text.Title")
+        case .shape(let shape): shape.kind.title
+        }
     }
 
     private var addMenu: some View {
