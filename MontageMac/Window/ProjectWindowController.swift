@@ -10,8 +10,11 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
 
     private static let exportItem = NSToolbarItem.Identifier("Export")
 
-    private let editor: ProjectEditor
+    let editor: ProjectEditor
     private let importer: MediaImporter
+    /// Brings in projects from other editors, with their media staged
+    /// where the library's imports are.
+    private(set) lazy var projectImport = ProjectImport(editor: editor) { [importer] in importer.store }
 
     init(editor: ProjectEditor, importer: MediaImporter) {
         self.editor = editor
@@ -73,10 +76,26 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.prompt = String(localized: "Library.Import")
+        panel.accessoryView = Self.referenceOption()
+        panel.isAccessoryViewDisclosed = true
         panel.beginSheetModal(for: window) { [importer] response in
             guard response == .OK else { return }
             MainActor.assumeIsolated { importer.importFiles(panel.urls) }
         }
+    }
+
+    /// The open panel's choice to leave files where they are, kept for next
+    /// time, and for files dragged in from the Finder.
+    private static func referenceOption() -> NSView {
+        let checkbox = NSButton(checkboxWithTitle: String(localized: "Mac.Import.ReferenceInPlace"), target: nil, action: nil)
+        checkbox.bind(.value, to: NSUserDefaultsController.shared,
+                      withKeyPath: "values.\(MediaImporter.referencesFilesInPlaceKey)", options: nil)
+        checkbox.toolTip = String(localized: "Mac.Import.ReferenceInPlace.Help")
+        checkbox.sizeToFit()
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: checkbox.frame.width + 40, height: checkbox.frame.height + 20))
+        checkbox.setFrameOrigin(NSPoint(x: 20, y: 10))
+        container.addSubview(checkbox)
+        return container
     }
 
     // MARK: - Exporting
@@ -88,9 +107,33 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         ExportSavePanel.begin(for: window, editor: editor, title: title)
     }
 
+    // MARK: - Editing
+
+    /// Edit > Delete, when no text takes it first: the selected clips.
+    @objc func delete(_ sender: Any?) { editor.deleteSelection() }
+    @objc func rippleDelete(_ sender: Any?) { editor.deleteSelection(ripple: true) }
+    /// Edit > Select All, when no text takes it first: every clip.
+    override func selectAll(_ sender: Any?) { editor.selectAllClips() }
+    @objc func splitClips(_ sender: Any?) { editor.splitAtPlayhead() }
+    @objc func detachAudio(_ sender: Any?) { editor.detachAudio() }
+    @objc func addMarker(_ sender: Any?) { editor.addMarkerAtPlayhead() }
+    @objc func toggleSnapping(_ sender: Any?) { editor.timeline.isSnapping.toggle() }
+    @objc func zoomInTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1.5) }
+    @objc func zoomOutTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1 / 1.5) }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(exportMovie(_:)) { return editor.canExport }
-        return true
+        switch menuItem.action {
+        case #selector(exportMovie(_:)), #selector(exportFCPXML(_:)): return editor.canExport
+        case #selector(importProject(_:)): return !projectImport.isImporting
+        case #selector(delete(_:)), #selector(rippleDelete(_:)): return editor.canDelete
+        case #selector(splitClips(_:)): return editor.canSplit
+        case #selector(detachAudio(_:)): return editor.canDetachAudio
+        case #selector(addMarker(_:)): return editor.playback.hasContent
+        case #selector(toggleSnapping(_:)):
+            menuItem.state = editor.timeline.isSnapping ? .on : .off
+            return true
+        default: return true
+        }
     }
 
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {

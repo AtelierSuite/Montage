@@ -35,6 +35,8 @@ struct ProjectEditorView: View {
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
     @State private var isShowingExport = false
     @State private var isShowingExports = false
+    @State private var isImportingProject = false
+    @State private var isExportingFCPXML = false
     /// The document's location while it's being read from, for media in it.
     @State private var accessedURL: URL?
 
@@ -43,7 +45,10 @@ struct ProjectEditorView: View {
         self.fileURL = fileURL
         let media = document.wrappedValue.media
         media.packageURL = fileURL
-        let editor = ProjectEditor(project: document.wrappedValue.project, mediaResolver: media.resolver)
+        document.wrappedValue.cache.packageURL = fileURL
+        let editor = ProjectEditor(
+            project: document.wrappedValue.project, mediaResolver: media.resolver, cache: document.wrappedValue.cache
+        )
         _editor = State(initialValue: editor)
         _importer = State(initialValue: MediaImporter(store: media, editor: editor))
     }
@@ -54,10 +59,11 @@ struct ProjectEditorView: View {
             .environment(importer)
             .onAppear {
                 attach(to: undoManager)
-                locateMedia(at: fileURL)
                 // Every edit goes back into the document, which marks it
                 // as changed so it's saved.
                 editor.onChange = { [$document] project in $document.wrappedValue.project = project }
+                editor.takeRefreshedBookmarks = { [media = document.media] in media.bookmarks.takeRefreshedBookmarks() }
+                locateMedia(at: fileURL)
             }
             .onChange(of: undoManager) { _, undoManager in attach(to: undoManager) }
             // Closing the document; the player goes with the editor.
@@ -83,6 +89,7 @@ struct ProjectEditorView: View {
             accessedURL = url?.startAccessingSecurityScopedResource() == true ? url : nil
         }
         document.media.packageURL = url
+        document.cache.packageURL = url
         editor.mediaResolver = document.media.resolver
         importer.store = document.media
     }
@@ -156,6 +163,10 @@ struct ProjectEditorView: View {
             ExportsSheet(queue: ExportCenter.queue)
                 .presentationDetents([.medium, .large])
         }
+        .projectInterchange(
+            editor: editor, importer: importer, title: projectTitle,
+            isImporting: $isImportingProject, isExporting: $isExportingFCPXML
+        )
     }
 
     /// The floating preview, in a window over the whole app, while it
@@ -245,6 +256,11 @@ struct ProjectEditorView: View {
                 if !ExportCenter.queue.jobs.isEmpty {
                     Button("Toolbar.Exports", systemImage: "list.bullet") { isShowingExports = true }
                 }
+            }
+            Section {
+                Button("Toolbar.ImportProject", systemImage: "square.and.arrow.down") { isImportingProject = true }
+                Button("Toolbar.ExportFCPXML", systemImage: "film.stack") { isExportingFCPXML = true }
+                    .disabled(!editor.canExport)
             }
         }
         .accessibilityIdentifier("more")

@@ -7,11 +7,15 @@ public struct Effect: Identifiable, Equatable, Sendable, Codable {
     /// Turned off, the effect stays on the clip but is skipped.
     public var isEnabled: Bool
     public var kind: Kind
+    /// Limits a video effect to part of the picture; nil applies it to all
+    /// of it.
+    public var mask: Mask?
 
-    public init(id: UUID = UUID(), isEnabled: Bool = true, _ kind: Kind) {
+    public init(id: UUID = UUID(), isEnabled: Bool = true, _ kind: Kind, mask: Mask? = nil) {
         self.id = id
         self.isEnabled = isEnabled
         self.kind = kind
+        self.mask = mask
     }
 
     public enum Kind: Equatable, Sendable {
@@ -24,12 +28,15 @@ public struct Effect: Identifiable, Equatable, Sendable, Codable {
         case equalizer(Equalizer)
         case delay(Delay)
         case reverb(Reverb)
+        // Imported
+        case unsupported(UnsupportedEffect)
 
         /// Whether the effect changes the picture rather than the sound.
         public var isVideo: Bool {
             switch self {
             case .colorCorrection, .mosaic: true
             case .gain, .pan, .equalizer, .delay, .reverb: false
+            case .unsupported(let effect): effect.isVideo
             }
         }
 
@@ -52,7 +59,7 @@ extension Effect.Kind: Codable {
     }
 
     private enum KindType: String, Codable {
-        case colorCorrection, mosaic, gain, pan, equalizer, delay, reverb
+        case colorCorrection, mosaic, gain, pan, equalizer, delay, reverb, unsupported
     }
 
     public init(from decoder: Decoder) throws {
@@ -65,6 +72,7 @@ extension Effect.Kind: Codable {
         case .equalizer: self = .equalizer(try container.decode(Equalizer.self, forKey: .parameters))
         case .delay: self = .delay(try container.decode(Delay.self, forKey: .parameters))
         case .reverb: self = .reverb(try container.decode(Reverb.self, forKey: .parameters))
+        case .unsupported: self = .unsupported(try container.decode(UnsupportedEffect.self, forKey: .parameters))
         }
     }
 
@@ -92,40 +100,16 @@ extension Effect.Kind: Codable {
         case .reverb(let parameters):
             try container.encode(KindType.reverb, forKey: .type)
             try container.encode(parameters, forKey: .parameters)
+        case .unsupported(let parameters):
+            try container.encode(KindType.unsupported, forKey: .type)
+            try container.encode(parameters, forKey: .parameters)
         }
     }
 }
 
 // MARK: - Video effects
-
-/// Exposure, contrast and colour. Neutral values leave the picture as it is.
-public struct ColorCorrection: Equatable, Sendable, Codable {
-    /// In stops: -1 halves the light, 1 doubles it.
-    public var exposure = Animatable(0.0)
-    /// 1 is unchanged.
-    public var contrast = Animatable(1.0)
-    /// 1 is unchanged, 0 is greyscale.
-    public var saturation = Animatable(1.0)
-    /// White balance, in kelvin; 6500 is unchanged.
-    public var temperature = Animatable(6500.0)
-    /// Green to magenta; 0 is unchanged.
-    public var tint = Animatable(0.0)
-
-    public init() {}
-}
-
-/// Hides part of the picture, such as a face or a number plate.
-public struct Mosaic: Equatable, Sendable, Codable {
-    public enum Style: String, Equatable, Sendable, Codable {
-        case pixelate, blur, checkerboard
-    }
-
-    public var style: Style = .pixelate
-    /// How coarse the mosaic is, as a fraction of the frame's width.
-    public var scale = Animatable(0.03)
-
-    public init() {}
-}
+//
+// `ColorCorrection` and `Mosaic` are in files of their own.
 
 // MARK: - Audio effects
 

@@ -21,6 +21,13 @@ extension CGPoint: Interpolatable {
     }
 }
 
+extension CGSize: Interpolatable {
+    public static func interpolate(from: CGSize, to: CGSize, fraction: Double) -> CGSize {
+        CGSize(width: .interpolate(from: from.width, to: to.width, fraction: fraction),
+               height: .interpolate(from: from.height, to: to.height, fraction: fraction))
+    }
+}
+
 extension CGFloat: Interpolatable {
     public static func interpolate(from: CGFloat, to: CGFloat, fraction: Double) -> CGFloat {
         from + (to - from) * fraction
@@ -142,13 +149,18 @@ extension Keyframe: Codable {
 }
 
 /// How a value travels from one keyframe to the next.
-public enum Interpolation: String, Codable, Sendable, CaseIterable {
+public enum Interpolation: Equatable, Hashable, Sendable {
     /// Holds this keyframe's value until the next one, then jumps.
     case hold
     case linear
     case easeIn
     case easeOut
     case easeInOut
+    /// Follows a curve of its own, shaped as CSS's `cubic-bezier()` is.
+    case bezier(TimingCurve)
+
+    /// The ways a value can travel that have a name of their own.
+    public static let named: [Interpolation] = [.hold, .linear, .easeIn, .easeOut, .easeInOut]
 
     /// Maps the straight fraction of the way between two keyframes to the
     /// fraction of the way between their values.
@@ -159,6 +171,51 @@ public enum Interpolation: String, Codable, Sendable, CaseIterable {
         case .easeIn: t * t
         case .easeOut: 1 - (1 - t) * (1 - t)
         case .easeInOut: t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t)
+        case .bezier(let curve): curve.progress(at: t)
         }
+    }
+}
+
+// The named ways are written as their names, as they always have been; a
+// curve of its own is written as its control points.
+extension Interpolation: Codable {
+    private enum Name: String, Codable {
+        case hold, linear, easeIn, easeOut, easeInOut
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case bezier
+    }
+
+    public init(from decoder: Decoder) throws {
+        if let name = try? decoder.singleValueContainer().decode(Name.self) {
+            switch name {
+            case .hold: self = .hold
+            case .linear: self = .linear
+            case .easeIn: self = .easeIn
+            case .easeOut: self = .easeOut
+            case .easeInOut: self = .easeInOut
+            }
+        } else {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self = .bezier(try container.decode(TimingCurve.self, forKey: .bezier))
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        let name: Name
+        switch self {
+        case .hold: name = .hold
+        case .linear: name = .linear
+        case .easeIn: name = .easeIn
+        case .easeOut: name = .easeOut
+        case .easeInOut: name = .easeInOut
+        case .bezier(let curve):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(curve, forKey: .bezier)
+            return
+        }
+        var container = encoder.singleValueContainer()
+        try container.encode(name)
     }
 }

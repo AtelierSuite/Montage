@@ -60,6 +60,7 @@ struct ProjectCodingTests {
         )
         clip.opacity.setKeyframe(Keyframe(time: .zero, value: 0, interpolation: .easeIn))
         clip.opacity.setKeyframe(Keyframe(time: CMTime(value: 1, timescale: 1), value: 1))
+        clip.blendMode = .screen
         clip.effects = [Effect(.colorCorrection(ColorCorrection())), Effect(isEnabled: false, .reverb(Reverb()))]
         return Project(
             settings: ProjectSettings(frameDuration: CMTime(value: 1001, timescale: 30000)),
@@ -83,6 +84,14 @@ struct ProjectCodingTests {
         #expect(project.tracks.isEmpty)
         #expect(project.media.isEmpty)
         #expect(project.settings == ProjectSettings())
+    }
+
+    @Test func aClipFromBeforeBlendModesIsNormal() throws {
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(sampleProject().tracks[0].clips[0])) as! [String: Any]
+        #expect(json["blendMode"] as? String == "screen")
+        json["blendMode"] = nil
+        let clip = try JSONDecoder().decode(Clip.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(clip.blendMode == .normal)
     }
 
     @Test func effectsNameTheirKind() throws {

@@ -86,11 +86,26 @@ public actor ThumbnailCache {
         /// The size, in pixels, that the thumbnail covers.
         public var width: Int
         public var height: Int
+        /// For a frame of a strip, the time in the media it's from, in
+        /// milliseconds; nil for the picture that stands for the whole item.
+        public var milliseconds: Int64?
 
         public init(mediaID: MediaItem.ID, size: CGSize) {
             self.mediaID = mediaID
             width = Int(size.width.rounded(.up))
             height = Int(size.height.rounded(.up))
+        }
+
+        /// A frame of a strip: `height` pixels tall, as wide as the picture's
+        /// shape makes it.
+        public init(mediaID: MediaItem.ID, height: CGFloat, time: CMTime) {
+            self.init(mediaID: mediaID, size: CGSize(width: 0, height: height))
+            milliseconds = time.isNumeric ? Int64((time.seconds * 1000).rounded()) : 0
+        }
+
+        /// The time a strip's frame is from.
+        public var time: CMTime? {
+            milliseconds.map { CMTime(value: $0, timescale: 1000) }
         }
 
         public var size: CGSize { CGSize(width: width, height: height) }
@@ -112,7 +127,15 @@ public actor ThumbnailCache {
     /// Nil for audio, or for a file that can't be read.
     public func thumbnail(for item: MediaItem, at url: URL, filling size: CGSize) async -> CGImage? {
         guard item.kind != .audio else { return nil }
-        let key = Key(mediaID: item.id, size: size)
+        let kind = item.kind
+        return await image(for: Key(mediaID: item.id, size: size)) { key in
+            try? await ThumbnailGenerator.thumbnail(of: url, kind: kind, filling: key.size)
+        }
+    }
+
+    /// The image for a key: kept in memory, else from the store, else made
+    /// and handed to the store.
+    func image(for key: Key, make: @escaping @Sendable (Key) async -> CGImage?) async -> CGImage? {
         if let image = images[key] {
             touch(key)
             return image
@@ -120,12 +143,9 @@ public actor ThumbnailCache {
         if let task = inFlight[key] { return await task.value }
 
         let store = store
-        let kind = item.kind
         let task = Task.detached(priority: .utility) { () -> CGImage? in
             if let image = await store?.thumbnail(for: key) { return image }
-            guard let image = try? await ThumbnailGenerator.thumbnail(of: url, kind: kind, filling: key.size) else {
-                return nil
-            }
+            guard let image = await make(key) else { return nil }
             await store?.store(image, for: key)
             return image
         }

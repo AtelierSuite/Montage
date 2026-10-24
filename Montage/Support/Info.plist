@@ -71,8 +71,55 @@
 	</array>
 	<key>UISupportsDocumentBrowser</key>
 	<true/>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.xml</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Final Cut Pro XML</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.apple.finalcutpro.xml</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>fcpxml</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.package</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Final Cut Pro XML Bundle</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.apple.finalcutpro.xmld</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>fcpxmld</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Montage Media Reference</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.tsubuzaki.Montage.media-reference</string>
+		</dict>
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>

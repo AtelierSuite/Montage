@@ -132,15 +132,27 @@ private struct LibraryActions: View {
     }
 }
 
-/// Nothing to edit until clips can be selected.
+/// The edits to the selected clips, or at the playhead, and how the
+/// timeline edits. Split and Delete have their keys for a hardware keyboard.
 private struct EditActions: View {
     let axis: Axis
+    @Environment(ProjectEditor.self) private var editor
 
     var body: some View {
         ActionGroup(axis: axis) {
-            ActionButton("scissors", label: "Edit.Split", isEnabled: false) {}
-            ActionButton("waveform", label: "Edit.DetachAudio", isEnabled: false) {}
-            ActionButton("trash", label: "Edit.Delete", isEnabled: false) {}
+            ActionButton("scissors", label: "Edit.Split", isEnabled: editor.canSplit) { editor.splitAtPlayhead() }
+                .keyboardShortcut("b", modifiers: .command)
+            ActionButton("waveform", label: "Edit.DetachAudio", isEnabled: editor.canDetachAudio) { editor.detachAudio() }
+            ActionButton("trash", label: "Edit.Delete", isEnabled: editor.canDelete) { editor.deleteSelection() }
+                .keyboardShortcut(.delete, modifiers: .command)
+            TimelineOptionsMenu {
+                Image(systemName: "slider.horizontal.below.rectangle")
+                    .font(.system(size: 17))
+                    .frame(width: 42, height: 44)
+                    .contentShape(.circle)
+                    .foregroundStyle(.primary)
+            }
+            .accessibilityLabel(Text("Timeline.Options"))
         }
     }
 }
