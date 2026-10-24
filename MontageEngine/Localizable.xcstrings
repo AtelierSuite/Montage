@@ -1,0 +1,28 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "MediaProbe.Error.Unsupported" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” can’t be imported."
+          }
+        }
+      }
+    },
+    "MediaProbe.Error.Unsupported.Suggestion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montage imports movies, audio and images this device can play, such as MOV, MP4, M4A, MP3, JPEG, PNG and HEIC files. AVI files and protected media can’t be imported."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
