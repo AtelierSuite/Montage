@@ -23,7 +23,7 @@ struct KeyframeControls: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                     .accessibilityLabel(Text(verbatim: String(
-                        format: String(localized: "Inspector.Keyframes.Count"), times.count.formatted()
+                        format: String(localized: "Inspector.Keyframes.Count"), times.count
                     )))
                 Image(systemName: "diamond")
                     .foregroundStyle(.secondary)
