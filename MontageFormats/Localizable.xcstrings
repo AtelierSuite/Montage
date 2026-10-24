@@ -67,6 +67,248 @@
         }
       }
     },
+    "Interchange.Error.NoTimeline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There’s no project timeline in this file to import."
+          }
+        }
+      }
+    },
+    "Interchange.Error.Unreadable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The project file couldn’t be read. It may be damaged, or not finished being written."
+          }
+        }
+      }
+    },
+    "Interchange.Error.UnsupportedFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file isn’t a project Montage can import. Montage imports FCPXML from Final Cut Pro or LumaFusion, and Final Cut Pro 7 XML from Premiere Pro."
+          }
+        }
+      }
+    },
+    "Interchange.Format.FCPXML" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Cut Pro XML"
+          }
+        }
+      }
+    },
+    "Interchange.Format.XMEML" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Cut Pro 7 XML"
+          }
+        }
+      }
+    },
+    "Interchange.Issue.AuditionAlternatives" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the audition’s chosen clip was imported, without its %lld other picks."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.Caption" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A caption was left out."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.DisabledClip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The clip was turned off, so it was left out."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.Generator" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The generator “%@” was left out."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.Marker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A marker was left out."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.MarkerNamed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The marker “%@” was left out."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.MissingMedia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file wasn’t found at %@. Relink it to play the clips made from it."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.MovedToNewTrack" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The clip overlapped another, so it was moved to a track of its own."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.NestedSettings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The clip was inside a compound or multicam clip whose settings it had too, so its own were kept."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.OtherTimelines" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the first timeline was imported; the file has %lld more."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.Setting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ has no match in Montage, so it was left out."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.SpeedChange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The clip’s speed change was left out, so it plays at normal speed."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A title was left out."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.TitleText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The title “%@” was left out."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.Transition" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The transition “%@” was replaced with a cut halfway through it."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.Uneven" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ was different across and down, so the across value was used for both."
+          }
+        }
+      }
+    },
+    "Interchange.Issue.UnsupportedEffect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” has no match in Montage. It’s kept on the clip, turned off."
+          }
+        }
+      }
+    },
     "ProjectPackage.Error.NewerFormat" : {
       "extractionState" : "manual",
       "localizations" : {

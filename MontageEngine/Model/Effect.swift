@@ -28,12 +28,15 @@ public struct Effect: Identifiable, Equatable, Sendable, Codable {
         case equalizer(Equalizer)
         case delay(Delay)
         case reverb(Reverb)
+        // Imported
+        case unsupported(UnsupportedEffect)
 
         /// Whether the effect changes the picture rather than the sound.
         public var isVideo: Bool {
             switch self {
             case .colorCorrection, .mosaic: true
             case .gain, .pan, .equalizer, .delay, .reverb: false
+            case .unsupported(let effect): effect.isVideo
             }
         }
 
@@ -56,7 +59,7 @@ extension Effect.Kind: Codable {
     }
 
     private enum KindType: String, Codable {
-        case colorCorrection, mosaic, gain, pan, equalizer, delay, reverb
+        case colorCorrection, mosaic, gain, pan, equalizer, delay, reverb, unsupported
     }
 
     public init(from decoder: Decoder) throws {
@@ -69,6 +72,7 @@ extension Effect.Kind: Codable {
         case .equalizer: self = .equalizer(try container.decode(Equalizer.self, forKey: .parameters))
         case .delay: self = .delay(try container.decode(Delay.self, forKey: .parameters))
         case .reverb: self = .reverb(try container.decode(Reverb.self, forKey: .parameters))
+        case .unsupported: self = .unsupported(try container.decode(UnsupportedEffect.self, forKey: .parameters))
         }
     }
 
@@ -95,6 +99,9 @@ extension Effect.Kind: Codable {
             try container.encode(parameters, forKey: .parameters)
         case .reverb(let parameters):
             try container.encode(KindType.reverb, forKey: .type)
+            try container.encode(parameters, forKey: .parameters)
+        case .unsupported(let parameters):
+            try container.encode(KindType.unsupported, forKey: .type)
             try container.encode(parameters, forKey: .parameters)
         }
     }

@@ -58,7 +58,8 @@ enum VideoEffects {
             correction.apply(to: image, at: context.clipTime)
         case .mosaic(let mosaic):
             mosaic.apply(to: image, in: context.frame(of: image), at: context.clipTime)
-        case .gain, .pan, .equalizer, .delay, .reverb:
+        // An effect from another app that Montage can't run is only kept.
+        case .gain, .pan, .equalizer, .delay, .reverb, .unsupported:
             image
         }
     }

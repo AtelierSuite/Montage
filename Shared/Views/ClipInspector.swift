@@ -116,8 +116,13 @@ private struct EffectSection: View {
                 MosaicControls(editing: editing)
             case .gain, .pan, .equalizer, .delay, .reverb:
                 EmptyView()
+            case .unsupported:
+                Text("Inspector.Effect.Unsupported")
+                    .foregroundStyle(.secondary)
             }
-            MaskControls(editing: editing)
+            if !effect.kind.isUnsupported {
+                MaskControls(editing: editing)
+            }
         } header: {
             HStack {
                 Toggle(isOn: editing.binding(\.isEnabled)) {
@@ -125,6 +130,8 @@ private struct EffectSection: View {
                 }
                 .toggleStyle(.switch)
                 .controlSize(.mini)
+                // Turned on, it would do nothing.
+                .disabled(effect.kind.isUnsupported)
                 Spacer()
                 Menu {
                     Button("Inspector.Effect.MoveUp", systemImage: "arrow.up") {
@@ -159,7 +166,15 @@ extension Effect.Kind {
         case .mosaic: "Effect.Mosaic"
         // Not shown with the video effects; their own inspector names them.
         case .gain, .pan, .equalizer, .delay, .reverb: "Effect.Audio"
+        case .unsupported(let effect): "Effect.Unsupported \(effect.name)"
         }
+    }
+
+    /// Whether the effect came from another app and can't run here, so it's
+    /// only kept, to go back out with the project.
+    var isUnsupported: Bool {
+        if case .unsupported = self { return true }
+        return false
     }
 }
 

@@ -261,7 +261,7 @@ final class AudioEffectsProcessor: AudioTapProcessor, @unchecked Sendable {
                         slot.room = reverb.room
                     }
                     reverb.apply(to: unit, at: time)
-                case .colorCorrection, .mosaic:
+                case .colorCorrection, .mosaic, .unsupported:
                     slot.isEnabled = false
                 }
             }

@@ -72,6 +72,8 @@ struct AudioEffectsSection: View {
             .labelsHidden()
             .toggleStyle(.switch)
             .controlSize(.mini)
+            // Turned on, it would do nothing.
+            .disabled(effect.kind.isUnsupported)
             Button("Inspector.Effect.Remove", systemImage: "minus.circle") { remove(effect.id) }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
@@ -134,6 +136,7 @@ struct AudioEffectEditor: View {
         case .delay: "AudioEffect.Delay"
         case .reverb: "AudioEffect.Reverb"
         case .colorCorrection, .mosaic: ""
+        case .unsupported(let effect): "Effect.Unsupported \(effect.name)"
         }
     }
 
@@ -178,6 +181,9 @@ struct AudioEffectEditor: View {
             slider("AudioEffect.Mix", reverb, \.mix, range: 0...1, format: Self.percent, wrap: Effect.Kind.reverb)
         case .colorCorrection, .mosaic:
             EmptyView()
+        case .unsupported:
+            Text("Inspector.Effect.Unsupported")
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -251,7 +257,7 @@ private extension Effect.Kind {
             equalizer.bands.contains { $0.frequency.isAnimated || $0.gain.isAnimated || $0.bandwidth.isAnimated }
         case .delay(let delay): delay.time.isAnimated || delay.feedback.isAnimated || delay.mix.isAnimated
         case .reverb(let reverb): reverb.mix.isAnimated
-        case .colorCorrection, .mosaic: false
+        case .colorCorrection, .mosaic, .unsupported: false
         }
     }
 }

@@ -45,7 +45,7 @@ extension Clip {
     /// Whether any of the clip's effects changes its sound, so its audio
     /// goes through a tap.
     var hasAudioEffects: Bool {
-        effects.contains { !$0.kind.isVideo }
+        effects.contains { $0.kind.runsInAudioTap }
     }
 
     /// What the composition is built around of the clip's audio effects: which
@@ -54,7 +54,7 @@ extension Clip {
     /// the tail, the taps read while playing.
     public var audioEffectLayout: AudioEffectLayout {
         AudioEffectLayout(
-            units: effects.filter { !$0.kind.isVideo }.map { AudioEffectLayout.Unit(effectID: $0.id, kind: AudioEffectLayout.Kind($0.kind)) },
+            units: effects.filter(\.kind.runsInAudioTap).map { AudioEffectLayout.Unit(effectID: $0.id, kind: AudioEffectLayout.Kind($0.kind)) },
             tail: audioTail
         )
     }
@@ -62,6 +62,17 @@ extension Clip {
 
 /// The shape of a clip's audio effects, as far as building the composition
 /// goes. Two clips with the same layout build the same taps.
+extension Effect.Kind {
+    /// Whether the effect changes the sound in an audio tap. An unsupported
+    /// effect from another app is only kept, so it has no part in playback.
+    var runsInAudioTap: Bool {
+        switch self {
+        case .gain, .pan, .equalizer, .delay, .reverb: true
+        case .colorCorrection, .mosaic, .unsupported: false
+        }
+    }
+}
+
 public struct AudioEffectLayout: Equatable, Sendable {
     public struct Unit: Equatable, Sendable {
         public var effectID: Effect.ID
@@ -79,8 +90,8 @@ public struct AudioEffectLayout: Equatable, Sendable {
             case .equalizer(let equalizer): self = .equalizer(bands: equalizer.bands.count)
             case .delay: self = .delay
             case .reverb: self = .reverb
-            // Video effects never get this far.
-            case .colorCorrection, .mosaic: self = .gain
+            // Only effects that run in a tap get this far.
+            case .colorCorrection, .mosaic, .unsupported: self = .gain
             }
         }
     }

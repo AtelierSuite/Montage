@@ -35,6 +35,8 @@ struct ProjectEditorView: View {
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
     @State private var isShowingExport = false
     @State private var isShowingExports = false
+    @State private var isImportingProject = false
+    @State private var isExportingFCPXML = false
     /// The document's location while it's being read from, for media in it.
     @State private var accessedURL: URL?
 
@@ -161,6 +163,10 @@ struct ProjectEditorView: View {
             ExportsSheet(queue: ExportCenter.queue)
                 .presentationDetents([.medium, .large])
         }
+        .projectInterchange(
+            editor: editor, importer: importer, title: projectTitle,
+            isImporting: $isImportingProject, isExporting: $isExportingFCPXML
+        )
     }
 
     /// The floating preview, in a window over the whole app, while it
@@ -250,6 +256,11 @@ struct ProjectEditorView: View {
                 if !ExportCenter.queue.jobs.isEmpty {
                     Button("Toolbar.Exports", systemImage: "list.bullet") { isShowingExports = true }
                 }
+            }
+            Section {
+                Button("Toolbar.ImportProject", systemImage: "square.and.arrow.down") { isImportingProject = true }
+                Button("Toolbar.ExportFCPXML", systemImage: "film.stack") { isExportingFCPXML = true }
+                    .disabled(!editor.canExport)
             }
         }
         .accessibilityIdentifier("more")
