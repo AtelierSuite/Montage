@@ -52,4 +52,7 @@ struct CompositorLayer: Sendable {
     let naturalSize: CGSize
     /// How the media's frames are turned to show upright.
     let preferredTransform: CGAffineTransform
+    /// For a still image's clip, the image drawn in place of the track's
+    /// frames, which are only filler.
+    let still: StillImage?
 }

@@ -91,8 +91,13 @@ final class VideoCompositor: NSObject, AVVideoCompositing {
             layers.map { project.clip(id: $0.clip.id)?.clip }
         }
         let frameLayers = zip(layers, clips).compactMap { layer, clip -> FrameComposer.Layer? in
-            guard let source = request.sourceFrame(byTrackID: layer.trackID) else { return nil }
-            return FrameComposer.Layer(image: CIImage(cvPixelBuffer: source), layer: layer, clip: clip ?? layer.clip)
+            let image: CIImage? = if let still = layer.still {
+                still.picture(for: instruction.renderSize)
+            } else {
+                request.sourceFrame(byTrackID: layer.trackID).map { CIImage(cvPixelBuffer: $0) }
+            }
+            guard let image else { return nil }
+            return FrameComposer.Layer(image: image, layer: layer, clip: clip ?? layer.clip)
         }
         let image = FrameComposer.compose(
             frameLayers, at: request.compositionTime, renderSize: instruction.renderSize, outputSize: outputSize

@@ -16,14 +16,16 @@ enum DocumentLaunch {
 /// mode, and a spotlight falling onto the browser in dark mode. Decoration
 /// only, so hidden from VoiceOver.
 struct DocumentLaunchBackground: View {
+    let reveal: DocumentLaunchReveal
+
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Group {
             if colorScheme == .dark {
-                SpotlightBackground()
+                SpotlightBackground(isRevealed: reveal.isRevealed)
             } else {
-                LightLeaksBackground()
+                LightLeaksBackground(isRevealed: reveal.isRevealed)
             }
         }
         .ignoresSafeArea()
@@ -31,31 +33,48 @@ struct DocumentLaunchBackground: View {
     }
 }
 
+/// How long the background takes to come in once the picker is on screen.
+private let revealDuration = 1.6
+
+/// Whether the picker has come on screen, shared between the background and
+/// the accessory that watches for it.
+@Observable
+final class DocumentLaunchReveal {
+    var isRevealed = false
+}
+
+/// Sits in the picker's background accessory, which the system fades in with
+/// the actions and browser once they have loaded, unlike the background, and
+/// reveals the background then.
+struct DocumentLaunchRevealTrigger: View {
+    let reveal: DocumentLaunchReveal
+
+    var body: some View {
+        DocumentLaunchVisibilityWatcher { reveal.isRevealed = true }
+            .frame(width: 1, height: 1)
+            .accessibilityHidden(true)
+    }
+}
+
 // MARK: - Spotlight
 
 /// Dark mode: a soft beam falling from the top of the screen all the way
 /// down, so the browser below sits in its light, with dust drifting through.
+/// Once the picker is on screen the beam opens and the dust drifts a little,
+/// easing to a stop.
 struct SpotlightBackground: View {
+    let isRevealed: Bool
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private struct Mote {
-        var x: Double, y: Double, radius: Double, opacity: Double, speed: Double
-    }
-
-    private let motes: [Mote] = {
-        var generator = SeededGenerator(seed: 7)
-        return (0..<110).map { _ in
-            Mote(x: .random(in: -1...1, using: &generator), y: .random(in: 0...1, using: &generator),
-                 radius: .random(in: 0.6...2.0, using: &generator), opacity: .random(in: 0.2...0.8, using: &generator),
-                 speed: .random(in: 0.003...0.009, using: &generator))
-        }
-    }()
 
     /// Half the beam's width at the top and at the bottom, as fractions of the screen's width.
     private let topSpread = 0.09
     private let bottomSpread = 0.85
 
     var body: some View {
+        // With Reduce Motion the beam and dust only fade in.
+        let opening = isRevealed || reduceMotion ? 1 : 0.12
+
         GeometryReader { proxy in
             let size = proxy.size
             ZStack {
@@ -79,15 +98,25 @@ struct SpotlightBackground: View {
                     endPoint: .bottom
                 ))
                 .blur(radius: 24)
+                .scaleEffect(x: opening, y: 1, anchor: .top)
+                .opacity(isRevealed ? 1 : 0.3)
 
-                // The light pooling on the browser.
-                Ellipse()
-                    .fill(RadialGradient(
-                        colors: [DocumentLaunch.rgb(0xFF5068, 0.36), DocumentLaunch.rgb(0xA8182C, 0.15), .clear],
-                        center: .center, startRadius: 0, endRadius: size.width * 0.75
+                // The light pooling on the browser, fading out to nothing at
+                // its edges so it blends into the dark around it.
+                Rectangle()
+                    .fill(EllipticalGradient(
+                        stops: [
+                            .init(color: DocumentLaunch.rgb(0xFF5068, 0.26), location: 0),
+                            .init(color: DocumentLaunch.rgb(0xD02A42, 0.16), location: 0.35),
+                            .init(color: DocumentLaunch.rgb(0xA8182C, 0.07), location: 0.7),
+                            .init(color: DocumentLaunch.rgb(0xA8182C, 0), location: 1),
+                        ],
+                        center: .center
                     ))
-                    .frame(width: size.width * 1.5, height: size.height * 0.45)
-                    .position(x: size.width / 2, y: size.height * 0.72)
+                    .frame(width: size.width * 1.8, height: size.height * 0.8)
+                    .position(x: size.width / 2, y: size.height * 0.74)
+                    .scaleEffect(x: opening, y: 1)
+                    .opacity(isRevealed ? 1 : 0)
 
                 // The lamp's glare.
                 Ellipse()
@@ -96,22 +125,64 @@ struct SpotlightBackground: View {
                     .blur(radius: 30)
                     .position(x: size.width / 2, y: 0)
 
-                SwiftUI.TimelineView(.animation(paused: reduceMotion)) { timeline in
-                    let time = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
-                    Canvas { context, size in
-                        for mote in motes {
-                            let y = (mote.y - time * mote.speed).truncatingRemainder(dividingBy: 1)
-                            let depth = y < 0 ? y + 1 : y
-                            let spread = topSpread + (bottomSpread - topSpread) * depth
-                            let x = size.width * (0.5 + mote.x * spread * 0.8 + sin(time * 0.3 + mote.y * 9) * 0.01)
-                            let rect = CGRect(x: x - mote.radius, y: depth * size.height - mote.radius,
-                                              width: mote.radius * 2, height: mote.radius * 2)
-                            // Motes catch less light further from the lamp.
-                            let opacity = mote.opacity * (1 - depth * 0.5)
-                            context.fill(Path(ellipseIn: rect), with: .color(.white.opacity(opacity)))
-                        }
-                    }
-                }
+                Dust(
+                    drift: isRevealed && !reduceMotion ? 1 : 0,
+                    topSpread: topSpread * opening,
+                    bottomSpread: bottomSpread * opening
+                )
+                .opacity(isRevealed ? 1 : 0)
+            }
+        }
+        .animation(.easeOut(duration: revealDuration), value: isRevealed)
+    }
+}
+
+/// The dust in the beam. Animatable, so it drifts and widens with the beam
+/// while the background comes in, and is still after.
+private struct Dust: View, Animatable {
+    /// How far the dust has drifted, from 0 to 1.
+    var drift: Double
+    var topSpread: Double
+    var bottomSpread: Double
+
+    nonisolated var animatableData: AnimatablePair<Double, AnimatablePair<Double, Double>> {
+        get { AnimatablePair(drift, AnimatablePair(topSpread, bottomSpread)) }
+        set {
+            drift = newValue.first
+            topSpread = newValue.second.first
+            bottomSpread = newValue.second.second
+        }
+    }
+
+    private struct Mote {
+        var x: Double, y: Double, radius: Double, opacity: Double, speed: Double
+    }
+
+    private static let motes: [Mote] = {
+        var generator = SeededGenerator(seed: 7)
+        return (0..<110).map { _ in
+            Mote(x: .random(in: -1...1, using: &generator), y: .random(in: 0...1, using: &generator),
+                 radius: .random(in: 0.6...2.0, using: &generator), opacity: .random(in: 0.2...0.8, using: &generator),
+                 speed: .random(in: 0.003...0.009, using: &generator))
+        }
+    }()
+
+    /// How far the dust drifts while coming in, in seconds of its speed.
+    private let travel = 5.0
+
+    var body: some View {
+        Canvas { context, size in
+            let time = travel * drift
+            for mote in Self.motes {
+                let y = (mote.y - time * mote.speed).truncatingRemainder(dividingBy: 1)
+                let depth = y < 0 ? y + 1 : y
+                let spread = topSpread + (bottomSpread - topSpread) * depth
+                let x = size.width * (0.5 + mote.x * spread * 0.8 + sin(time * 0.3 + mote.y * 9) * 0.01)
+                let rect = CGRect(x: x - mote.radius, y: depth * size.height - mote.radius,
+                                  width: mote.radius * 2, height: mote.radius * 2)
+                // Motes catch less light further from the lamp.
+                let opacity = mote.opacity * (1 - depth * 0.5)
+                context.fill(Path(ellipseIn: rect), with: .color(.white.opacity(opacity)))
             }
         }
     }
@@ -119,39 +190,36 @@ struct SpotlightBackground: View {
 
 // MARK: - Light leaks
 
-/// Light mode: blurred warm light drifting at the edges, with a little film
-/// grain.
+/// Light mode: blurred warm light at the edges that fades in once the picker
+/// is on screen, with a little film grain.
 struct LightLeaksBackground: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let isRevealed: Bool
 
     private struct Leak {
-        var hex: UInt32, x: Double, y: Double, radius: Double, opacity: Double, phase: Double
+        var hex: UInt32, x: Double, y: Double, radius: Double, opacity: Double
     }
 
     private let leaks: [Leak] = [
-        Leak(hex: 0xFF6A3D, x: 0.0, y: 0.08, radius: 0.55, opacity: 0.44, phase: 0),
-        Leak(hex: 0xE0204A, x: 1.0, y: 0.26, radius: 0.5, opacity: 0.41, phase: 2),
-        Leak(hex: 0xFFC07A, x: 0.45, y: -0.04, radius: 0.35, opacity: 0.36, phase: 4),
-        Leak(hex: 0x8A1030, x: 0.75, y: 0.55, radius: 0.45, opacity: 0.36, phase: 1),
+        Leak(hex: 0xFF6A3D, x: 0.0, y: 0.08, radius: 0.55, opacity: 0.44),
+        Leak(hex: 0xE0204A, x: 1.0, y: 0.26, radius: 0.5, opacity: 0.41),
+        Leak(hex: 0xFFC07A, x: 0.45, y: -0.04, radius: 0.35, opacity: 0.36),
+        Leak(hex: 0x8A1030, x: 0.75, y: 0.55, radius: 0.45, opacity: 0.36),
     ]
 
     var body: some View {
         ZStack {
             DocumentLaunch.rgb(0xFFF6F2)
-            SwiftUI.TimelineView(.animation(paused: reduceMotion)) { timeline in
-                let time = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
-                Canvas { context, size in
-                    context.addFilter(.blur(radius: size.width * 0.18))
-                    for leak in leaks {
-                        let drift = CGSize(width: sin(time * 0.17 + leak.phase) * size.width * 0.06,
-                                           height: cos(time * 0.13 + leak.phase) * size.width * 0.05)
-                        let radius = size.width * leak.radius
-                        let center = CGPoint(x: size.width * leak.x + drift.width, y: size.height * leak.y + drift.height)
-                        let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
-                        context.fill(Path(ellipseIn: rect), with: .color(DocumentLaunch.rgb(leak.hex, leak.opacity)))
-                    }
+            Canvas { context, size in
+                context.addFilter(.blur(radius: size.width * 0.18))
+                for leak in leaks {
+                    let radius = size.width * leak.radius
+                    let center = CGPoint(x: size.width * leak.x, y: size.height * leak.y)
+                    let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+                    context.fill(Path(ellipseIn: rect), with: .color(DocumentLaunch.rgb(leak.hex, leak.opacity)))
                 }
             }
+            .opacity(isRevealed ? 1 : 0)
+            .animation(.easeOut(duration: revealDuration), value: isRevealed)
             FilmGrain()
                 .opacity(0.06)
                 .blendMode(.multiply)
@@ -174,6 +242,57 @@ private struct FilmGrain: View {
             context.fill(specks, with: .color(.black))
         }
         .drawingGroup()
+    }
+}
+
+/// Calls back once, the first time the view it sits behind is fully on
+/// screen: in a window, with nothing above it hidden or faded.
+private struct DocumentLaunchVisibilityWatcher: UIViewRepresentable {
+    var onVisible: () -> Void
+
+    func makeUIView(context: Context) -> WatcherView {
+        let view = WatcherView()
+        view.onVisible = onVisible
+        return view
+    }
+
+    func updateUIView(_ uiView: WatcherView, context: Context) {
+        // Once called back, the watcher has nothing more to do.
+        if uiView.hasCalledBack { return }
+        uiView.onVisible = onVisible
+    }
+
+    final class WatcherView: UIView {
+        var onVisible: (() -> Void)?
+        private(set) var hasCalledBack = false
+        private var displayLink: CADisplayLink?
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            displayLink?.invalidate()
+            displayLink = nil
+            guard window != nil, !hasCalledBack else { return }
+            // Checked every frame, since the system fades the picker in by
+            // animating a view above it rather than telling it anything.
+            let link = CADisplayLink(target: self, selector: #selector(check))
+            link.add(to: .main, forMode: .common)
+            displayLink = link
+        }
+
+        @objc private func check() {
+            var view: UIView? = self
+            while let current = view {
+                let opacity = current.layer.presentation()?.opacity ?? current.layer.opacity
+                if current.isHidden || opacity < 0.99 { return }
+                view = current.superview
+            }
+            displayLink?.invalidate()
+            displayLink = nil
+            hasCalledBack = true
+            let onVisible = onVisible
+            self.onVisible = nil
+            onVisible?()
+        }
     }
 }
 
