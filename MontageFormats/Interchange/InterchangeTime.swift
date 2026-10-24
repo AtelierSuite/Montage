@@ -15,14 +15,15 @@ enum InterchangeTime {
             return time(value, over: denominator)
         }
         if let value = Int64(string) { return CMTime(value: value, timescale: 1) }
-        guard let seconds = Double(string), seconds.isFinite else { return nil }
+        // Beyond what a time in microseconds can count.
+        guard let seconds = Double(string), seconds.isFinite, abs(seconds) < 9e12 else { return nil }
         return CMTime(value: Int64((seconds * 1_000_000).rounded()), timescale: 1_000_000)
     }
 
     /// `value / denominator` seconds. A denominator too large for a
     /// timescale is reduced first, and only rounded if it still doesn't fit.
     static func time(_ value: Int64, over denominator: Int64) -> CMTime {
-        let divisor = gcd(abs(value), denominator)
+        let divisor = gcd(value, denominator)
         var value = value / max(divisor, 1)
         var denominator = denominator / max(divisor, 1)
         if denominator > Int64(Int32.max) {
@@ -37,7 +38,7 @@ enum InterchangeTime {
     /// for whole seconds.
     static func string(_ time: CMTime) -> String {
         guard time.isNumeric, time.value != 0 else { return "0s" }
-        let divisor = gcd(abs(time.value), Int64(time.timescale))
+        let divisor = gcd(time.value, Int64(time.timescale))
         let value = time.value / divisor
         let denominator = Int64(time.timescale) / divisor
         return denominator == 1 ? "\(value)s" : "\(value)/\(denominator)s"
@@ -48,25 +49,30 @@ enum InterchangeTime {
     static func conformed(_ time: CMTime, to frameDuration: CMTime) -> CMTime {
         guard frameDuration.isNumeric, frameDuration > .zero, time.isNumeric else { return time }
         let count = (time.seconds / frameDuration.seconds).rounded()
-        return frames(Int64(count), frameDuration: frameDuration)
+        guard abs(count) < 9e18 else { return time }
+        return frames(Int64(count), frameDuration: frameDuration) ?? time
     }
 
-    /// The time of a count of frames, exactly.
-    static func frames(_ count: Int64, frameDuration: CMTime) -> CMTime {
-        time(count * frameDuration.value, over: Int64(frameDuration.timescale))
+    /// The time of a count of frames, exactly; nil if it's too long to hold.
+    static func frames(_ count: Int64, frameDuration: CMTime) -> CMTime? {
+        let (value, overflow) = count.multipliedReportingOverflow(by: frameDuration.value)
+        return overflow ? nil : time(value, over: Int64(frameDuration.timescale))
     }
 
     /// The length of a frame at a Final Cut 7 style rate: a whole-number
     /// timebase, slowed by 1000/1001 when it's an NTSC rate.
     static func frameDuration(timebase: Int64, ntsc: Bool) -> CMTime {
-        guard timebase > 0 else { return CMTime(value: 1, timescale: 30) }
+        // Past any real rate, the timebase is nonsense.
+        guard timebase > 0, timebase <= 1_000_000 else { return CMTime(value: 1, timescale: 30) }
         return ntsc ? time(1001, over: timebase * 1000) : time(1, over: timebase)
     }
 
+    /// The greatest common divisor of the numbers' sizes, which for a
+    /// positive `b` fits even when `a` is `Int64.min`.
     private static func gcd(_ a: Int64, _ b: Int64) -> Int64 {
-        var (a, b) = (a, b)
+        var (a, b) = (a.magnitude, b.magnitude)
         while b != 0 { (a, b) = (b, a % b) }
-        return a == 0 ? 1 : a
+        return a == 0 ? 1 : Int64(a)
     }
 }
 
