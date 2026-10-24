@@ -17,6 +17,7 @@ struct AudioEffectsSection: View {
         if let (track, clip) = editor.project.clip(id: clipID), Self.hasSound(clip, on: track, in: editor.project) {
             Section {
                 AudioLevelMeter(clipID: clipID)
+                VolumeSlider(clip: clip)
                 addMenu
             } header: {
                 Text("Inspector.Audio")
@@ -302,3 +303,23 @@ private extension MontageEngine.Animatable<Double> {
     }
 }
 
+/// The clip's volume at the playhead, keyframeable like any parameter. A
+/// view of its own, as it follows the playhead.
+private struct VolumeSlider: View {
+    @Environment(ProjectEditor.self) private var editor
+    let clip: Clip
+
+    var body: some View {
+        let editor = editor
+        let clipID = clip.id
+        ParameterSlider("Inspector.Audio.Volume", ParameterEditing(
+            parameter: clip.volume, time: editor.clipTime(in: clip), canKeyframe: editor.isPlayheadOn(clip),
+            change: { volume, continuously in
+                editor.changeClip(clipID, String(localized: "Inspector.Action.ChangeVolume"), continuously: continuously) {
+                    $0.volume = volume
+                }
+            },
+            endChange: { editor.endGesture() }
+        ), in: 0...2, format: ParameterFormat.percent)
+    }
+}
