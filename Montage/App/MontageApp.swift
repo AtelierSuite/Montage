@@ -1,10 +1,17 @@
+import MontageFormats
 import SwiftUI
 
 @main
 struct MontageApp: App {
     var body: some Scene {
-        WindowGroup {
-            Text(verbatim: "Montage")
+        DocumentGroup(newDocument: MontageDocument()) { configuration in
+            ProjectEditorView(document: configuration.$document)
+        }
+
+        DocumentGroupLaunchScene {
+            NewDocumentButton("Launch.NewProject", contentType: .montageProject)
+        } background: {
+            DocumentLaunchBackground()
         }
     }
 }
