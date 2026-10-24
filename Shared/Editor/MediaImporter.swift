@@ -114,8 +114,11 @@ final class MediaImporter {
             }
             progress?.completed += 1
         }
-        editor?.addMedia(items)
-        if let time { editor?.addStills(items.map(\.id), at: time) }
+        if let time {
+            editor?.addMedia(items, placingStillsAt: time)
+        } else {
+            editor?.addMedia(items)
+        }
         if let progress, progress.completed >= progress.total {
             self.progress = nil
         }

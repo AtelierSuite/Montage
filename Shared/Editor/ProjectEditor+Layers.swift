@@ -30,20 +30,21 @@ extension ProjectEditor {
         if let id { timeline.selectedClipIDs = [id] }
     }
 
-    /// Puts stills from the library at a time, over the video there, one
-    /// after the other.
-    func addStills(_ ids: [MediaItem.ID], at time: CMTime) {
-        let items = ids.compactMap { project.mediaItem(id: $0) }.filter { $0.kind == .image }
+    /// Adds imported media to the library and puts the stills among it at a
+    /// time, over the video there, one after the other: one undo step.
+    func addMedia(_ items: [MediaItem], placingStillsAt time: CMTime) {
         guard !items.isEmpty else { return }
+        let stills = items.filter { $0.kind == .image }
         var added: [Clip.ID] = []
-        perform(String(localized: "Action.AddImage")) { project in
+        perform(String(localized: stills.isEmpty ? "Action.ImportMedia" : "Action.AddImage")) { project in
+            project.addMedia(items)
             var start = time
-            for item in items {
+            for item in stills {
                 added.append(project.insertClip(of: item.content, at: start))
                 start = start + Project.defaultImageDuration
             }
         }
-        timeline.selectedClipIDs = Set(added)
+        if !added.isEmpty { timeline.selectedClipIDs = Set(added) }
     }
 
     /// Changes a clip: at once, as an undo step of its own, or as part of a
