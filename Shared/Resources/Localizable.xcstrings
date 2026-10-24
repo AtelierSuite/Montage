@@ -573,6 +573,28 @@
         }
       }
     },
+    "Fullscreen.Close" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "Fullscreen.Position" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position"
+          }
+        }
+      }
+    },
     "Inspector.Empty.Message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1207,6 +1229,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Can't Play the Project"
+          }
+        }
+      }
+    },
+    "Preview.Expand.Hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the preview full screen."
+          }
+        }
+      }
+    },
+    "Preview.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview"
           }
         }
       }

@@ -10,6 +10,7 @@ struct PreviewArea: View {
     var fillsWidth = true
 
     @Environment(ProjectEditor.self) private var editor
+    @Environment(\.expandPreview) private var expandPreview
 
     var body: some View {
         if fillsWidth {
@@ -34,6 +35,12 @@ struct PreviewArea: View {
     private var frame: some View {
         if editor.playback.hasContent {
             PlayerView(player: editor.playback.player)
+                .contentShape(.rect)
+                .onTapGesture { expandPreview?() }
+                .accessibilityElement()
+                .accessibilityLabel(Text("Preview.Title"))
+                .accessibilityAddTraits(expandPreview == nil ? [] : .isButton)
+                .accessibilityHint(expandPreview == nil ? Text(verbatim: "") : Text("Preview.Expand.Hint"))
                 .overlay {
                     if let error = editor.playback.playbackError {
                         message(
@@ -69,5 +76,21 @@ struct PreviewArea: View {
     private var aspectRatio: Double {
         let size = editor.project.settings.renderSize
         return size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9
+    }
+}
+
+extension EnvironmentValues {
+    /// Shows the preview full screen, where the platform can: tapping the
+    /// preview calls it.
+    @Entry var expandPreview: PreviewExpandAction?
+}
+
+/// Shows the preview full screen.
+struct PreviewExpandAction {
+    let perform: @MainActor () -> Void
+
+    @MainActor
+    func callAsFunction() {
+        perform()
     }
 }

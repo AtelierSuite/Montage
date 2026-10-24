@@ -19,6 +19,7 @@ struct ProjectEditorView: View {
     @State private var history = ProjectHistory()
     @State private var isShowingLibrary = false
     @State private var isShowingInspector = false
+    @State private var isShowingFullscreen = false
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
     @State private var isShowingExport = false
     @State private var isShowingExports = false
@@ -116,6 +117,11 @@ struct ProjectEditorView: View {
                             .padding(.bottom, 8)
                     }
             }
+        }
+        // Tapping the preview shows it full screen.
+        .environment(\.expandPreview, PreviewExpandAction { isShowingFullscreen = true })
+        .fullScreenCover(isPresented: $isShowingFullscreen) {
+            FullscreenPlayerView(playback: editor.playback)
         }
         .inspector(isPresented: $isShowingInspector) {
             InspectorView()
