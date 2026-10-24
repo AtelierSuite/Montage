@@ -39,8 +39,15 @@ struct PreviewCanvas: View {
     private let handleSize = 12.0
     private let hitSize = 36.0
     #endif
-    /// How far, in points, the rotate handle stands off the top edge.
+    /// How far, in points, the rotate handle stands off the top edge, and a
+    /// mask's feather handle past its soft edge.
     private let rotateReach = 26.0
+    private let handleReach = 22.0
+
+    /// A distance in the view's points, in the frame's pixels.
+    private static func maskReach(_ points: Double, mapping: PreviewMapping) -> Double {
+        points / max(mapping.scale, 1e-6)
+    }
 
     /// What a drag holds on to: what it's moving, and how things were when it
     /// began, so each step makes the whole change from there.
@@ -159,8 +166,9 @@ struct PreviewCanvas: View {
         case .path: Path(placement.path.cgPath(transform: toView))
         default: box
         }
+        let reach = Self.maskReach(handleReach, mapping: mapping)
         let view = { (handle: MaskHandle) in
-            mapping.viewPoint(fromRender: placement.point(of: handle, reach: rotateReach / max(mapping.scale, 1e-6)))
+            mapping.viewPoint(fromRender: placement.point(of: handle, reach: reach))
         }
         let top = view(.resize(x: 0, y: -1))
         let right = view(.resize(x: 1, y: 0))
@@ -287,7 +295,10 @@ struct PreviewCanvas: View {
                     clip.transform.drag(handle, from: from, to: to, renderSize: renderSize, at: drag.time)
                 case .mask(let effectID, let handle, let layer):
                     guard let index = clip.effects.firstIndex(where: { $0.id == effectID }) else { return }
-                    clip.effects[index].mask?.drag(handle, from: from, to: to, in: layer, at: drag.time)
+                    clip.effects[index].mask?.drag(
+                        handle, from: from, to: to, in: layer, at: drag.time,
+                        reach: Self.maskReach(handleReach, mapping: drag.mapping)
+                    )
                 }
             }
         }

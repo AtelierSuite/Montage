@@ -133,6 +133,10 @@ struct MaskHandleTests {
         #expect(approximately(mask.feather.value, 0.05))
         let placement = MaskPlacement(mask, in: fullLayer, at: .zero)
         #expect(approximately(placement.point(of: .feather), CGPoint(x: 1536, y: 540)))
+        // Placed past the soft edge by its reach, which a drag takes off.
+        #expect(approximately(placement.point(of: .feather, reach: 30), CGPoint(x: 1566, y: 540)))
+        mask.drag(.feather, from: .zero, to: CGPoint(x: 1566, y: 540), in: fullLayer, at: .zero, reach: 30)
+        #expect(approximately(mask.feather.value, 0.05))
         // Pulled inside the edge, it's sharp.
         mask.drag(.feather, from: .zero, to: CGPoint(x: 1000, y: 540), in: fullLayer, at: .zero)
         #expect(mask.feather.value == 0)

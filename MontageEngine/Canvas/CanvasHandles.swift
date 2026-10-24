@@ -113,8 +113,10 @@ public struct MaskPlacement: Equatable, Sendable {
         [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0), CGPoint(x: 1, y: 1), CGPoint(x: 0, y: 1)].map(point(inBox:))
     }
 
-    /// Where a handle shows in the frame; `rotate` is `reach` frame pixels
-    /// off the top, so it's clear of the box however small.
+    /// Where a handle shows in the frame. `rotate` is `reach` frame pixels
+    /// off the top, so it's clear of the box however small, and `feather`
+    /// as far past the soft edge's end, so it's clear of the side's handle
+    /// even with a sharp edge.
     public func point(of handle: MaskHandle, reach: Double = 0) -> CGPoint {
         switch handle {
         case .move:
@@ -122,16 +124,20 @@ public struct MaskPlacement: Equatable, Sendable {
         case .resize(let x, let y):
             return point(inBox: CGPoint(x: 0.5 + Double(x) / 2, y: 0.5 + Double(y) / 2))
         case .rotate:
-            // The clip's transform scales evenly, so reach in the frame is
-            // reach over its scale in the picture.
-            let scale = hypot(layer.transform.a, layer.transform.b)
-            return point(fromCenter: CGPoint(x: 0, y: -size.height / 2 - (scale > 0 ? reach / scale : 0)))
+            return point(fromCenter: CGPoint(x: 0, y: -size.height / 2 - pictureDistance(reach)))
         case .feather:
-            return point(fromCenter: CGPoint(x: size.width / 2 + feather, y: 0))
+            return point(fromCenter: CGPoint(x: size.width / 2 + feather + pictureDistance(reach), y: 0))
         case .vertex(let index):
             guard path.vertices.indices.contains(index) else { return point(of: .move) }
             return point(inBox: path.vertices[index].point)
         }
+    }
+
+    /// A distance in the frame's pixels as one in the picture's: the clip's
+    /// transform scales evenly, so it's the distance over its scale.
+    func pictureDistance(_ distance: Double) -> Double {
+        let scale = hypot(layer.transform.a, layer.transform.b)
+        return scale > 0 ? distance / scale : 0
     }
 
     /// A point of the picture from one along the box's axes, from its centre.
@@ -159,8 +165,12 @@ extension Mask {
     /// point of the frame to another, in render pixels, over the layer it's
     /// on. As with `ClipTransform.drag`, animated values get a keyframe at
     /// the time and the rest change throughout; call it on the mask as it
-    /// was when the drag began.
-    public mutating func drag(_ handle: MaskHandle, from start: CGPoint, to end: CGPoint, in layer: LayerPlacement, at time: CMTime) {
+    /// was when the drag began. `reach` is the one the handles are placed
+    /// with, in `MaskPlacement.point(of:reach:)`.
+    public mutating func drag(
+        _ handle: MaskHandle, from start: CGPoint, to end: CGPoint, in layer: LayerPlacement, at time: CMTime,
+        reach: Double = 0
+    ) {
         let placement = MaskPlacement(self, in: layer, at: time)
         let picture = layer.pictureRect
         guard picture.width > 0, picture.height > 0,
@@ -182,7 +192,8 @@ extension Mask {
             guard let turn = CanvasMath.turn(from: startPoint, to: endPoint, about: placement.center) else { return }
             rotation.set(rotation.value(at: time) + turn, at: time)
         case .feather:
-            feather.set(max(0, abs(local.x) - placement.size.width / 2) / picture.width, at: time)
+            let beyond = abs(local.x) - placement.size.width / 2 - placement.pictureDistance(reach)
+            feather.set(max(0, beyond) / picture.width, at: time)
         case .vertex(let index):
             var path = path.value(at: time)
             guard path.vertices.indices.contains(index), placement.size.width > 0, placement.size.height > 0 else { return }
