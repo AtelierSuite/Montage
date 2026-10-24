@@ -71,6 +71,37 @@
 	</array>
 	<key>UISupportsDocumentBrowser</key>
 	<true/>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Montage Media Reference</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.tsubuzaki.Montage.media-reference</string>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.package</string>
+				<string>public.composite-content</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Montage Project</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.tsubuzaki.Montage.project</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>montage</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>
@@ -104,37 +135,6 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>fcpxmld</string>
-				</array>
-			</dict>
-		</dict>
-	</array>
-	<key>UTExportedTypeDeclarations</key>
-	<array>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.data</string>
-			</array>
-			<key>UTTypeDescription</key>
-			<string>Montage Media Reference</string>
-			<key>UTTypeIdentifier</key>
-			<string>com.tsubuzaki.Montage.media-reference</string>
-		</dict>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>com.apple.package</string>
-				<string>public.composite-content</string>
-			</array>
-			<key>UTTypeDescription</key>
-			<string>Montage Project</string>
-			<key>UTTypeIdentifier</key>
-			<string>com.tsubuzaki.Montage.project</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>montage</string>
 				</array>
 			</dict>
 		</dict>
