@@ -30,6 +30,8 @@ private struct ProjectInterchangeModifier: ViewModifier {
     @State private var exported: FCPXMLFile?
     @State private var isShowingExporter = false
     @State private var exportFailure: String?
+    /// What a finished FCPXML export had to leave out.
+    @State private var exportOmission: String?
 
     func body(content: Content) -> some View {
         content
@@ -74,13 +76,23 @@ private struct ProjectInterchangeModifier: ViewModifier {
             .fileExporter(
                 isPresented: $isShowingExporter, document: exported, contentType: .fcpxml, defaultFilename: "\(title).fcpxml"
             ) { result in
-                if case .failure(let error) = result { exportFailure = error.localizedDescription }
+                switch result {
+                case .success: exportOmission = editor.fcpxmlOmissionMessage
+                case .failure(let error): exportFailure = error.localizedDescription
+                }
                 exported = nil
             }
             .alert("FCPXMLExport.Failed.Title", isPresented: isShowingExportFailure, presenting: exportFailure) { _ in
                 Button("ProjectImport.Failed.OK") { exportFailure = nil }
             } message: { failure in
                 Text(failure)
+            }
+            .alert("FCPXMLExport.LeftOut.Title", isPresented: Binding {
+                exportOmission != nil
+            } set: { if !$0 { exportOmission = nil } }, presenting: exportOmission) { _ in
+                Button("ProjectImport.Failed.OK") { exportOmission = nil }
+            } message: { message in
+                Text(message)
             }
     }
 

@@ -3713,6 +3713,76 @@
         }
       }
     },
+    "FCPXMLExport.LeftOut.Message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld text or shape clip can’t be written to FCPXML yet, and was left as a gap."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld text and shape clips can’t be written to FCPXML yet, and were left as gaps."
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 個のテキストと図形のクリップはまだFCPXMLに書き出せないため、ギャップとして残されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个文本和形状剪辑暂时无法写入 FCPXML，已保留为空隙。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 個文字和形狀剪輯片段暫時無法寫入 FCPXML，已保留為間隙。"
+          }
+        }
+      }
+    },
+    "FCPXMLExport.LeftOut.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some Clips Weren’t Exported"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一部のクリップは書き出されませんでした"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分剪辑未导出"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分剪輯片段未輸出"
+          }
+        }
+      }
+    },
     "Fullscreen.Close" : {
       "extractionState" : "manual",
       "localizations" : {
