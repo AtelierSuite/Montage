@@ -41,10 +41,10 @@
             {
               "idiom" : "square",
               "value" : {
-                "scale" : 1.15,
+                "scale" : 1.03,
                 "translation-in-points" : [
                   0,
-                  27
+                  24
                 ]
               }
             }
@@ -98,7 +98,7 @@
             {
               "idiom" : "square",
               "value" : {
-                "scale" : 1.15,
+                "scale" : 1.03,
                 "translation-in-points" : [
                   0,
                   0
@@ -155,7 +155,7 @@
             {
               "idiom" : "square",
               "value" : {
-                "scale" : 1.15,
+                "scale" : 1.03,
                 "translation-in-points" : [
                   0,
                   0
