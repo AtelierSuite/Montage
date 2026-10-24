@@ -42,7 +42,7 @@ extension Animatable<Double> {
                 ramps.append(ParameterRamp(timeRange: CMTimeRange(start: from + clipStart, end: to + clipStart), start: held, end: held))
                 continue
             case .linear: pieces = 1
-            case .easeIn, .easeOut, .easeInOut: pieces = Self.easedPieces
+            case .easeIn, .easeOut, .easeInOut, .bezier: pieces = Self.easedPieces
             }
             let span = to - from
             for piece in 0..<pieces {
