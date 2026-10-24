@@ -50,6 +50,10 @@ struct FCPXMLTitleTests {
         ProjectInterchange.fcpxml(for: project, named: "Titles", mediaResolver: MediaResolver { _ in nil })
     }
 
+    private func texts(in imported: ImportedProject) -> [(clip: Clip, text: TextContent)] {
+        imported.project.tracks.flatMap(\.clips).compactMap { clip in clip.content.text.map { (clip, $0) } }
+    }
+
     // MARK: - Writing
 
     @Test func writesTextAsBasicTitles() throws {
@@ -90,5 +94,178 @@ struct FCPXMLTitleTests {
         let project = Self.project()
         let shape = project.tracks[1].clips[1].id
         #expect(ProjectInterchange.clipsLeftOutOfFCPXML(in: project) == [shape])
+    }
+
+    @Test func titlesComeBackAsTheTextTheyWere() throws {
+        let project = Self.project()
+        let imported = try ProjectInterchange.read(export(project))
+        let back = texts(in: imported)
+        let originals = project.tracks.flatMap(\.clips).compactMap { clip in clip.content.text.map { (clip, $0) } }
+        #expect(back.count == originals.count)
+        for (original, copy) in zip(originals, back) {
+            #expect(copy.text.runs == original.1.runs)
+            #expect(copy.clip.timelineRange == original.0.timelineRange)
+            let style = copy.text.style, expected = original.1.style
+            #expect(style.fontFamily == expected.fontFamily)
+            #expect(style.fontSize.value == expected.fontSize.value)
+            #expect(style.weight == expected.weight)
+            #expect(style.isItalic == expected.isItalic)
+            #expect(style.fill.color.value == expected.fill.color.value)
+            #expect(style.alignment == expected.alignment)
+            #expect(style.letterSpacing.value == expected.letterSpacing.value)
+            #expect(style.lineSpacing.value == expected.lineSpacing.value)
+            #expect(style.outline.isEnabled == expected.outline.isEnabled)
+            #expect(style.shadow.isEnabled == expected.shadow.isEnabled)
+            if expected.shadow.isEnabled {
+                #expect(abs(style.shadow.offset.value.width - expected.shadow.offset.value.width) < 0.0001)
+                #expect(abs(style.shadow.offset.value.height - expected.shadow.offset.value.height) < 0.0001)
+                #expect(style.shadow.blur.value == expected.shadow.blur.value)
+            }
+            #expect(copy.clip.opacity == original.0.opacity)
+            #expect(copy.clip.transform.scale == original.0.transform.scale)
+            let positions = zip(copy.clip.transform.position.keyframes, original.0.transform.position.keyframes)
+            #expect(copy.clip.transform.position.keyframes.count == original.0.transform.position.keyframes.count)
+            for (a, b) in positions {
+                #expect(a.time == b.time)
+                #expect(abs(a.value.x - b.value.x) < 0.00001 && abs(a.value.y - b.value.y) < 0.00001)
+            }
+            #expect(copy.clip.effects.count == original.0.effects.count)
+        }
+        // On a track above the first title, as it was connected above it.
+        let lower = try #require(imported.project.tracks.firstIndex { $0.clips.contains { $0.content.text?.string == "Lower third" } })
+        let big = try #require(imported.project.tracks.firstIndex { $0.clips.contains { $0.content.text?.string.hasPrefix("Big") == true } })
+        #expect(lower > big)
+        #expect(imported.report.isEmpty)
+    }
+
+    // MARK: - Reading Final Cut's
+
+    /// Titles as Final Cut writes them: from an hour into their own time, a
+    /// style defined in one title and used in the next, a Basic Title moved
+    /// by its own Position, and a title of another template.
+    private static let finalCutTitles = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE fcpxml>
+    <fcpxml version="1.11">
+        <resources>
+            <format id="r1" name="FFVideoFormat1080p30" frameDuration="100/3000s" width="1920" height="1080" colorSpace="1-1-1 (Rec. 709)"/>
+            <effect id="r2" name="Basic Title" uid=".../Titles.localized/Bumper:Opener.localized/Basic Title.localized/Basic Title.moti"/>
+            <effect id="r3" name="Lower Third" uid=".../Titles.localized/Lower Thirds.localized/Lower Third.localized/Lower Third.moti"/>
+        </resources>
+        <library>
+            <event name="Titles">
+                <project name="Titles">
+                    <sequence format="r1" duration="10s" tcStart="0s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">
+                        <spine>
+                            <title ref="r2" offset="0s" name="Hello world - Basic Title" start="3600s" duration="5s">
+                                <param name="Position" key="9999/999166631/999166633/1/100/101" value="0 -270"/>
+                                <param name="Flatten" key="9999/999166631/999166633/2/351" value="1"/>
+                                <param name="Alignment" key="9999/999166631/999166633/2/354/999169573/401" value="1 (Center)"/>
+                                <text>
+                                    <text-style ref="ts1">Hello </text-style>
+                                    <text-style ref="ts2">world</text-style>
+                                </text>
+                                <text-style-def id="ts1">
+                                    <text-style font="Helvetica" fontSize="63" fontFace="Regular" fontColor="1 1 1 1" alignment="center"/>
+                                </text-style-def>
+                                <text-style-def id="ts2">
+                                    <text-style font="Helvetica" fontSize="63" fontFace="Bold Oblique" fontColor="1 0 0 1" alignment="center"/>
+                                </text-style-def>
+                                <adjust-transform position="0 0" scale="1 1">
+                                    <param name="scale">
+                                        <keyframeAnimation>
+                                            <keyframe time="3600s" value="1 1"/>
+                                            <keyframe time="3602s" value="2 2"/>
+                                        </keyframeAnimation>
+                                    </param>
+                                </adjust-transform>
+                            </title>
+                            <title ref="r2" offset="5s" name="Again" start="3600s" duration="2s">
+                                <text>
+                                    <text-style ref="ts1">Again</text-style>
+                                </text>
+                                <text>
+                                    <text-style ref="ts3">underlined</text-style>
+                                </text>
+                                <text-style-def id="ts3">
+                                    <text-style font="Helvetica" fontSize="40" fontFace="Regular" underline="1"/>
+                                </text-style-def>
+                            </title>
+                            <title ref="r3" offset="7s" name="Jane Doe" start="3600s" duration="3s">
+                                <param name="Line 1" key="9999/10003/1/100" value="1"/>
+                                <text>
+                                    <text-style ref="ts4">Jane Doe</text-style>
+                                </text>
+                                <text-style-def id="ts4">
+                                    <text-style font="Futura" fontSize="50" fontFace="Medium" fontColor="0 0 0 1" strokeColor="1 1 1 1" strokeWidth="2"/>
+                                </text-style-def>
+                            </title>
+                        </spine>
+                    </sequence>
+                </project>
+            </event>
+        </library>
+    </fcpxml>
+    """
+
+    @Test func readsFinalCutsTitles() throws {
+        let imported = try ProjectInterchange.read(Data(Self.finalCutTitles.utf8))
+        let titles = texts(in: imported)
+        #expect(titles.map(\.text.string) == ["Hello world", "Again\nunderlined", "Jane Doe"])
+
+        let hello = try #require(titles.first)
+        #expect(hello.clip.timelineRange == CMTimeRange(start: .zero, duration: Self.seconds(5)))
+        #expect(hello.text.style.fontFamily == "Helvetica")
+        #expect(hello.text.style.fontSize.value == 63)
+        #expect(hello.text.style.weight == .regular)
+        #expect(hello.text.style.fill.color.value == .white)
+        #expect(hello.text.runs == [
+            TextRun("Hello "),
+            TextRun("world", formatting: TextRun.Formatting(weight: .bold, isItalic: true, color: Self.red)),
+        ])
+        // A quarter of the frame's height below its centre.
+        #expect(hello.clip.transform.position.value == CGPoint(x: 0.5, y: 0.75))
+        // Keyframes from the title's own start, an hour in.
+        #expect(hello.clip.transform.scale.keyframes.map(\.time) == [.zero, Self.seconds(2)])
+
+        // A style from the title before.
+        let again = titles[1]
+        #expect(again.text.style.fontSize.value == 63)
+
+        let lower = titles[2]
+        #expect(lower.text.style.fontFamily == "Futura")
+        #expect(lower.text.style.weight == .medium)
+        #expect(lower.text.style.fill.color.value == .black)
+        #expect(lower.text.style.outline.isEnabled)
+        #expect(lower.text.style.outline.width.value == 2)
+
+        let issues = imported.report.items.map(\.issue)
+        #expect(issues.contains(.titleTemplate(name: "Lower Third")))
+        #expect(issues.contains(.setting(name: "Underline")))
+        #expect(issues.contains(.setting(name: "Text style per word")))
+        // The Basic Title's own settings it understands aren't reported, and
+        // nothing is left out.
+        #expect(!issues.contains(.setting(name: "Flatten")))
+        #expect(!issues.contains { if case .title = $0 { true } else { false } })
+        #expect(issues.count == 3)
+    }
+
+    @Test func aTitleWithNoWordsIsReported() throws {
+        let xml = Self.finalCutTitles.replacingOccurrences(of: "<text-style ref=\"ts4\">Jane Doe</text-style>", with: "")
+        let imported = try ProjectInterchange.read(Data(xml.utf8))
+        #expect(texts(in: imported).count == 2)
+        #expect(imported.report.items.contains { $0.issue == .title(text: "") && $0.time == Self.seconds(7) })
+    }
+
+    @Test func facesNameTheirWeightAndSlant() {
+        #expect(FCPXMLTitles.fontFace("Condensed Bold Italic") == (.bold, true))
+        #expect(FCPXMLTitles.fontFace("SemiBold") == (.semibold, false))
+        #expect(FCPXMLTitles.fontFace("UltraLight") == (.ultraLight, false))
+        #expect(FCPXMLTitles.fontFace("Regular") == (.regular, false))
+        for weight in FontWeight.allCases {
+            for isItalic in [false, true] {
+                #expect(FCPXMLTitles.fontFace(FCPXMLTitles.fontFace(weight: weight, isItalic: isItalic)) == (weight, isItalic))
+            }
+        }
     }
 }

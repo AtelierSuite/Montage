@@ -136,8 +136,10 @@ struct FCPXMLImportTests {
     @Test func connectsClipsOnLanesAsTracks() throws {
         let primary = try #require(imported.clip("IMG_1805.MOV", on: .video)).track
         let above = imported.project.tracks[primary + 1].clips
-        #expect(above.map(\.timelineStart) == [seconds(1)])
-        #expect(above.map { imported.project.mediaItem(id: $0.mediaID)?.name } == ["IMG_1813.MOV"])
+        // With the title connected to the gap later on the same lane.
+        #expect(above.map(\.timelineStart) == [seconds(1), seconds(15, 2)])
+        #expect(above.map { imported.project.mediaItem(id: $0.mediaID)?.name } == ["IMG_1813.MOV", nil])
+        #expect(above.last?.content.text?.string == "Hello")
         // The secondary storyline on lane 2 goes above it.
         let storyline = imported.project.tracks[primary + 2].clips
         #expect(storyline.map(\.timelineStart) == [seconds(2), seconds(3)])
@@ -210,7 +212,9 @@ struct FCPXMLImportTests {
         #expect(issues.contains(.unsupportedEffect(name: "Glow")))
         #expect(issues.contains(.transition(name: "Cross Dissolve")))
         #expect(issues.contains(.marker(name: "Look here")))
-        #expect(issues.contains(.title(text: "Hello")))
+        // The title comes in as text, so it isn't in the report.
+        #expect(!issues.contains { if case .title = $0 { true } else { false } })
+        #expect(imported.project.tracks.flatMap(\.clips).contains { $0.content.text?.string == "Hello" })
         #expect(issues.contains(.auditionAlternatives(count: 1)))
         #expect(issues.contains(.speedChange))
         #expect(issues.contains(.disabledClip))

@@ -41,7 +41,11 @@ public struct ImportReport: Equatable, Sendable {
         case unsupportedEffect(name: String)
         /// The file the media came from, by name or path.
         case missingMedia(file: String)
+        /// A title with no words to bring in.
         case title(text: String)
+        /// A title brought in as plain text, without the rest of the look
+        /// its template, by name, gives it.
+        case titleTemplate(name: String)
         /// A generated picture, such as a solid color or a placeholder.
         case generator(name: String)
         case marker(name: String)
@@ -71,7 +75,7 @@ public struct ImportReport: Equatable, Sendable {
             switch self {
             case .unsupportedEffect: .unsupportedEffect
             case .missingMedia: .missingMedia
-            case .transition, .movedToNewTrack, .uneven, .nestedSettings, .speedChange: .changed
+            case .transition, .movedToNewTrack, .uneven, .nestedSettings, .speedChange, .titleTemplate: .changed
             default: .notImported
             }
         }
@@ -86,6 +90,8 @@ public struct ImportReport: Equatable, Sendable {
             case .title(let text):
                 text.isEmpty ? String(localized: "Interchange.Issue.Title", bundle: #bundle)
                     : String(format: String(localized: "Interchange.Issue.TitleText", bundle: #bundle), text)
+            case .titleTemplate(let name):
+                String(format: String(localized: "Interchange.Issue.TitleTemplate", bundle: #bundle), name)
             case .generator(let name):
                 String(format: String(localized: "Interchange.Issue.Generator", bundle: #bundle), name)
             case .marker(let name):

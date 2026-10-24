@@ -697,6 +697,35 @@
         }
       }
     },
+    "Interchange.Issue.TitleTemplate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The title “%@” was brought in as plain text, without the rest of its template’s look."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タイトル「%@」はテンプレートの見た目を除き、プレーンテキストとして読み込まれました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标题“%@”已作为纯文本导入，未包含其模板的其他外观。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標題「%@」已作為純文字匯入，未包含其範本的其他外觀。"
+          }
+        }
+      }
+    },
     "Interchange.Issue.TitleText" : {
       "extractionState" : "manual",
       "localizations" : {
