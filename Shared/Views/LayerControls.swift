@@ -35,7 +35,7 @@ struct LayerControls: View {
                 }
             }
             Button("Inspector.Layer.Reset", systemImage: "arrow.counterclockwise") {
-                editor.changeClip(clip.id, String(localized: "Inspector.Layer.Reset")) { $0.transform = ClipTransform() }
+                editor.changeClip(clip.id, String(localized: "Inspector.Action.ResetTransform")) { $0.transform = ClipTransform() }
             }
             .disabled(clip.transform == ClipTransform())
         } header: {

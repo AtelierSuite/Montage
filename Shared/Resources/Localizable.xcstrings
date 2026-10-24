@@ -4384,6 +4384,35 @@
         }
       }
     },
+    "Inspector.Action.ResetTransform" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Transform"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "変形のリセット"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置变换"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置變形"
+          }
+        }
+      }
+    },
     "Inspector.AddEffect" : {
       "extractionState" : "manual",
       "localizations" : {
