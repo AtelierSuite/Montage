@@ -212,6 +212,31 @@ struct CompositionBuilderTests {
         #expect(built.videoSegments(at: seconds(3)).map(\.segment.clipID) == [title.id])
     }
 
+    @Test(arguments: [false, true])
+    func aTailRingsOnPastStillsAndText(text: Bool) async throws {
+        // Two seconds of a still or a title, and a second and a half of sound
+        // with a reverb that rings for 1.2 seconds after it.
+        let picture = text
+            ? Clip(content: .text(TextContent("Fin")), sourceRange: range(0, 2))
+            : Clip(mediaID: SampleMedia.image.id, sourceRange: range(0, 2))
+        var reverb = Reverb()
+        reverb.room = .mediumRoom
+        let sound = Clip(mediaID: SampleMedia.landscape.id, sourceRange: range(1, 1.5), effects: [Effect(.reverb(reverb))])
+        let timeline = project([Track(kind: .video, clips: [picture]), Track(kind: .audio, clips: [sound])])
+        let built = try await build(timeline)
+        #expect(built.skippedClips.isEmpty, "\(built.skippedClips)")
+        #expect(timeline.duration == seconds(2))
+        #expect(built.duration == seconds(2.7))
+        #expect(built.composition.duration == seconds(2.7))
+        // The picture shows for its two seconds, then black under the tail.
+        let instructions = try #require(built.videoComposition).instructions
+        #expect(instructions.last?.timeRange.end == seconds(2.7))
+        #expect(built.videoSegments(at: seconds(1)).map(\.segment.clipID) == [picture.id])
+        #expect(built.videoSegments(at: seconds(2.4)).isEmpty)
+        // Nothing here needs a copy made.
+        #expect(DerivedMedia.allCases.allSatisfy { $0.media(neededIn: timeline).isEmpty })
+    }
+
     @Test func textOnAnAudioTrackIsLeftOut() async throws {
         let title = Clip(content: .text(TextContent("Nope")), sourceRange: range(0, 3))
         let built = try await build(project([Track(kind: .audio, clips: [title])]))

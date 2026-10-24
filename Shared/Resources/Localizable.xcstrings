@@ -12633,6 +12633,35 @@
         }
       }
     },
+    "Preview.UseProxies" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Proxies for Preview"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プレビューにプロキシを使用"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览时使用代理文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "預覽時使用代理檔案"
+          }
+        }
+      }
+    },
     "ProjectImport.Action" : {
       "extractionState" : "manual",
       "localizations" : {

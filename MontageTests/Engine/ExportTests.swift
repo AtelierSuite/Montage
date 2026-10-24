@@ -97,6 +97,30 @@ struct ExporterTests {
         try await exportMP4("IMG_3312.mp4", codec: .hevc, expectedSubtype: kCMVideoCodecType_HEVC)
     }
 
+    @Test func exportsATailAfterTheLastClip() async throws {
+        let landscape = MediaItem(name: "IMG_3311.mp4", kind: .video, location: .package(path: "IMG_3311.mp4"), metadata: MediaMetadata())
+        var reverb = Reverb()
+        reverb.room = .smallRoom
+        let clip = Clip(mediaID: landscape.id, sourceRange: range(1, 1), effects: [Effect(.reverb(reverb))])
+        let project = Project(media: [landscape], tracks: [Track(kind: .video, clips: [clip])])
+        let resolver = MediaResolver { item in
+            guard case .package(let path) = item.location else { return nil }
+            return Samples.url(path)
+        }
+        let built = try await CompositionBuilder(project: project, mediaResolver: resolver).build()
+        #expect(project.duration == CMTime(value: 1, timescale: 1))
+
+        let url = try temporaryURL("mp4")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try await Exporter().export(RenderSource(built), settings: ExportSettings(resolution: .hd720, quality: .low), to: url)
+        let output = AVURLAsset(url: url)
+        // The clip's second, and the small room's 0.6 seconds dying away
+        // over black after it.
+        #expect(abs(try await output.load(.duration).seconds - 1.6) < 0.1)
+        let audio = try #require(try await output.loadTracks(withMediaType: .audio).first)
+        #expect(try await audio.load(.timeRange).end.seconds > 1.5)
+    }
+
     @Test func exportsAProjectAsPreviewPlaysIt() async throws {
         // Two clips with a gap between them, landscape then portrait, in a
         // 1080p project: the built composition, exported as it plays.

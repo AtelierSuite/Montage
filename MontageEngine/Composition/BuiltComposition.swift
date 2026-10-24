@@ -24,7 +24,9 @@ public struct BuiltComposition: @unchecked Sendable {
     /// when nothing in the composition makes a sound.
     public let audioMix: AVAudioMix?
     /// How long the composition runs: to the end of the last clip placed, gaps
-    /// included. Shorter than the project when clips at the end were left out.
+    /// included, or past it for as long as an audio effect's tail rings on
+    /// there. Shorter than the project when clips at the end were left out,
+    /// longer when a tail rings out after the last clip.
     public let duration: CMTime
     /// Which composition tracks carry which clips' pictures, bottom layer
     /// first.

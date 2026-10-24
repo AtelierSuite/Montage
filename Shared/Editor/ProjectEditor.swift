@@ -16,15 +16,21 @@ import Observation
 final class ProjectEditor {
     private(set) var project: Project {
         didSet {
-            playbackController?.update(project: project, mediaResolver: mediaResolver)
-            if project.media != oldValue.media { checkMedia() }
+            playbackController?.update(project: project, mediaResolver: playbackResolver)
+            if project.media != oldValue.media {
+                checkMedia()
+                removeCopies(ofMediaRemovedFrom: oldValue)
+            }
+            // Not on every step of a drag: once it ends.
+            if gesture == nil { makeDerivedMedia() }
         }
     }
     /// Finds the media's files, wherever the project is kept.
     var mediaResolver: MediaResolver {
         didSet {
-            playbackController?.update(mediaResolver: mediaResolver)
+            playbackController?.update(mediaResolver: playbackResolver)
             checkMedia()
+            makeDerivedMedia()
         }
     }
     /// The media whose files can't be found, as of the last `checkMedia()`,
@@ -37,11 +43,28 @@ final class ProjectEditor {
     /// doesn't build anything; it goes when the editor does.
     var playback: PlaybackController {
         if let playbackController { return playbackController }
-        let playbackController = PlaybackController(project: project, mediaResolver: mediaResolver)
+        let playbackController = PlaybackController(project: project, mediaResolver: playbackResolver)
+        playbackController.usesProxies = usesProxies
         self.playbackController = playbackController
         return playbackController
     }
-    @ObservationIgnored private var playbackController: PlaybackController?
+    @ObservationIgnored private(set) var playbackController: PlaybackController?
+
+    /// Whether preview plays large video from smaller copies, made in the
+    /// background. Export always uses the originals. The same for every
+    /// open project, and kept for next time.
+    var usesProxies: Bool {
+        get { PreviewSettings.shared.usesProxies }
+        set { PreviewSettings.shared.usesProxies = newValue }
+    }
+
+    /// Follows a change to `usesProxies`, made here or in another project.
+    func previewSettingsChanged() {
+        playbackController?.usesProxies = usesProxies
+        // Turned off, proxies stop being made.
+        if !usesProxies { stopMakingDerivedMedia(.proxy) }
+        makeDerivedMedia()
+    }
 
     /// The timeline's selection, zoom and editing options.
     let timeline = TimelineState()
@@ -53,6 +76,18 @@ final class ProjectEditor {
     @ObservationIgnored let waveforms: WaveformCache
     /// Where thumbnails and waveforms are kept on disk, if anywhere.
     @ObservationIgnored let cacheStore: (any MediaCacheStore)?
+    /// Makes the copies of media the composition plays in their place, into
+    /// the same cache.
+    @ObservationIgnored let derivedMedia: DerivedMediaCache
+    /// The copies being made, a task for each kind so a quick stereo copy
+    /// doesn't wait behind a proxy, and the kinds asked for again meanwhile.
+    @ObservationIgnored var derivedMediaTasks: [DerivedMedia: (id: UUID, task: Task<Void, Never>)] = [:]
+    @ObservationIgnored var pendingDerivedMedia: Set<DerivedMedia> = []
+    /// The copies known to be there, or known not to be made, by kind and
+    /// file name, so edits don't look for them on disk again.
+    @ObservationIgnored var settledDerivedMedia: Set<String> = []
+
+    @ObservationIgnored private var settingsObserver: (any NSObjectProtocol)?
 
     /// The gesture under way: the project as it was when it began, and the
     /// name of the undo step it makes.
@@ -77,7 +112,14 @@ final class ProjectEditor {
         thumbnails = ThumbnailCache(store: cache, capacity: 600)
         waveforms = WaveformCache(store: cache)
         cacheStore = cache
+        derivedMedia = DerivedMediaCache(store: cache as? any DerivedMediaStore)
         checkMedia()
+        makeDerivedMedia()
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: PreviewSettings.didChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.previewSettingsChanged() }
+        }
     }
 
     /// Makes a change as one undo step, named for the Edit menu. A change
@@ -121,6 +163,7 @@ final class ProjectEditor {
     func endGesture() {
         guard let gesture else { return }
         self.gesture = nil
+        defer { makeDerivedMedia() }
         guard project != gesture.baseline else { return }
         apply(project, undoName: gesture.actionName, from: gesture.baseline)
     }
@@ -154,6 +197,9 @@ final class ProjectEditor {
     /// Stops playback for good, when the project closes.
     func close() {
         playbackController?.invalidate()
+        stopMakingDerivedMedia()
+        if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }
+        settingsObserver = nil
     }
 
     /// Puts in a changed project, undone back to `previous`: the project as

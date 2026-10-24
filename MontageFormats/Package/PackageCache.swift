@@ -11,7 +11,9 @@ import UniformTypeIdentifiers
 ///     Cache/
 ///     ├── Thumbnails/<media ID>/220x124.jpg          the library's pictures
 ///     ├── Thumbnails/<media ID>/h60/2000.jpg         timeline frames, by height, then milliseconds
-///     └── Waveforms/<media ID>.peaks                 `WaveformPeaks.encoded()`
+///     ├── Waveforms/<media ID>.peaks                 `WaveformPeaks.encoded()`
+///     ├── Stereo/<media ID>-<source>.m4a             mono media's sound on both channels
+///     └── Proxies/<media ID>-<source>.mov            large video, smaller, for preview
 ///
 /// Files are written straight into the package on disk as they're made,
 /// between saves, and `ProjectPackage` keeps the folder whenever it writes
@@ -19,7 +21,7 @@ import UniformTypeIdentifiers
 /// time, and whatever's missing is made again from the media when it's next
 /// asked for. Until the project is first saved there's nowhere to keep
 /// anything, and the caches in memory are all there is.
-public final class PackageCache: MediaCacheStore, Sendable {
+public final class PackageCache: MediaCacheStore, DerivedMediaStore, Sendable {
     static let thumbnailsDirectoryName = "Thumbnails"
     static let waveformsDirectoryName = "Waveforms"
 
@@ -99,6 +101,44 @@ public final class PackageCache: MediaCacheStore, Sendable {
             .appending(path: "\(mediaID.uuidString).peaks", directoryHint: .notDirectory)
     }
 
+    // MARK: - Copies of media
+
+    public func url(for item: MediaItem, _ kind: DerivedMedia) -> URL? {
+        copiesDirectory(kind)?.appending(path: kind.fileName(for: item), directoryHint: .notDirectory)
+    }
+
+    /// Makes the copy's folder in the package's `Cache/`, if the package and
+    /// its cache are still there; never the package itself.
+    public func prepareFolder(for url: URL) -> Bool {
+        let folder = url.deletingLastPathComponent()
+        let cache = folder.deletingLastPathComponent()
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: cache.path, isDirectory: &isDirectory), isDirectory.boolValue else { return false }
+        if FileManager.default.fileExists(atPath: folder.path) { return true }
+        return (try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)) != nil
+    }
+
+    private func copiesDirectory(_ kind: DerivedMedia) -> URL? {
+        let name = switch kind {
+        case .stereoAudio: "Stereo"
+        case .proxy: "Proxies"
+        }
+        return cacheDirectory?.appending(path: name, directoryHint: .isDirectory)
+    }
+
+    /// Throws away every copy made from a media item, whatever file it was
+    /// made from.
+    public func removeCopies(for mediaID: MediaItem.ID) {
+        let prefix = mediaID.uuidString + "-"
+        for kind in DerivedMedia.allCases {
+            guard let folder = copiesDirectory(kind),
+                  let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else { continue }
+            for name in names where name.hasPrefix(prefix) {
+                try? FileManager.default.removeItem(at: folder.appending(path: name, directoryHint: .notDirectory))
+            }
+        }
+    }
+
     // MARK: - Clearing
 
     /// Throws away everything made from a media item, such as when it's
@@ -106,6 +146,7 @@ public final class PackageCache: MediaCacheStore, Sendable {
     public func removeCache(for mediaID: MediaItem.ID) {
         if let folder = thumbnailsDirectory(for: mediaID) { try? FileManager.default.removeItem(at: folder) }
         if let url = waveformURL(for: mediaID) { try? FileManager.default.removeItem(at: url) }
+        removeCopies(for: mediaID)
     }
 
     /// Writes a file of the cache, making its folder if need be. A write

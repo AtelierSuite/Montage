@@ -40,6 +40,9 @@ public struct CompositionBuilder: Sendable {
     /// The most video layers that show at once; clips past it are left out
     /// as `.tooManyLayers`, top layers first.
     public var maximumVideoLayers = VideoLayerLimit.standard
+    /// Whether large video plays from its proxy, where one has been made, as
+    /// preview may choose to. Export always uses the originals.
+    public var usesProxies = false
 
     public init(project: Project, mediaResolver: MediaResolver, snapshot: ProjectSnapshot? = nil) {
         self.project = project
@@ -55,7 +58,8 @@ public struct CompositionBuilder: Sendable {
     /// composition track of its own, so nothing on the timeline moves. A tail
     /// runs on into empty time, or, after a track's last clip, into filler
     /// that the clip's tap silences, since a composition track can't end in
-    /// empty time. It stops where the composition does.
+    /// empty time. A tail still ringing after the last clip of the timeline
+    /// makes the composition longer than the project, so it isn't cut off.
     public static func audioTail(for clip: Clip) -> CMTime {
         clip.audioTail
     }
@@ -67,7 +71,7 @@ public struct CompositionBuilder: Sendable {
     @concurrent
     public func build() async throws -> BuiltComposition {
         let composition = AVMutableComposition()
-        var media = MediaLoader(resolver: mediaResolver)
+        var media = MediaLoader(resolver: mediaResolver, usesProxies: usesProxies)
         var skipped: [SkippedClip] = []
         var pictures: [LayerWriter] = []
         var sounds: [LayerWriter] = []
@@ -197,8 +201,11 @@ public struct CompositionBuilder: Sendable {
             )
         }
         // A composition can't end in empty time, so it runs to the end of
-        // the last clip placed: clips left out at the end shorten it.
-        let end = writers.map(\.cursor).max() ?? .zero
+        // the last clip placed: clips left out at the end shorten it. A tail
+        // still ringing there runs on past it, over a black picture, so a
+        // reverb or delay on the last clip isn't cut off.
+        let lastClipEnd = writers.map(\.cursor).max() ?? .zero
+        let end = max(lastClipEnd, sounds.map(\.ringsUntil).max() ?? .zero)
         for index in sounds.indices {
             try sounds[index].fillTail(before: end)
         }
@@ -438,9 +445,10 @@ private struct SourceTrack {
 }
 
 private struct LoadedMedia {
-    /// Kept for as long as its tracks are used: a track only holds on to its
-    /// asset weakly, and can't be inserted once the asset is gone.
-    let asset: AVURLAsset
+    /// Kept for as long as their tracks are used: a track only holds on to
+    /// its asset weakly, and can't be inserted once the asset is gone. The
+    /// media's own, and any copy made from it played in its place.
+    let assets: [AVURLAsset]
     let video: SourceTrack?
     let audio: SourceTrack?
 }
@@ -452,18 +460,20 @@ private struct LoadFailure: Error {
 /// Opens each media item's file once per build, however many clips use it.
 private struct MediaLoader {
     let resolver: MediaResolver
+    let usesProxies: Bool
     private var loaded: [MediaItem.ID: Result<LoadedMedia, LoadFailure>] = [:]
     private var stills: [MediaItem.ID: Result<StillImage, LoadFailure>] = [:]
     /// What still images are placed with, opened once per build.
     private var filler: Result<LoadedMedia, LoadFailure>?
 
-    init(resolver: MediaResolver) {
+    init(resolver: MediaResolver, usesProxies: Bool) {
         self.resolver = resolver
+        self.usesProxies = usesProxies
     }
 
     mutating func load(_ item: MediaItem) async -> Result<LoadedMedia, LoadFailure> {
         if let result = loaded[item.id] { return result }
-        let result = await Self.open(item, resolver: resolver)
+        let result = await Self.open(item, resolver: resolver, usesProxies: usesProxies)
         loaded[item.id] = result
         return result
     }
@@ -509,11 +519,33 @@ private struct MediaLoader {
         return .success(image)
     }
 
-    private static func open(_ item: MediaItem, resolver: MediaResolver) async -> Result<LoadedMedia, LoadFailure> {
+    private static func open(_ item: MediaItem, resolver: MediaResolver, usesProxies: Bool) async -> Result<LoadedMedia, LoadFailure> {
         guard let url = resolver.url(for: item), (try? url.checkResourceIsReachable()) == true else {
             return .failure(LoadFailure(reason: .fileNotFound))
         }
-        return await open(url)
+        let opened = await open(url)
+        guard case .success(let loaded) = opened else { return opened }
+        var assets = loaded.assets, video = loaded.video, audio = loaded.audio
+        do {
+            // Mono sound plays from a stereo copy where there is one, so it
+            // can be panned.
+            if audio != nil, DerivedMedia.stereoAudio.applies(to: item),
+               let stereo = await derivedTrack(.stereoAudio, of: item, mediaType: .audio, resolver: resolver) {
+                assets.append(stereo.asset)
+                audio = try await source(stereo.track)
+            }
+            // Large video's picture plays from its proxy, if asked to and
+            // there is one; its sound is still the original's.
+            if usesProxies, video != nil, DerivedMedia.proxy.applies(to: item),
+               let proxy = await derivedTrack(.proxy, of: item, mediaType: .video, resolver: resolver) {
+                assets.append(proxy.asset)
+                video = try await source(proxy.track)
+            }
+        } catch {
+            // A copy that can't be used leaves the original as it is.
+            return .success(loaded)
+        }
+        return .success(LoadedMedia(assets: assets, video: video, audio: audio))
     }
 
     private static func open(_ url: URL) async -> Result<LoadedMedia, LoadFailure> {
@@ -530,10 +562,21 @@ private struct MediaLoader {
                 break
             }
             guard video != nil || audio != nil else { return .failure(LoadFailure(reason: .unreadable)) }
-            return .success(LoadedMedia(asset: asset, video: try await source(video), audio: try await source(audio)))
+            return .success(LoadedMedia(assets: [asset], video: try await source(video), audio: try await source(audio)))
         } catch {
             return .failure(LoadFailure(reason: .unreadable))
         }
+    }
+
+    /// The first track of a kind in a copy made from an item's media, if
+    /// one's been made and can be read.
+    private static func derivedTrack(
+        _ kind: DerivedMedia, of item: MediaItem, mediaType: AVMediaType, resolver: MediaResolver
+    ) async -> (asset: AVURLAsset, track: AVAssetTrack)? {
+        guard let url = resolver.url(for: item, kind), (try? url.checkResourceIsReachable()) == true else { return nil }
+        let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+        guard let track = try? await asset.loadTracks(withMediaType: mediaType).first else { return nil }
+        return (asset, track)
     }
 
     private static func source(_ track: AVAssetTrack?) async throws -> SourceTrack? {

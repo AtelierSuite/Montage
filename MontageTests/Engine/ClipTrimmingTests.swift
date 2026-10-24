@@ -173,3 +173,109 @@ struct SplitTests {
         #expect(fixture.project.tracks.map(\.clips.count) == [2, 3])
     }
 }
+
+struct EffectKeyframeTrimTests {
+    /// A clip with a keyframe at 5 seconds on a parameter of each kind of
+    /// effect, and on the colour correction's mask.
+    private func keyframedClip(in fixture: inout TimelineFixture) {
+        fixture.project.tracks[0].update(fixture.id(0)) { clip in
+            var correction = ColorCorrection()
+            correction.exposure.setKeyframe(Keyframe(time: s(5), value: 1))
+            var mask = Mask(.ellipse)
+            mask.center.setKeyframe(Keyframe(time: s(5), value: CGPoint(x: 0.2, y: 0.2)))
+            var mosaic = Mosaic()
+            mosaic.strength.setKeyframe(Keyframe(time: s(5), value: 0.5))
+            var gain = Gain()
+            gain.decibels.setKeyframe(Keyframe(time: s(5), value: -6))
+            var pan = Pan()
+            pan.position.setKeyframe(Keyframe(time: s(5), value: 1))
+            var equalizer = Equalizer()
+            equalizer.bands[1].gain.setKeyframe(Keyframe(time: s(5), value: 3))
+            var delay = Delay()
+            delay.mix.setKeyframe(Keyframe(time: s(5), value: 0.8))
+            var reverb = Reverb()
+            reverb.mix.setKeyframe(Keyframe(time: s(5), value: 0.8))
+            clip.effects = [
+                Effect(.colorCorrection(correction), mask: mask), Effect(.mosaic(mosaic)), Effect(.gain(gain)),
+                Effect(.pan(pan)), Effect(.equalizer(equalizer)), Effect(.delay(delay)), Effect(.reverb(reverb)),
+            ]
+        }
+    }
+
+    /// The times of the keyframes `keyframedClip` set, effect by effect.
+    private func keyframeTimes(of clip: Clip) -> [[CMTime]] {
+        clip.effects.map { effect in
+            switch effect.kind {
+            case .colorCorrection(let correction):
+                correction.exposure.keyframes.map(\.time) + (effect.mask?.center.keyframes.map(\.time) ?? [])
+            case .mosaic(let mosaic): mosaic.strength.keyframes.map(\.time)
+            case .gain(let gain): gain.decibels.keyframes.map(\.time)
+            case .pan(let pan): pan.position.keyframes.map(\.time)
+            case .equalizer(let equalizer): equalizer.bands[1].gain.keyframes.map(\.time)
+            case .delay(let delay): delay.mix.keyframes.map(\.time)
+            case .reverb(let reverb): reverb.mix.keyframes.map(\.time)
+            case .unsupported: []
+            }
+        }
+    }
+
+    @Test func trimmingTheStartMovesEffectAndMaskKeyframesWithTheMedia() {
+        var fixture = TimelineFixture([(0, 0, 10)])
+        keyframedClip(in: &fixture)
+        fixture.project.trimClip(fixture.id(0), edge: .start, to: s(2))
+        let times = keyframeTimes(of: fixture.clips[0])
+        #expect(times.count == 7)
+        #expect(times[0] == [s(3), s(3)])
+        #expect(times.dropFirst().allSatisfy { $0 == [s(3)] })
+    }
+
+    @Test func trimmingTheEndLeavesEffectKeyframesAlone() {
+        var fixture = TimelineFixture([(0, 0, 10)])
+        keyframedClip(in: &fixture)
+        fixture.project.trimClip(fixture.id(0), edge: .end, to: s(8))
+        let times = keyframeTimes(of: fixture.clips[0])
+        #expect(times[0] == [s(5), s(5)])
+        #expect(times.dropFirst().allSatisfy { $0 == [s(5)] })
+    }
+
+    @Test func rippleAndRollMoveEffectKeyframesWithTheMedia() {
+        var ripple = TimelineFixture([(0, 0, 10)])
+        keyframedClip(in: &ripple)
+        ripple.project.trimClip(ripple.id(0), edge: .start, to: s(4), style: .ripple)
+        #expect(keyframeTimes(of: ripple.clips[0]).allSatisfy { $0.allSatisfy { $0 == s(1) } })
+
+        var roll = TimelineFixture([(0, 0, 4), (4, 0, 10)])
+        roll.project.tracks[0].update(roll.id(1)) { clip in
+            var gain = Gain()
+            gain.decibels.setKeyframe(Keyframe(time: s(5), value: -6))
+            clip.effects = [Effect(.gain(gain))]
+        }
+        roll.project.trimClip(roll.id(1), edge: .start, to: s(6), style: .roll)
+        guard case .gain(let gain) = roll.clips[1].effects[0].kind else { Issue.record("Not gain"); return }
+        #expect(gain.decibels.keyframes.map(\.time) == [s(3)])
+    }
+
+    @Test func theSecondHalfKeepsItsEffectsKeyframesWhereTheyWere() {
+        var fixture = TimelineFixture([(0, 0, 10)])
+        fixture.project.tracks[0].update(fixture.id(0)) { clip in
+            var pan = Pan()
+            pan.position.setKeyframe(Keyframe(time: s(2), value: -1))
+            pan.position.setKeyframe(Keyframe(time: s(8), value: 1))
+            var mask = Mask(.rectangle)
+            mask.feather.setKeyframe(Keyframe(time: s(2), value: 0))
+            mask.feather.setKeyframe(Keyframe(time: s(8), value: 0.6))
+            clip.effects = [Effect(.pan(pan)), Effect(.mosaic(Mosaic()), mask: mask)]
+        }
+        fixture.project.splitClip(fixture.id(0), at: s(4))
+        let before = fixture.clips[0], after = fixture.clips[1]
+        guard case .pan(let pan) = after.effects[0].kind, case .pan(let original) = before.effects[0].kind,
+              let mask = after.effects[1].mask else {
+            Issue.record("Effects lost in the split"); return
+        }
+        #expect(original.position.keyframes.map(\.time) == [s(2), s(8)])
+        #expect(pan.position.keyframes.map(\.time) == [s(-2), s(4)])
+        // Halfway between the keyframes, as it was before the split.
+        #expect(pan.position.value(at: after.localTime(s(5))) == 0)
+        #expect(abs(mask.feather.value(at: after.localTime(s(5))) - 0.3) < 1e-9)
+    }
+}

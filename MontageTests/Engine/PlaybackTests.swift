@@ -82,6 +82,32 @@ struct PlaybackControllerTests {
         #expect(controller.hasContent)
     }
 
+    @Test func aTailRingsOnWithoutMovingTheEnd() async throws {
+        var project = project()
+        project.tracks[0].update(project.tracks[0].clips[0].id) { $0.effects = [Effect(.delay(Delay()))] }
+        let controller = PlaybackController(project: project, mediaResolver: resolver, rebuildDelay: .milliseconds(10))
+        defer { controller.invalidate() }
+        try await waitUntil { controller.composition != nil }
+        // The composition runs on for the echoes; the timeline doesn't.
+        #expect(controller.composition?.duration == seconds(5.5))
+        #expect(controller.duration == seconds(4))
+        controller.seek(to: seconds(5))
+        #expect(controller.currentTime == seconds(4))
+
+        // Playing into the tail, then shuttling back: from the end at once.
+        controller.seek(to: seconds(3.9))
+        controller.play()
+        try await waitUntil { controller.player.currentTime() > seconds(5.2) }
+        #expect(controller.currentTime == seconds(4))
+        controller.shuttle(at: -1)
+        // Left in the tail, the player would take over 1.4 seconds to get
+        // back to 3.8; from the end, it takes 0.2 and a seek.
+        let start = ContinuousClock.now
+        try await waitUntil { controller.currentTime < seconds(3.8) }
+        #expect(ContinuousClock.now - start < .milliseconds(1300))
+        controller.pause()
+    }
+
     @Test func steppingMovesAFrameAtATime() async throws {
         let controller = PlaybackController(project: project(), mediaResolver: resolver, rebuildDelay: .milliseconds(10))
         defer { controller.invalidate() }

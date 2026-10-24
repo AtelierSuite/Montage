@@ -41,6 +41,14 @@ public final class PlaybackController {
     /// when the next one is swapped in.
     public private(set) var playbackError: (any Error)?
 
+    /// Whether large video plays from its proxy where one has been made.
+    /// Changing it builds the composition again.
+    public var usesProxies = false {
+        didSet {
+            if usesProxies != oldValue { scheduleRebuild(after: .zero) }
+        }
+    }
+
     /// How long the timeline runs.
     public var duration: CMTime { project.duration }
     /// The project's frame grid.
@@ -168,9 +176,10 @@ public final class PlaybackController {
             if delay > .zero {
                 do { try await Task.sleep(for: delay) } catch { return }
             }
-            guard let builder = self.map({
+            guard var builder = self.map({
                 CompositionBuilder(project: $0.project, mediaResolver: $0.mediaResolver, snapshot: $0.snapshot)
             }) else { return }
+            builder.usesProxies = self?.usesProxies ?? false
             // Builds off the main actor; only cancelling throws.
             guard let built = try? await builder.build(), !Task.isCancelled else { return }
             self?.install(built)
@@ -220,6 +229,9 @@ public final class PlaybackController {
             seek(to: .zero)
         }
         guard rate > 0 || currentTime > .zero else { return }
+        // Backwards from a tail ringing on past the end, from the end, or
+        // the playhead would sit there until the player got back to it.
+        if rate < 0 { returnFromTail() }
         isPlaying = true
         self.rate = rate
         player.rate = rate
@@ -231,7 +243,16 @@ public final class PlaybackController {
         // Where the player stopped, rather than where the last update said.
         if pendingSeek == nil, seekInFlight == nil, player.currentItem != nil {
             currentTime = clamped(player.currentTime())
+            returnFromTail()
         }
+    }
+
+    /// Brings the player back to the end of the timeline if it stopped in a
+    /// tail ringing on after it, where the composition outlasts the project:
+    /// the playhead never goes past the end, so the picture shouldn't either.
+    private func returnFromTail() {
+        guard player.currentTime() > duration else { return }
+        seek(to: duration)
     }
 
     public func togglePlayPause() {
@@ -361,6 +382,7 @@ public final class PlaybackController {
                 self.isPlaying = false
                 if self.pendingSeek == nil, self.seekInFlight == nil {
                     self.currentTime = self.clamped(self.player.currentTime())
+                    self.returnFromTail()
                 }
             }
         }

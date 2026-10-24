@@ -59,6 +59,46 @@ struct PackageCacheTests {
         #expect(await reopened.waveform(for: id) == nil)
     }
 
+    @Test func keepsCopiesOfMediaInThePackagesCache() throws {
+        let package = try makePackage()
+        defer { try? FileManager.default.removeItem(at: package) }
+        let cache = PackageCache(packageURL: package)
+        let item = MediaItem(name: "a.caf", kind: .audio, location: .package(path: "Media/a.caf"), metadata: MediaMetadata(audioChannelCount: 1))
+        let folder = ProjectPackage.cacheDirectory(inPackageAt: package)
+        let stereo = try #require(cache.url(for: item, .stereoAudio))
+        #expect(stereo.deletingLastPathComponent().standardizedFileURL.path == folder.appending(path: "Stereo").standardizedFileURL.path)
+        #expect(stereo.lastPathComponent.hasPrefix(item.id.uuidString + "-"))
+        #expect(stereo.pathExtension == "m4a")
+        #expect(cache.existingURL(for: item, .stereoAudio) == nil)
+        let proxy = try #require(cache.url(for: item, .proxy))
+        #expect(proxy.deletingLastPathComponent().standardizedFileURL.path == folder.appending(path: "Proxies").standardizedFileURL.path)
+
+        try FileManager.default.createDirectory(at: stereo.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("m4a".utf8).write(to: stereo)
+        #expect(cache.existingURL(for: item, .stereoAudio) != nil)
+        // Pointed at another file, the item's copy is another one.
+        var relinked = item
+        relinked.location = .package(path: "Media/b.caf")
+        #expect(cache.existingURL(for: relinked, .stereoAudio) == nil)
+        cache.removeCache(for: item.id)
+        #expect(cache.existingURL(for: item, .stereoAudio) == nil)
+        #expect(PackageCache().url(for: item, .stereoAudio) == nil)
+    }
+
+    @Test func neverMakesAPackageAgainForACopy() throws {
+        let package = try makePackage()
+        let cache = PackageCache(packageURL: package)
+        let item = MediaItem(name: "a.caf", kind: .audio, location: .package(path: "Media/a.caf"), metadata: MediaMetadata(audioChannelCount: 1))
+        let stereo = try #require(cache.url(for: item, .stereoAudio))
+        #expect(cache.prepareFolder(for: stereo))
+        #expect(FileManager.default.fileExists(atPath: stereo.deletingLastPathComponent().path))
+
+        // Moved away while a copy was being made: the old place stays gone.
+        try FileManager.default.removeItem(at: package)
+        #expect(!cache.prepareFolder(for: stereo))
+        #expect(!FileManager.default.fileExists(atPath: package.path))
+    }
+
     @Test func keepsNothingBeforeThePackageIsSaved() async throws {
         let cache = PackageCache()
         let id = UUID()

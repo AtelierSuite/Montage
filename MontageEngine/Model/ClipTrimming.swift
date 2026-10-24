@@ -23,12 +23,9 @@ public enum TrimStyle: Sendable {
 // MARK: - Clips
 
 extension Clip {
-    /// Moves every keyframe of the clip's own parameters along by `offset`,
-    /// so after its start is trimmed by the opposite amount they stay on the
-    /// same frames of the media.
-    ///
-    /// TODO: effects' keyframes aren't moved yet; each effect's parameters
-    /// will need the same once effects can be keyframed in the inspector.
+    /// Moves every keyframe of the clip's parameters, its effects' and their
+    /// masks' along by `offset`, so after its start is trimmed by the
+    /// opposite amount they stay on the same frames of the media.
     mutating func shiftKeyframes(by offset: CMTime) {
         guard offset != .zero else { return }
         volume = volume.shifted(by: offset)
@@ -36,6 +33,7 @@ extension Clip {
         transform.position = transform.position.shifted(by: offset)
         transform.scale = transform.scale.shifted(by: offset)
         transform.rotation = transform.rotation.shifted(by: offset)
+        for index in effects.indices { effects[index].shiftKeyframes(by: offset) }
         content = content.shifted(by: offset)
         // The scale and position put back when Ken Burns comes off are on
         // the clip's time too, so they move with it.
@@ -65,6 +63,71 @@ extension Clip {
     /// Moves the clip's end to a time on the timeline, keeping its start.
     mutating func moveEnd(to time: CMTime) {
         sourceRange = CMTimeRange(start: sourceRange.start, duration: time - timelineStart)
+    }
+}
+
+extension Effect {
+    /// Moves every keyframe of the effect's parameters, and its mask's,
+    /// along by `offset`.
+    mutating func shiftKeyframes(by offset: CMTime) {
+        guard offset != .zero else { return }
+        mask?.shiftKeyframes(by: offset)
+        switch kind {
+        case .colorCorrection(var correction):
+            correction.exposure = correction.exposure.shifted(by: offset)
+            correction.brightness = correction.brightness.shifted(by: offset)
+            correction.contrast = correction.contrast.shifted(by: offset)
+            correction.saturation = correction.saturation.shifted(by: offset)
+            correction.temperature = correction.temperature.shifted(by: offset)
+            correction.tint = correction.tint.shifted(by: offset)
+            correction.lift = correction.lift.shifted(by: offset)
+            correction.gamma = correction.gamma.shifted(by: offset)
+            correction.gain = correction.gain.shifted(by: offset)
+            correction.lutIntensity = correction.lutIntensity.shifted(by: offset)
+            kind = .colorCorrection(correction)
+        case .mosaic(var mosaic):
+            mosaic.scale = mosaic.scale.shifted(by: offset)
+            mosaic.strength = mosaic.strength.shifted(by: offset)
+            mosaic.firstColor = mosaic.firstColor.shifted(by: offset)
+            mosaic.secondColor = mosaic.secondColor.shifted(by: offset)
+            kind = .mosaic(mosaic)
+        case .gain(var gain):
+            gain.decibels = gain.decibels.shifted(by: offset)
+            kind = .gain(gain)
+        case .pan(var pan):
+            pan.position = pan.position.shifted(by: offset)
+            kind = .pan(pan)
+        case .equalizer(var equalizer):
+            for index in equalizer.bands.indices {
+                equalizer.bands[index].frequency = equalizer.bands[index].frequency.shifted(by: offset)
+                equalizer.bands[index].gain = equalizer.bands[index].gain.shifted(by: offset)
+                equalizer.bands[index].bandwidth = equalizer.bands[index].bandwidth.shifted(by: offset)
+            }
+            kind = .equalizer(equalizer)
+        case .delay(var delay):
+            delay.time = delay.time.shifted(by: offset)
+            delay.feedback = delay.feedback.shifted(by: offset)
+            delay.mix = delay.mix.shifted(by: offset)
+            kind = .delay(delay)
+        case .reverb(var reverb):
+            reverb.mix = reverb.mix.shifted(by: offset)
+            kind = .reverb(reverb)
+        case .unsupported:
+            // Kept only to be written back out as it came in; its keyframes,
+            // if any, aren't ones Montage reads.
+            break
+        }
+    }
+}
+
+extension Mask {
+    /// Moves every keyframe of the mask's parameters along by `offset`.
+    mutating func shiftKeyframes(by offset: CMTime) {
+        center = center.shifted(by: offset)
+        size = size.shifted(by: offset)
+        rotation = rotation.shifted(by: offset)
+        feather = feather.shifted(by: offset)
+        path = path.shifted(by: offset)
     }
 }
 
