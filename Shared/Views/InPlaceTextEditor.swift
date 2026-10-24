@@ -14,7 +14,7 @@ import UIKit
 /// and what's typed goes into the clip as it's typed, as one undo step.
 ///
 /// Return or Escape stops editing, as does clicking or tapping away;
-/// Shift-Return or Option-Return starts a new line on a Mac.
+/// Shift-Return starts a new line, as Option-Return also does on a Mac.
 struct InPlaceTextEditor: View {
     @Environment(ProjectEditor.self) private var editor
     let clip: Clip
@@ -363,6 +363,10 @@ struct InPlaceTextView: UIViewRepresentable {
     func makeUIView(context: Context) -> UITextView {
         let view = EditingTextView()
         view.onEscape = { [weak coordinator = context.coordinator] in coordinator?.end() }
+        view.onNewLine = { [weak coordinator = context.coordinator, weak view] in
+            guard let view else { return }
+            coordinator?.insertNewLine(in: view)
+        }
         view.backgroundColor = .clear
         view.isScrollEnabled = false
         view.allowsEditingTextAttributes = false
@@ -476,8 +480,18 @@ struct InPlaceTextView: UIViewRepresentable {
             centre(view)
         }
 
+        /// Whether a new line is being put in on purpose, with Shift-Return,
+        /// rather than Return ending the typing.
+        private var isInsertingNewLine = false
+
+        func insertNewLine(in view: UITextView) {
+            isInsertingNewLine = true
+            view.insertText("\n")
+            isInsertingNewLine = false
+        }
+
         func textView(_ view: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-            guard text == "\n" else { return true }
+            guard text == "\n", !isInsertingNewLine else { return true }
             end()
             return false
         }
@@ -493,18 +507,26 @@ struct InPlaceTextView: UIViewRepresentable {
         }
     }
 
-    /// Escape on a hardware keyboard stops typing.
+    /// Escape on a hardware keyboard stops typing, and Shift-Return starts
+    /// a new line.
     final class EditingTextView: UITextView {
         var onEscape: (() -> Void)?
+        var onNewLine: (() -> Void)?
 
         override var keyCommands: [UIKeyCommand]? {
             let escape = UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(escape))
             escape.wantsPriorityOverSystemBehavior = true
-            return [escape] + (super.keyCommands ?? [])
+            let newLine = UIKeyCommand(input: "\r", modifierFlags: .shift, action: #selector(newLine))
+            newLine.wantsPriorityOverSystemBehavior = true
+            return [escape, newLine] + (super.keyCommands ?? [])
         }
 
         @objc private func escape() {
             onEscape?()
+        }
+
+        @objc private func newLine() {
+            onNewLine?()
         }
     }
 }
