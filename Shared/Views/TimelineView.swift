@@ -18,6 +18,7 @@ import SwiftUI
 /// - The handles at the ends of selected clips, and of the clip under the
 ///   pointer on a Mac, trim them, in the editor's trim style.
 /// - Pinching zooms about where the pinch is.
+/// - Media dragged from the library goes where it's dropped.
 /// - With the timeline focused, keys edit: J, K and L shuttle, I and O mark
 ///   a range, M adds a marker, B splits, Delete deletes and Shift-Delete
 ///   ripple deletes, N turns snapping on and off, and + and - zoom.
@@ -169,6 +170,9 @@ struct TimelineView: View {
         .overlay(alignment: .topLeading) {
             Playhead(pointsPerSecond: layout.pointsPerSecond)
         }
+        .dropDestination(for: MediaDragPayload.self) { payloads, location in
+            dropped(payloads.flatMap(\.mediaIDs), at: location, layout: layout)
+        }
         .coordinateSpace(.named(Self.space))
         .onChange(of: isDragGestureActive) { _, isActive in
             if !isActive { endDrag() }
@@ -251,6 +255,22 @@ struct TimelineView: View {
         guard drag != nil else { return }
         drag = nil
         editor.endGesture()
+    }
+
+    // MARK: - Dropping
+
+    /// Puts media dragged from the library where it's dropped: from the
+    /// frame under it, on the track under it if that's of the media's kind
+    /// and has room.
+    private func dropped(_ ids: [MediaItem.ID], at location: CGPoint, layout: TimelineLayout) -> Bool {
+        let ids = ids.filter { editor.project.mediaItem(id: $0) != nil }
+        guard !ids.isEmpty else { return false }
+        let time = max(.zero, editor.playback.frames.rounded(seconds: layout.seconds(atX: location.x)))
+        let row = layout.rowIndex(atY: location.y)
+        let track = layout.rows.indices.contains(row) ? layout.rows[row].track?.id : nil
+        focus()
+        editor.insertMedia(ids, at: time, onTrack: track)
+        return true
     }
 
     // MARK: - Trimming
