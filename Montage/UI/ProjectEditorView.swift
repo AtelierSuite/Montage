@@ -12,6 +12,7 @@ struct ProjectEditorView: View {
     var fileURL: URL?
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.undoManager) private var undoManager
     @State private var editor: ProjectEditor
     @State private var importer: MediaImporter
@@ -101,27 +102,41 @@ struct ProjectEditorView: View {
     }
 
     private var editorArea: some View {
-        EditorView(showsControlBar: false)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                EditorActionBar(
-                    // An iPad has the library in its sidebar already.
-                    showLibrary: horizontalSizeClass == .compact ? { isShowingLibrary = true } : nil,
-                    isShowingInspector: $isShowingInspector
-                )
-                .padding(.bottom, 8)
+        Group {
+            if verticalSizeClass == .compact {
+                // An iPhone held sideways: no height to spare for the bar, so
+                // its controls go down either side of the preview instead.
+                EditorView(showsControlBar: false) {
+                    EditorActionColumn(side: .leading, showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
+                } previewTrailing: {
+                    EditorActionColumn(side: .trailing, showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
+                }
+            } else {
+                EditorView(showsControlBar: false)
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        EditorActionBar(showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
+                            .padding(.bottom, 8)
+                    }
             }
-            .inspector(isPresented: $isShowingInspector) {
-                InspectorView()
-                    .presentationDetents([.medium, .large])
-            }
-            .toolbar { editorToolbar }
-            .sheet(isPresented: $isShowingExport) {
-                ExportSheet(editor: editor, title: projectTitle) { isShowingExports = true }
-            }
-            .sheet(isPresented: $isShowingExports) {
-                ExportsSheet(queue: ExportCenter.queue)
-                    .presentationDetents([.medium, .large])
-            }
+        }
+        .inspector(isPresented: $isShowingInspector) {
+            InspectorView()
+                .presentationDetents([.medium, .large])
+        }
+        .toolbar { editorToolbar }
+        .sheet(isPresented: $isShowingExport) {
+            ExportSheet(editor: editor, title: projectTitle) { isShowingExports = true }
+        }
+        .sheet(isPresented: $isShowingExports) {
+            ExportsSheet(queue: ExportCenter.queue)
+                .presentationDetents([.medium, .large])
+        }
+    }
+
+    /// Opens the library, where it's not already beside the editor in an
+    /// iPad's sidebar.
+    private var showLibrary: (() -> Void)? {
+        horizontalSizeClass == .compact ? { isShowingLibrary = true } : nil
     }
 
     /// The project's name, for the files exported from it.

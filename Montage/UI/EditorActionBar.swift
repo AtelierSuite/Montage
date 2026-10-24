@@ -8,8 +8,6 @@ struct EditorActionBar: View {
     var showLibrary: (() -> Void)?
     @Binding var isShowingInspector: Bool
 
-    @Environment(ProjectEditor.self) private var editor
-
     /// How wide the bar's room is, so the groups stay centred while they fit.
     @State private var width = 0.0
 
@@ -20,37 +18,11 @@ struct EditorActionBar: View {
             GlassEffectContainer(spacing: 10) {
                 HStack(spacing: 10) {
                     if let showLibrary {
-                        group {
-                            action("photo.on.rectangle.angled", label: "Toolbar.Library", perform: showLibrary)
-                        }
+                        LibraryActions(axis: .horizontal, showLibrary: showLibrary)
                     }
-                    // Nothing to play until there's something on the timeline.
-                    group {
-                        let playback = editor.playback
-                        action("backward.end.fill", label: "Transport.GoToStart", isEnabled: playback.hasContent) {
-                            playback.goToStart()
-                        }
-                        action(
-                            playback.isPlaying ? "pause.fill" : "play.fill",
-                            label: playback.isPlaying ? "Transport.Pause" : "Transport.Play", isEnabled: playback.hasContent
-                        ) {
-                            playback.togglePlayPause()
-                        }
-                        action("forward.end.fill", label: "Transport.GoToEnd", isEnabled: playback.hasContent) {
-                            playback.goToEnd()
-                        }
-                    }
-                    // Nothing to edit until clips can be selected.
-                    group {
-                        action("scissors", label: "Edit.Split", isEnabled: false) {}
-                        action("waveform", label: "Edit.DetachAudio", isEnabled: false) {}
-                        action("trash", label: "Edit.Delete", isEnabled: false) {}
-                    }
-                    group {
-                        action("slider.horizontal.3", isOn: isShowingInspector, label: "Toolbar.Inspector") {
-                            isShowingInspector.toggle()
-                        }
-                    }
+                    TransportActions(axis: .horizontal)
+                    EditActions(axis: .horizontal)
+                    InspectorActions(axis: .horizontal, isShowingInspector: $isShowingInspector)
                 }
             }
             .padding(.horizontal, 12)
@@ -62,19 +34,149 @@ struct EditorActionBar: View {
         .onGeometryChange(for: Double.self) { $0.size.width } action: { width = $0 }
         .frame(height: 60)
     }
+}
 
-    private func group<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        // Packed tight, so all four groups fit across an iPhone.
-        HStack(spacing: 0) {
-            content()
+/// Half of the editor's controls, as a column of Liquid Glass beside the
+/// preview, for an iPhone held sideways: there's no height to spare for a
+/// bar, and the thumbs rest at the sides. The library and the editing tools
+/// go on the leading side, playback and the inspector on the trailing side.
+struct EditorActionColumn: View {
+    enum Side {
+        case leading, trailing
+    }
+
+    let side: Side
+    /// Opens the library; nil where it's already beside the editor.
+    var showLibrary: (() -> Void)?
+    @Binding var isShowingInspector: Bool
+
+    var body: some View {
+        // Scrolls if a short screen can't fit the whole column.
+        ScrollView(.vertical) {
+            GlassEffectContainer(spacing: 10) {
+                VStack(spacing: 10) {
+                    switch side {
+                    case .leading:
+                        if let showLibrary {
+                            LibraryActions(axis: .vertical, showLibrary: showLibrary)
+                        }
+                        EditActions(axis: .vertical)
+                    case .trailing:
+                        TransportActions(axis: .vertical)
+                        InspectorActions(axis: .vertical, isShowingInspector: $isShowingInspector)
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+        }
+        .defaultScrollAnchor(.center)
+        .scrollIndicators(.hidden)
+        .scrollClipDisabled()
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(width: 44)
+    }
+}
+
+// MARK: - Groups
+
+private struct LibraryActions: View {
+    let axis: Axis
+    let showLibrary: () -> Void
+
+    var body: some View {
+        ActionGroup(axis: axis) {
+            ActionButton("photo.on.rectangle.angled", label: "Toolbar.Library", perform: showLibrary)
+        }
+    }
+}
+
+/// Nothing to play until there's something on the timeline.
+private struct TransportActions: View {
+    let axis: Axis
+
+    @Environment(ProjectEditor.self) private var editor
+
+    var body: some View {
+        let playback = editor.playback
+        ActionGroup(axis: axis) {
+            ActionButton("backward.end.fill", label: "Transport.GoToStart", isEnabled: playback.hasContent) {
+                playback.goToStart()
+            }
+            ActionButton(
+                playback.isPlaying ? "pause.fill" : "play.fill",
+                label: playback.isPlaying ? "Transport.Pause" : "Transport.Play", isEnabled: playback.hasContent
+            ) {
+                playback.togglePlayPause()
+            }
+            ActionButton("forward.end.fill", label: "Transport.GoToEnd", isEnabled: playback.hasContent) {
+                playback.goToEnd()
+            }
+        }
+    }
+}
+
+/// Nothing to edit until clips can be selected.
+private struct EditActions: View {
+    let axis: Axis
+
+    var body: some View {
+        ActionGroup(axis: axis) {
+            ActionButton("scissors", label: "Edit.Split", isEnabled: false) {}
+            ActionButton("waveform", label: "Edit.DetachAudio", isEnabled: false) {}
+            ActionButton("trash", label: "Edit.Delete", isEnabled: false) {}
+        }
+    }
+}
+
+private struct InspectorActions: View {
+    let axis: Axis
+    @Binding var isShowingInspector: Bool
+
+    var body: some View {
+        ActionGroup(axis: axis) {
+            ActionButton("slider.horizontal.3", isOn: isShowingInspector, label: "Toolbar.Inspector") {
+                isShowingInspector.toggle()
+            }
+        }
+    }
+}
+
+// MARK: - Pieces
+
+/// Buttons packed tight in one capsule of glass, so all four groups fit
+/// across an iPhone.
+private struct ActionGroup<Content: View>: View {
+    let axis: Axis
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        let layout = axis == .horizontal ? AnyLayout(HStackLayout(spacing: 0)) : AnyLayout(VStackLayout(spacing: 0))
+        layout {
+            content
         }
         .glassEffect(.regular.interactive(), in: .capsule)
     }
+}
 
-    private func action(
+private struct ActionButton: View {
+    let symbol: String
+    var isOn = false
+    let label: LocalizedStringKey
+    var isEnabled = true
+    let perform: () -> Void
+
+    init(
         _ symbol: String, isOn: Bool = false, label: LocalizedStringKey, isEnabled: Bool = true,
         perform: @escaping () -> Void
-    ) -> some View {
+    ) {
+        self.symbol = symbol
+        self.isOn = isOn
+        self.label = label
+        self.isEnabled = isEnabled
+        self.perform = perform
+    }
+
+    var body: some View {
         Button(action: perform) {
             Image(systemName: symbol)
                 .font(.system(size: 17))
