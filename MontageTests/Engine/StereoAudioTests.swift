@@ -83,6 +83,10 @@ struct StereoAudioTests {
         var off = fixture.project(pan: -1)
         off.tracks[0].update(off.tracks[0].clips[0].id) { $0.effects[0].isEnabled = false }
         #expect(DerivedMedia.stereoAudio.media(neededIn: off).isEmpty)
+        // A title with a pan has no media to copy.
+        var titled = fixture.project(pan: -1)
+        titled.tracks[0].update(titled.tracks[0].clips[0].id) { $0.content = .text(TextContent("Hi")) }
+        #expect(DerivedMedia.stereoAudio.media(neededIn: titled).isEmpty)
         var muted = fixture.project(pan: -1)
         muted.tracks[0].isMuted = true
         #expect(DerivedMedia.stereoAudio.media(neededIn: muted).isEmpty)
