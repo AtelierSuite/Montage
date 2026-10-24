@@ -101,6 +101,10 @@ public final class PlaybackController {
         // the media it finds may be different.
         if Self.needsRebuild(from: previous, to: project) {
             scheduleRebuild(after: rebuildDelay)
+        } else if previous != project, !isPlaying {
+            // The compositor draws the edit from the snapshot, but a paused
+            // player only draws again when asked to: seek where it is.
+            seek(to: pendingSeek?.time ?? currentTime)
         }
         if currentTime > duration { seek(to: duration) }
     }
@@ -112,14 +116,19 @@ public final class PlaybackController {
     }
 
     /// Whether a change could change the composition. Conservative: anything
-    /// but clip effects, which nothing renders yet and the compositor (#8)
-    /// will read from the snapshot, rebuilds.
+    /// but how clips' pictures look (their transform, opacity, blend mode and
+    /// effects), which the compositor reads from the snapshot, rebuilds.
     nonisolated static func needsRebuild(from old: Project, to new: Project) -> Bool {
         func structure(_ project: Project) -> Project {
             var project = project
             for index in project.tracks.indices {
-                for clip in project.tracks[index].clips where !clip.effects.isEmpty {
-                    project.tracks[index].update(clip.id) { $0.effects = [] }
+                for clip in project.tracks[index].clips {
+                    project.tracks[index].update(clip.id) {
+                        $0.effects = []
+                        $0.opacity = Animatable(1)
+                        $0.transform = ClipTransform()
+                        $0.blendMode = .normal
+                    }
                 }
             }
             return project
@@ -135,7 +144,7 @@ public final class PlaybackController {
             if delay > .zero {
                 do { try await Task.sleep(for: delay) } catch { return }
             }
-            guard let builder = self.map({ CompositionBuilder(project: $0.project, mediaResolver: $0.mediaResolver) }) else { return }
+            guard let builder = self.map({ CompositionBuilder(project: $0.project, mediaResolver: $0.mediaResolver, snapshot: $0.snapshot) }) else { return }
             // Builds off the main actor; only cancelling throws.
             guard let built = try? await builder.build(), !Task.isCancelled else { return }
             self?.install(built)

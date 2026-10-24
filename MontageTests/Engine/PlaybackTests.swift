@@ -33,9 +33,17 @@ struct RebuildTests {
         moved.tracks[0].update(clip.id) { $0.timelineStart = seconds(1) }
         #expect(PlaybackController.needsRebuild(from: project, to: moved))
 
-        var faded = project
-        faded.tracks[0].update(clip.id) { $0.opacity = Animatable(0.5) }
-        #expect(PlaybackController.needsRebuild(from: project, to: faded))
+        var restyled = project
+        restyled.tracks[0].update(clip.id) {
+            $0.opacity = Animatable(0.5)
+            $0.transform.scale = Animatable(0.5)
+            $0.blendMode = .screen
+        }
+        #expect(!PlaybackController.needsRebuild(from: project, to: restyled))
+
+        var quieter = project
+        quieter.tracks[0].update(clip.id) { $0.volume = Animatable(0.5) }
+        #expect(PlaybackController.needsRebuild(from: project, to: quieter))
     }
 }
 
@@ -129,6 +137,24 @@ struct PlaybackControllerTests {
         #expect(controller.duration == seconds(5))
         #expect(controller.currentTime == seconds(3))
         try await waitUntil { controller.player.currentTime() == seconds(3) }
+    }
+
+    @Test func aParameterEditKeepsTheItemAndReachesTheCompositor() async throws {
+        let controller = PlaybackController(project: project(), mediaResolver: resolver, rebuildDelay: .milliseconds(10))
+        defer { controller.invalidate() }
+        try await waitUntil { controller.composition != nil }
+        controller.seek(to: seconds(2))
+        let item = controller.player.currentItem
+
+        var faded = controller.project
+        faded.tracks[0].update(faded.tracks[0].clips[0].id) { $0.opacity = Animatable(0.25) }
+        controller.update(project: faded, mediaResolver: resolver)
+        #expect(!controller.isBuilding)
+        #expect(controller.player.currentItem === item)
+        // The compositor's instructions read the controller's snapshot.
+        let instruction = try #require(controller.composition?.videoComposition?.instructions.first as? CompositorInstruction)
+        #expect(instruction.snapshot === controller.snapshot)
+        #expect(controller.currentTime == seconds(2))
     }
 
     @Test func editsCloseTogetherRebuildOnce() async throws {
