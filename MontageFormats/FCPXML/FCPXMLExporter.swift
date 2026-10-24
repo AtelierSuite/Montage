@@ -118,6 +118,8 @@ struct FCPXMLExporter {
     }
 
     /// A clip, as an asset clip or, for a still image, a video element.
+    /// Text and shapes, which have no media, go out as gaps, and are listed
+    /// by `ProjectInterchange.clipsLeftOutOfFCPXML` for the export to report.
     private func clipElement(_ clip: Clip, range: CMTimeRange, lane: Int?, resources: inout Resources) -> MarkupElement {
         guard let item = project.mediaItem(id: clip.mediaID) else {
             return MarkupElement("gap", [("offset", InterchangeTime.string(range.start)),

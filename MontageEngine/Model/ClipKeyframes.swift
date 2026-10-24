@@ -34,14 +34,25 @@ extension Animatable {
 /// The keyframes of all a clip's parameters taken together, as the timeline
 /// shows them: one marker for each time any parameter has a keyframe.
 extension Clip {
-    /// Visits the clip's parameters: its volume, opacity and transform, and
-    /// those of each of its effects and their masks.
+    /// Visits the clip's parameters: its volume, opacity and transform, the
+    /// look of its text or shape, and those of each of its effects and their
+    /// masks.
     public mutating func visitParameters(_ visitor: inout some AnimatableVisitor) {
         visitor.visit(&volume)
         visitor.visit(&opacity)
         visitor.visit(&transform.position)
         visitor.visit(&transform.scale)
         visitor.visit(&transform.rotation)
+        switch content {
+        case .text(var text):
+            text.style.visitParameters(&visitor)
+            content = .text(text)
+        case .shape(var shape):
+            shape.visitParameters(&visitor)
+            content = .shape(shape)
+        case .media, .image:
+            break
+        }
         for index in effects.indices {
             effects[index].visitParameters(&visitor)
         }
@@ -161,6 +172,54 @@ extension Effect {
             mask.visitParameters(&visitor)
             self.mask = mask
         }
+    }
+}
+
+extension TextStyle {
+    public mutating func visitParameters(_ visitor: inout some AnimatableVisitor) {
+        visitor.visit(&fontSize)
+        fill.visitParameters(&visitor)
+        visitor.visit(&lineSpacing)
+        visitor.visit(&letterSpacing)
+        outline.visitParameters(&visitor)
+        shadow.visitParameters(&visitor)
+        visitor.visit(&background.color)
+        visitor.visit(&background.padding)
+        visitor.visit(&background.cornerRadius)
+    }
+}
+
+extension ShapeContent {
+    public mutating func visitParameters(_ visitor: inout some AnimatableVisitor) {
+        visitor.visit(&size)
+        visitor.visit(&cornerRadius)
+        visitor.visit(&innerRadius)
+        fill.visitParameters(&visitor)
+        stroke.visitParameters(&visitor)
+        shadow.visitParameters(&visitor)
+    }
+}
+
+extension LayerFill {
+    public mutating func visitParameters(_ visitor: inout some AnimatableVisitor) {
+        visitor.visit(&color)
+        visitor.visit(&endColor)
+        visitor.visit(&angle)
+    }
+}
+
+extension LayerStroke {
+    public mutating func visitParameters(_ visitor: inout some AnimatableVisitor) {
+        visitor.visit(&color)
+        visitor.visit(&width)
+    }
+}
+
+extension LayerShadow {
+    public mutating func visitParameters(_ visitor: inout some AnimatableVisitor) {
+        visitor.visit(&color)
+        visitor.visit(&blur)
+        visitor.visit(&offset)
     }
 }
 

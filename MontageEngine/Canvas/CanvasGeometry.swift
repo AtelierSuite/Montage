@@ -32,6 +32,21 @@ public struct PreviewMapping: Equatable, Sendable {
         CGPoint(x: pictureRect.minX + point.x * scale, y: pictureRect.minY + point.y * scale)
     }
 
+    /// A size, centred in a rectangle, fitted into it, covering it or
+    /// stretched to it. A size without area fills the rectangle.
+    public static func place(_ size: CGSize, in rect: CGRect, fit: FrameFit) -> CGRect {
+        guard size.width > 0, size.height > 0 else { return rect }
+        switch fit {
+        case .fit: return Self.fit(size, in: rect)
+        case .stretch: return rect
+        case .fill:
+            let scale = max(rect.width / size.width, rect.height / size.height)
+            let width = size.width * scale
+            let height = size.height * scale
+            return CGRect(x: rect.midX - width / 2, y: rect.midY - height / 2, width: width, height: height)
+        }
+    }
+
     /// A size, centred in a rectangle and as large as fits keeping its shape.
     /// A size without area fills the rectangle.
     public static func fit(_ size: CGSize, in rect: CGRect) -> CGRect {
@@ -61,13 +76,23 @@ public struct LayerPlacement: Equatable, Sendable {
         self.transform = transform
     }
 
-    /// `pictureSize` is the clip's picture the way up it's shown; a size
-    /// without area, as for a layer that draws its own picture, covers the
-    /// frame.
+    /// `pictureSize` is the clip's picture the way up it's shown. A media
+    /// clip's is fitted, filled or stretched into the frame as its `fit`
+    /// says, and one without area covers the frame; text and shapes are
+    /// centred at their own size, as the compositor draws them.
     public init(clip: Clip, pictureSize: CGSize, renderSize: CGSize, at clipTime: CMTime) {
+        let frame = CGRect(origin: .zero, size: renderSize)
+        let pictureRect: CGRect
+        if clip.content.isGenerated {
+            pictureRect = CGRect(
+                x: frame.midX - pictureSize.width / 2, y: frame.midY - pictureSize.height / 2,
+                width: pictureSize.width, height: pictureSize.height
+            )
+        } else {
+            pictureRect = PreviewMapping.place(pictureSize, in: frame, fit: clip.fit)
+        }
         self.init(
-            clipID: clip.id,
-            pictureRect: PreviewMapping.fit(pictureSize, in: CGRect(origin: .zero, size: renderSize)),
+            clipID: clip.id, pictureRect: pictureRect,
             transform: FrameComposer.clipTransform(clip.transform, renderSize: renderSize, at: clipTime)
         )
     }
@@ -105,10 +130,15 @@ public struct LayerPlacement: Equatable, Sendable {
 }
 
 extension Project {
-    /// The size of a clip's picture the way up it's shown, which the
-    /// compositor fits into the frame; zero when it has none of its own.
-    public func pictureSize(of clip: Clip) -> CGSize {
-        mediaItem(id: clip.mediaID)?.metadata.presentationSize ?? .zero
+    /// The size of a clip's picture the way up it's shown at a time from its
+    /// start: its media's, which the compositor fits into the frame, or the
+    /// size text or a shape is drawn at, in the frame's pixels. Zero when it
+    /// has none.
+    public func pictureSize(of clip: Clip, at clipTime: CMTime = .zero) -> CGSize {
+        if clip.content.isGenerated {
+            return LayerArtwork.shared.pictureSize(of: clip.content, at: clipTime, renderSize: settings.renderSize)
+        }
+        return mediaItem(id: clip.mediaID)?.metadata.presentationSize ?? .zero
     }
 
     /// The layers showing at a time on the timeline, bottom first, as the
@@ -123,7 +153,10 @@ extension Project {
                 clip.timelineRange.containsTime(time) && !excluding.contains(clip.id)
                     && clip.opacity.value(at: clip.localTime(time)) > 0
             }.map { clip in
-                LayerPlacement(clip: clip, pictureSize: pictureSize(of: clip), renderSize: renderSize, at: clip.localTime(time))
+                LayerPlacement(
+                    clip: clip, pictureSize: pictureSize(of: clip, at: clip.localTime(time)), renderSize: renderSize,
+                    at: clip.localTime(time)
+                )
             }
         }
     }

@@ -2,14 +2,16 @@ import CoreGraphics
 import CoreMedia
 import Foundation
 
-/// A stretch of a media item, placed on the timeline.
+/// Something placed on the timeline: a stretch of a media item, a still
+/// image, text or a shape.
 ///
 /// The clip takes `sourceRange` out of its media and plays it from
-/// `timelineStart`. Its parameters' keyframes are timed from the clip's own
+/// `timelineStart`. Content with no time of its own (a still, text, a
+/// shape) only uses the range's duration. Its parameters' keyframes are timed from the clip's own
 /// start, so moving the clip takes them with it.
 public struct Clip: Identifiable, Equatable, Sendable {
     public var id: UUID
-    public var mediaID: MediaItem.ID
+    public var content: ClipContent
     /// The part of the media the clip plays, in the media's own time.
     public var sourceRange: CMTimeRange
     /// Where the clip starts on the timeline.
@@ -27,15 +29,32 @@ public struct Clip: Identifiable, Equatable, Sendable {
     public var isAudioDetached: Bool
     /// Applied in order.
     public var effects: [Effect]
+    /// How the picture is fitted into the frame before it's transformed.
+    public var fit: FrameFit
+    /// Set while the clip pans and zooms (see `applyKenBurns`).
+    public var kenBurns: KenBurnsMotion?
 
+    /// A clip of a media item: a stretch of a video or a sound, or a still.
     public init(
         id: UUID = UUID(), mediaID: MediaItem.ID, sourceRange: CMTimeRange, timelineStart: CMTime = .zero,
         volume: Animatable<Double> = Animatable(1), opacity: Animatable<Double> = Animatable(1),
         transform: ClipTransform = ClipTransform(), blendMode: BlendMode = .normal, isAudioDetached: Bool = false,
         effects: [Effect] = []
     ) {
+        self.init(
+            id: id, content: .media(mediaID), sourceRange: sourceRange, timelineStart: timelineStart, volume: volume,
+            opacity: opacity, transform: transform, blendMode: blendMode, isAudioDetached: isAudioDetached, effects: effects
+        )
+    }
+
+    public init(
+        id: UUID = UUID(), content: ClipContent, sourceRange: CMTimeRange, timelineStart: CMTime = .zero,
+        volume: Animatable<Double> = Animatable(1), opacity: Animatable<Double> = Animatable(1),
+        transform: ClipTransform = ClipTransform(), blendMode: BlendMode = .normal, isAudioDetached: Bool = false,
+        effects: [Effect] = [], fit: FrameFit = .fit
+    ) {
         self.id = id
-        self.mediaID = mediaID
+        self.content = content
         self.sourceRange = sourceRange
         self.timelineStart = timelineStart
         self.volume = volume
@@ -44,7 +63,11 @@ public struct Clip: Identifiable, Equatable, Sendable {
         self.blendMode = blendMode
         self.isAudioDetached = isAudioDetached
         self.effects = effects
+        self.fit = fit
     }
+
+    /// The library item the clip is made from; nil for text and shapes.
+    public var mediaID: MediaItem.ID? { content.mediaID }
 
     public var duration: CMTime { sourceRange.duration }
 
@@ -67,13 +90,16 @@ public struct Clip: Identifiable, Equatable, Sendable {
 
 extension Clip: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, mediaID, sourceRange, timelineStart, volume, opacity, transform, blendMode, isAudioDetached, effects
+        case id, content, mediaID, sourceRange, timelineStart, volume, opacity, transform, blendMode, isAudioDetached,
+             effects, fit, kenBurns
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
-        mediaID = try container.decode(MediaItem.ID.self, forKey: .mediaID)
+        // Clips saved before there was anything but media name only their media.
+        content = try container.decodeIfPresent(ClipContent.self, forKey: .content)
+            ?? .media(try container.decode(MediaItem.ID.self, forKey: .mediaID))
         sourceRange = try container.decode(CMTimeRange.self, forKey: .sourceRange)
         timelineStart = try container.decode(CMTime.self, forKey: .timelineStart)
         volume = try container.decodeIfPresent(Animatable<Double>.self, forKey: .volume) ?? Animatable(1)
@@ -82,12 +108,17 @@ extension Clip: Codable {
         blendMode = try container.decodeIfPresent(BlendMode.self, forKey: .blendMode) ?? .normal
         isAudioDetached = try container.decodeIfPresent(Bool.self, forKey: .isAudioDetached) ?? false
         effects = try container.decodeIfPresent([Effect].self, forKey: .effects) ?? []
+        fit = try container.decodeIfPresent(FrameFit.self, forKey: .fit) ?? .fit
+        kenBurns = try container.decodeIfPresent(KenBurnsMotion.self, forKey: .kenBurns)
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encode(mediaID, forKey: .mediaID)
+        try container.encode(content, forKey: .content)
+        // Builds from before content types read only this, so media clips
+        // still open in them.
+        try container.encodeIfPresent(content.mediaID, forKey: .mediaID)
         try container.encode(sourceRange, forKey: .sourceRange)
         try container.encode(timelineStart, forKey: .timelineStart)
         try container.encode(volume, forKey: .volume)
@@ -96,6 +127,8 @@ extension Clip: Codable {
         try container.encode(blendMode, forKey: .blendMode)
         try container.encode(isAudioDetached, forKey: .isAudioDetached)
         try container.encode(effects, forKey: .effects)
+        try container.encode(fit, forKey: .fit)
+        try container.encodeIfPresent(kenBurns, forKey: .kenBurns)
     }
 }
 

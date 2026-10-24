@@ -90,14 +90,30 @@ final class VideoCompositor: NSObject, AVVideoCompositing {
         let clips = instruction.snapshot.read { project in
             layers.map { project.clip(id: $0.clip.id)?.clip }
         }
+        let renderSize = instruction.renderSize
+        let outputScale = renderSize.width > 0 ? outputSize.width / renderSize.width : 1
+        let time = request.compositionTime
         let frameLayers = zip(layers, clips).compactMap { layer, clip -> FrameComposer.Layer? in
-            let image: CIImage? = if let still = layer.still {
-                still.picture(for: instruction.renderSize)
-            } else {
-                request.sourceFrame(byTrackID: layer.trackID).map { CIImage(cvPixelBuffer: $0) }
+            let clip = clip ?? layer.clip
+            switch layer.source {
+            case .track(let trackID):
+                guard let source = request.sourceFrame(byTrackID: trackID) else { return nil }
+                return FrameComposer.Layer(image: CIImage(cvPixelBuffer: source), layer: layer, clip: clip)
+            case .still(let still):
+                guard let image = still.picture(for: renderSize) else { return nil }
+                return FrameComposer.Layer(image: image, layer: layer, clip: clip)
+            case .drawn:
+                let clipTime = layer.clip.localTime(time)
+                let scale = LayerArtwork.drawingScale(
+                    outputScale: outputScale, layerScale: clip.transform.scale.value(at: clipTime)
+                )
+                guard let drawn = LayerArtwork.shared.picture(
+                    of: clip.content, at: clipTime, renderSize: renderSize, scale: scale
+                ) else { return nil }
+                return FrameComposer.Layer(
+                    image: CIImage(cgImage: drawn.image), layer: layer, clip: clip, drawnScale: drawn.scale
+                )
             }
-            guard let image else { return nil }
-            return FrameComposer.Layer(image: image, layer: layer, clip: clip ?? layer.clip)
         }
         let image = FrameComposer.compose(
             frameLayers, at: request.compositionTime, renderSize: instruction.renderSize, outputSize: outputSize

@@ -15,6 +15,13 @@ extension ProjectEditor {
         perform(String(localized: "Action.ImportProject")) { $0 = imported }
     }
 
+    /// What to tell the user an FCPXML export left out, or nil if nothing.
+    var fcpxmlOmissionMessage: String? {
+        let count = ProjectInterchange.clipsLeftOutOfFCPXML(in: project).count
+        guard count > 0 else { return nil }
+        return String(format: String(localized: "FCPXMLExport.LeftOut.Message"), count)
+    }
+
     /// The project as FCPXML, for Final Cut Pro.
     func fcpxml(named name: String) -> Data {
         ProjectInterchange.fcpxml(for: project, named: name, mediaResolver: mediaResolver)

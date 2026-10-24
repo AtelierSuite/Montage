@@ -344,7 +344,7 @@ struct FCPXMLImporter {
         let assetStart = time(asset["start"]) ?? .zero
         let sourceStart = item.kind == .image ? .zero : timing.start - assetStart
         var clip = Clip(
-            mediaID: item.id, sourceRange: CMTimeRange(start: sourceStart, duration: timing.duration),
+            content: item.content, sourceRange: CMTimeRange(start: sourceStart, duration: timing.duration),
             timelineStart: timing.timelineStart
         )
         let isAudio = item.kind == .audio || component == .audio

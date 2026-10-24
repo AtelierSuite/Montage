@@ -2,9 +2,9 @@ import CoreMedia
 import MontageEngine
 import SwiftUI
 
-/// A video clip as a layer of the picture: where it sits in the frame, how
-/// big and how turned it is, how see-through, and how it mixes with the
-/// layers under it. Each value is shown, and set, at the playhead, with a
+/// A video clip as a layer of the picture: how it's fitted into the frame,
+/// a pan and zoom for stills, where it sits in the frame, how big and how
+/// turned it is, how see-through, and how it mixes with the layers under it. Each value is shown, and set, at the playhead, with a
 /// diamond to keyframe it.
 struct LayerControls: View {
     @Environment(ProjectEditor.self) private var editor
@@ -19,6 +19,14 @@ struct LayerControls: View {
             }
         }
         Section {
+            if !clip.content.isGenerated {
+                Picker("Inspector.Fit", selection: binding(\.fit)) {
+                    ForEach(FrameFit.allCases, id: \.self) { Text(verbatim: $0.title).tag($0) }
+                }
+            }
+            if editor.project.mediaItem(id: clip.mediaID)?.kind == .image {
+                Toggle("Inspector.KenBurns", isOn: binding(\.hasKenBurnsToggle))
+            }
             let position = parameter(\.transform.position)
             ParameterSlider("Inspector.Layer.X", position, in: -0.5...1.5, format: ParameterFormat.percent,
                             component: { Double($0.x) }, setComponent: { $0.x = $1 })
@@ -58,6 +66,17 @@ struct LayerControls: View {
         )
     }
 
+    /// A setting that isn't keyframed, each change an undo step.
+    private func binding<Value>(_ keyPath: WritableKeyPath<Clip, Value>) -> Binding<Value> {
+        let editor = editor
+        let clip = clip
+        return Binding {
+            clip[keyPath: keyPath]
+        } set: { value in
+            editor.changeClip(clip.id, String(localized: "Inspector.Action.ChangeLayer")) { $0[keyPath: keyPath] = value }
+        }
+    }
+
     private var blendMode: Binding<MontageEngine.BlendMode> {
         let editor = editor
         let clipID = clip.id
@@ -66,6 +85,14 @@ struct LayerControls: View {
         } set: { mode in
             editor.changeClip(clipID, String(localized: "Inspector.Action.ChangeLayer")) { $0.blendMode = mode }
         }
+    }
+}
+
+extension Clip {
+    /// The pan and zoom, as a switch: on puts it on, off takes it off.
+    var hasKenBurnsToggle: Bool {
+        get { hasKenBurns }
+        set { newValue ? applyKenBurns() : removeKenBurns() }
     }
 }
 

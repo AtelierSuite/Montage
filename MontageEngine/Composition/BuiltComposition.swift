@@ -14,7 +14,8 @@ public struct BuiltComposition: @unchecked Sendable {
     /// The project as it was when this was built.
     public let project: Project
     /// What plays when: one video track per visible video layer and one audio
-    /// track per audible track of the timeline, with empty time in the gaps.
+    /// track per audible track of the timeline, with empty time in the gaps
+    /// and filler under stills, text and shapes (see `StillFiller`).
     public let composition: AVComposition
     /// How the video tracks are laid into the frame. Nil when nothing in the
     /// composition has a picture.
@@ -25,7 +26,8 @@ public struct BuiltComposition: @unchecked Sendable {
     /// How long the composition runs: to the end of the last clip placed, gaps
     /// included. Shorter than the project when clips at the end were left out.
     public let duration: CMTime
-    /// Which composition tracks carry which clips' pictures, bottom layer first.
+    /// Which composition tracks carry which clips' pictures, bottom layer
+    /// first.
     public let videoLayers: [CompositionLayer]
     /// Which composition tracks carry which clips' sound.
     public let audioLayers: [CompositionLayer]
@@ -58,7 +60,7 @@ public struct BuiltComposition: @unchecked Sendable {
     /// they're at the very end.
     public var missingMedia: [MediaItem.ID] {
         var seen = Set<MediaItem.ID>()
-        return skippedClips.filter(\.reason.isMissingMedia).map(\.mediaID).filter { seen.insert($0).inserted }
+        return skippedClips.filter(\.reason.isMissingMedia).compactMap(\.mediaID).filter { seen.insert($0).inserted }
     }
 
     /// The video layers with a clip showing at a time, bottom layer first,
@@ -97,7 +99,8 @@ public struct CompositionLayer: Equatable, Sendable {
     /// A clip, or as much of it as its media has, on the composition track.
     public struct Segment: Equatable, Sendable {
         public var clipID: Clip.ID
-        public var mediaID: MediaItem.ID
+        /// The media it's made from; nil for text and shapes.
+        public var mediaID: MediaItem.ID?
         /// Where it plays, in composition (timeline) time.
         public var timelineRange: CMTimeRange
         /// What of the media plays there, in the media's own time.
@@ -139,6 +142,7 @@ public struct SkippedClip: Equatable, Sendable {
     }
 
     public var clipID: Clip.ID
-    public var mediaID: MediaItem.ID
+    /// The media it's made from; nil for text and shapes.
+    public var mediaID: MediaItem.ID?
     public var reason: Reason
 }
