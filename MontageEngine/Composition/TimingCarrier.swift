@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreVideo
 import Foundation
+import os
 
 /// A tiny black movie, made once and kept in the temporary folder, that
 /// keeps a composition going under stills, text and shapes.
@@ -16,16 +17,33 @@ actor TimingCarrier {
     /// How long the movie runs, before it's stretched.
     static let duration = CMTime(value: 1, timescale: 1)
 
+    /// The movie being made, or made: every caller waits on the same one.
     private var made: Task<URL, Error>?
 
-    /// The movie, made if it isn't there yet.
+    static let logger = Logger(subsystem: "com.tsubuzaki.Montage", category: "TimingCarrier")
+
+    /// The movie, made if it isn't there yet. Callers at the same time share
+    /// one making of it; if it fails, or the file has gone since, the next
+    /// call makes it again.
     func url() async throws -> URL {
-        if let made {
-            if let url = try? await made.value, FileManager.default.fileExists(atPath: url.path) { return url }
+        var failure: Error?
+        for _ in 0..<2 {
+            let task = made ?? {
+                let task = Task { try await Self.make() }
+                made = task
+                return task
+            }()
+            do {
+                let url = try await task.value
+                if FileManager.default.fileExists(atPath: url.path) { return url }
+            } catch {
+                Self.logger.error("Couldn't make the timing carrier: \(error.localizedDescription, privacy: .public)")
+                failure = error
+            }
+            // Unless another caller has already started again.
+            if made == task { made = nil }
         }
-        let task = Task { try await Self.make() }
-        made = task
-        return try await task.value
+        throw failure ?? CocoaError(.fileNoSuchFile)
     }
 
     private static func make() async throws -> URL {
@@ -39,8 +57,9 @@ actor TimingCarrier {
             try? FileManager.default.removeItem(at: url)
         }
         // Written beside, then moved into place, so another process never
-        // finds half a movie.
+        // finds half a movie. Whatever happens, the partial file goes.
         let partial = FileManager.default.temporaryDirectory.appending(path: "Montage Timing Carrier \(UUID().uuidString).mov")
+        defer { try? FileManager.default.removeItem(at: partial) }
         let writer = try AVAssetWriter(outputURL: partial, fileType: .mov)
         let side = 64
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
@@ -69,8 +88,11 @@ actor TimingCarrier {
         writer.endSession(atSourceTime: duration)
         await writer.finishWriting()
         guard writer.status == .completed else { throw writer.error ?? CocoaError(.fileWriteUnknown) }
-        try? FileManager.default.removeItem(at: url)
-        try FileManager.default.moveItem(at: partial, to: url)
+        do {
+            try FileManager.default.moveItem(at: partial, to: url)
+        } catch where FileManager.default.fileExists(atPath: url.path) {
+            // Another process put its own there first, which is as good.
+        }
         return url
     }
 }

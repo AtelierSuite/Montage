@@ -189,6 +189,9 @@ public struct CompositionBuilder: Sendable {
                 throw CancellationError()
             } catch {
                 // Without it, the drawn layers show only as far as the video.
+                TimingCarrier.logger.error(
+                    "Drawn layers past the video are left out: \(error.localizedDescription, privacy: .public)"
+                )
             }
         }
         for index in sounds.indices {
