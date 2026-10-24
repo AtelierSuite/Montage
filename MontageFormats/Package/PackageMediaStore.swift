@@ -87,6 +87,12 @@ public final class PackageMediaStore: Sendable {
         try stage(url, takenPaths: takenPaths) { try FileManager.default.moveItem(at: url, to: $0) }
     }
 
+    /// Throws a staged file away, as when it turns out it can't be used.
+    public func discardStaged(_ path: String) {
+        guard let url = state.withLock({ $0.staged.removeValue(forKey: path) }) else { return }
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+    }
+
     private func stage(_ url: URL, takenPaths: Set<String>, transfer: (URL) throws -> Void) throws -> String {
         let fileManager = FileManager.default
         // Each file gets a folder of its own, so it can keep its name in

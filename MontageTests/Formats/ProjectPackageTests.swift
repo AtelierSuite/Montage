@@ -133,6 +133,17 @@ struct ProjectPackageTests {
         #expect(FileManager.default.fileExists(atPath: source.path))
     }
 
+    @Test func discardingAStagedFileFreesItsName() throws {
+        let scratch = try Scratch()
+        let store = PackageMediaStore()
+        let source = try scratch.file("Clip.mov")
+        let path = try store.stage(copying: source)
+        let staged = try #require(store.stagedURL(forPackagePath: path))
+        store.discardStaged(path)
+        #expect(!FileManager.default.fileExists(atPath: staged.path))
+        #expect(try store.stage(copying: source) == path)
+    }
+
     @Test func uniqueNamesIgnoreCaseAndStayInTheMediaFolder() {
         #expect(ProjectPackage.uniqueMediaPath(for: "clip.MOV", avoiding: ["Media/Clip.mov"]) == "Media/clip 2.MOV")
         #expect(ProjectPackage.uniqueMediaPath(for: "a/../b", avoiding: []) == "Media/a-..-b")

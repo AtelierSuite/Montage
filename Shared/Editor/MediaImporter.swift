@@ -105,11 +105,15 @@ final class MediaImporter {
     ) async throws -> MediaItem {
         switch source {
         case .file(let url):
-            let isAccessing = url.startAccessingSecurityScopedResource()
-            defer { if isAccessing { url.stopAccessingSecurityScopedResource() } }
-            let probed = try await MediaProbe.probe(url)
-            let path = try store.stage(copying: url, takenPaths: takenPaths)
-            return item(named: url.lastPathComponent, probed, at: path)
+            let path = try stageCoordinated(url, store: store, takenPaths: takenPaths)
+            // The staged copy is read, as the original may be in cloud storage.
+            guard let staged = store.stagedURL(forPackagePath: path) else { throw CocoaError(.fileNoSuchFile) }
+            do {
+                return item(named: url.lastPathComponent, try await MediaProbe.probe(staged), at: path)
+            } catch {
+                store.discardStaged(path)
+                throw error
+            }
 
         case .photo(let item):
             guard let file = try await item.loadTransferable(type: ReceivedMedia.self) else {
@@ -122,6 +126,22 @@ final class MediaImporter {
             let path = try store.stage(moving: file.url, takenPaths: takenPaths)
             return Self.item(named: name, probed, at: path)
         }
+    }
+
+    /// Copies a chosen file into staging. The read is coordinated, so a file
+    /// in cloud storage that isn't on the device yet is downloaded first.
+    private nonisolated static func stageCoordinated(
+        _ url: URL, store: PackageMediaStore, takenPaths: Set<String>
+    ) throws -> String {
+        let isAccessing = url.startAccessingSecurityScopedResource()
+        defer { if isAccessing { url.stopAccessingSecurityScopedResource() } }
+        var coordinationError: NSError?
+        var result: Result<String, Error> = .failure(CocoaError(.fileReadUnknown))
+        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) { readURL in
+            result = Result { try store.stage(copying: readURL, takenPaths: takenPaths) }
+        }
+        if let coordinationError { throw coordinationError }
+        return try result.get()
     }
 
     private nonisolated static func item(named name: String, _ probed: ProbedMedia, at path: String) -> MediaItem {
