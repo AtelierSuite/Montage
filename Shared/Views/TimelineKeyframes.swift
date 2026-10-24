@@ -79,17 +79,8 @@ struct TimelineKeyframes: View {
 
     @ViewBuilder
     private func menu(for clip: Clip, at time: CMTime) -> some View {
-        let current = clip.keyframeInterpolation(at: time)
-        Picker("Inspector.Keyframes.Easing", selection: Binding {
-            current.map(EasingChoice.init)
-        } set: { choice in
-            if let choice {
-                editor.setKeyframeInterpolation(choice.interpolation(keeping: current), at: time, ofClip: clip.id)
-            }
-        }) {
-            ForEach(EasingChoice.allCases, id: \.self) { choice in
-                Text(choice.title).tag(EasingChoice?.some(choice))
-            }
+        EasingPicker(interpolation: clip.keyframeInterpolation(at: time), showsCurve: false) { interpolation, _ in
+            editor.setKeyframeInterpolation(interpolation, at: time, ofClip: clip.id)
         }
         Button("Inspector.Keyframes.Remove", systemImage: "trash", role: .destructive) {
             editor.removeKeyframes(at: time, ofClip: clip.id)

@@ -61,6 +61,9 @@ struct KeyframeControls: View {
 struct EasingPicker: View {
     /// The keyframes' way, or nil when several keyframes differ.
     let interpolation: Interpolation?
+    /// Whether a custom curve's control points have sliders; a menu has
+    /// no room for them.
+    var showsCurve = true
     let change: (_ interpolation: Interpolation, _ continuously: Bool) -> Void
     var endChange: () -> Void = {}
 
@@ -77,7 +80,7 @@ struct EasingPicker: View {
                 Text(choice.title).tag(EasingChoice?.some(choice))
             }
         }
-        if case .bezier(let curve) = interpolation {
+        if showsCurve, case .bezier(let curve) = interpolation {
             CurveSlider("Inspector.Keyframes.Curve.X1", value: curve.x1, in: 0...1) { set(curve, x1: $0, continuously: $1) }
             CurveSlider("Inspector.Keyframes.Curve.Y1", value: curve.y1, in: -1...2) { set(curve, y1: $0, continuously: $1) }
             CurveSlider("Inspector.Keyframes.Curve.X2", value: curve.x2, in: 0...1) { set(curve, x2: $0, continuously: $1) }
