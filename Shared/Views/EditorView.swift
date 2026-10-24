@@ -4,60 +4,65 @@ import SwiftUI
 /// controls between, and the timeline below. The library and inspector sit
 /// around it, wherever each platform puts them.
 ///
-/// Views can sit either side of the preview, such as controls on an iPhone
-/// held sideways, where the preview is short and wide and the room beside it
-/// would otherwise be empty. The preview then keeps to its own frame rather
-/// than spreading its black across the width.
-struct EditorView<Leading: View, Trailing: View>: View {
+/// Given controls of its own, the editor lays out in two columns instead,
+/// for an iPhone held sideways: the preview with the controls under it in a
+/// narrow column, and the timeline taking the rest of the width and the
+/// whole height, rather than a short, stretched preview over a short
+/// timeline.
+struct EditorView<Controls: View>: View {
     /// Whether the transport and editing tools sit between the preview and
     /// the timeline. iOS keeps them in a bar floating over the bottom instead.
     var showsControlBar = true
-    @ViewBuilder var previewLeading: Leading
-    @ViewBuilder var previewTrailing: Trailing
+    /// The controls under the preview, laying the editor out in columns.
+    private var columnControls: Controls?
 
-    /// The most of the height the preview takes, however wide the editor is:
-    /// a little more with views beside it, which need the height for theirs.
-    private var maximumPreviewShare: Double { hasSideViews ? 0.66 : 0.6 }
+    /// The most of the height the preview takes, however wide the editor is.
+    private let maximumPreviewShare = 0.6
+    /// How much of the width the preview's column takes in columns, and the
+    /// least it's made, for its controls to fit across.
+    private let previewColumnShare = 0.25
+    private let minimumPreviewColumnWidth = 190.0
 
-    private var hasSideViews: Bool {
-        Leading.self != EmptyView.self || Trailing.self != EmptyView.self
+    init(columnControls: () -> Controls) {
+        showsControlBar = false
+        self.columnControls = columnControls()
     }
 
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // As tall as a 16:9 frame across the full width needs, so a
-                // phone held upright gives the rest to the timeline.
-                preview
-                    .frame(height: min(geometry.size.width * 9 / 16 + 24, geometry.size.height * maximumPreviewShare))
-                Divider()
-                if showsControlBar {
-                    EditorControlBar()
+            if let columnControls {
+                HStack(spacing: 0) {
+                    VStack(spacing: 0) {
+                        PreviewArea(fillsWidth: false)
+                            .fixedSize(horizontal: false, vertical: true)
+                        columnControls
+                    }
+                    .frame(width: max(minimumPreviewColumnWidth, geometry.size.width * previewColumnShare))
                     Divider()
+                    TimelineView()
                 }
-                TimelineView()
+            } else {
+                VStack(spacing: 0) {
+                    // As tall as a 16:9 frame across the full width needs, so a
+                    // phone held upright gives the rest to the timeline.
+                    PreviewArea()
+                        .frame(height: min(geometry.size.width * 9 / 16 + 24, geometry.size.height * maximumPreviewShare))
+                    Divider()
+                    if showsControlBar {
+                        EditorControlBar()
+                        Divider()
+                    }
+                    TimelineView()
+                }
             }
         }
         .background { TransportShortcuts() }
     }
-
-    @ViewBuilder
-    private var preview: some View {
-        if !hasSideViews {
-            PreviewArea()
-        } else {
-            HStack(spacing: 0) {
-                previewLeading
-                PreviewArea(fillsWidth: false)
-                previewTrailing
-            }
-            .padding(.horizontal, 8)
-        }
-    }
 }
 
-extension EditorView where Leading == EmptyView, Trailing == EmptyView {
+extension EditorView where Controls == EmptyView {
     init(showsControlBar: Bool = true) {
-        self.init(showsControlBar: showsControlBar, previewLeading: { EmptyView() }, previewTrailing: { EmptyView() })
+        self.showsControlBar = showsControlBar
+        columnControls = nil
     }
 }

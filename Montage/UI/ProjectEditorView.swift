@@ -104,12 +104,10 @@ struct ProjectEditorView: View {
     private var editorArea: some View {
         Group {
             if verticalSizeClass == .compact {
-                // An iPhone held sideways: no height to spare for the bar, so
-                // its controls go down either side of the preview instead.
-                EditorView(showsControlBar: false) {
-                    EditorActionColumn(side: .leading, showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
-                } previewTrailing: {
-                    EditorActionColumn(side: .trailing, showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
+                // An iPhone held sideways: the preview and its controls in a
+                // column, beside a timeline with the whole height.
+                EditorView {
+                    EditorActionPanel(showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
                 }
             } else {
                 EditorView(showsControlBar: false)

@@ -36,44 +36,36 @@ struct EditorActionBar: View {
     }
 }
 
-/// Half of the editor's controls, as a column of Liquid Glass beside the
-/// preview, for an iPhone held sideways: there's no height to spare for a
-/// bar, and the thumbs rest at the sides. The library and the editing tools
-/// go on the leading side, playback and the inspector on the trailing side.
-struct EditorActionColumn: View {
-    enum Side {
-        case leading, trailing
-    }
-
-    let side: Side
+/// The editor's controls as a panel under the preview, for an iPhone held
+/// sideways, where the preview and its controls share a column beside the
+/// timeline: playback first, then the editing tools, then the library and
+/// the inspector.
+struct EditorActionPanel: View {
     /// Opens the library; nil where it's already beside the editor.
     var showLibrary: (() -> Void)?
     @Binding var isShowingInspector: Bool
 
     var body: some View {
-        // Scrolls if a short screen can't fit the whole column.
+        // Scrolls if a short screen can't fit the whole panel.
         ScrollView(.vertical) {
             GlassEffectContainer(spacing: 10) {
                 VStack(spacing: 10) {
-                    switch side {
-                    case .leading:
+                    TransportActions(axis: .horizontal)
+                    EditActions(axis: .horizontal)
+                    HStack(spacing: 10) {
                         if let showLibrary {
-                            LibraryActions(axis: .vertical, showLibrary: showLibrary)
+                            LibraryActions(axis: .horizontal, showLibrary: showLibrary)
                         }
-                        EditActions(axis: .vertical)
-                    case .trailing:
-                        TransportActions(axis: .vertical)
-                        InspectorActions(axis: .vertical, isShowingInspector: $isShowingInspector)
+                        InspectorActions(axis: .horizontal, isShowingInspector: $isShowingInspector)
                     }
                 }
             }
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
         }
-        .defaultScrollAnchor(.center)
         .scrollIndicators(.hidden)
         .scrollClipDisabled()
         .scrollBounceBehavior(.basedOnSize)
-        .frame(width: 44)
     }
 }
 
