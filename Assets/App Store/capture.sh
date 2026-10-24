@@ -26,7 +26,9 @@ RUNTIME=${RUNTIME:-com.apple.CoreSimulator.SimRuntime.iOS-27-0}
 
 simulator() {
   local name="$SIMULATOR_PREFIX $1" udid
-  udid=$(xcrun simctl list devices available | grep -F "$name (" | head -1 | grep -oE '[0-9A-F-]{36}' || true)
+  # The whole name, as simctl lists it after its indent, so a simulator whose
+  # name only ends with this one is never taken for it.
+  udid=$(xcrun simctl list devices available | grep -F -- "    $name (" | head -1 | grep -oE '[0-9A-F-]{36}' || true)
   if [[ -z $udid ]]; then
     udid=$(xcrun simctl create "$name" $DEVICE_TYPES[$1] $RUNTIME)
   fi
