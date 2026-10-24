@@ -14,10 +14,19 @@
 - `Shared/`: code and resources compiled into both apps, such as the editor's SwiftUI views, the app icon and strings.
 - `MontageEngine/`: framework for the project model and the rendering engine (composition, playback, effects, export).
 - `MontageFormats/`: framework for file support: reading and writing project packages, and interchange formats.
+- `MontageTests/`: unit tests for both frameworks.
 
 ## Building
 
 ```sh
 xcodebuild -project Montage.xcodeproj -scheme Montage -destination 'generic/platform=iOS Simulator' build
 xcodebuild -project Montage.xcodeproj -scheme 'Montage for Mac' -destination 'platform=macOS' build
+```
+
+## Testing
+
+`MontageTests/` holds unit tests (Swift Testing) for the frameworks, run with the Mac scheme. Tests that need real media read it from `~/Developer/ClaudeDocs/Samples` through `Samples`, and skip where it's missing.
+
+```sh
+xcodebuild -project Montage.xcodeproj -scheme 'Montage for Mac' -destination 'platform=macOS,arch=arm64' test
 ```
