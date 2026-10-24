@@ -237,8 +237,9 @@ private struct Playhead: View {
     }
 }
 
-/// Scrolls the lanes along to keep the playhead in sight while playing.
-/// Nothing to see; it only watches the time.
+/// Scrolls the lanes along to keep the playhead in sight: a page at a time
+/// while playing, and straight to it when it's moved out of sight while
+/// paused, such as by Go to End. Nothing to see; it only watches the time.
 private struct PlayheadFollower: View {
     @Environment(ProjectEditor.self) private var editor
     let pointsPerSecond: Double
@@ -248,13 +249,23 @@ private struct PlayheadFollower: View {
     var body: some View {
         Color.clear
             .onChange(of: editor.playback.currentTime) { _, time in
-                guard editor.playback.isPlaying, visibleRange.upperBound > visibleRange.lowerBound else { return }
+                let playback = editor.playback
+                // Dragged along the ruler, the playhead is under the finger.
+                guard !playback.isScrubbing, visibleRange.upperBound > visibleRange.lowerBound else { return }
                 let x = time.seconds * pointsPerSecond
-                // A page on when it reaches the edge, rather than following
-                // every frame, which would make the clips hard to watch.
-                if x > visibleRange.upperBound - 8 || x < visibleRange.lowerBound {
+                let width = visibleRange.upperBound - visibleRange.lowerBound
+                if playback.isPlaying {
+                    // A page on when it reaches the edge, rather than
+                    // following every frame, which would make the clips hard
+                    // to watch.
+                    if x > visibleRange.upperBound - 8 || x < visibleRange.lowerBound {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            scrollPosition.scrollTo(x: max(0, x - 24))
+                        }
+                    }
+                } else if x > visibleRange.upperBound - 4 || x < visibleRange.lowerBound {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        scrollPosition.scrollTo(x: max(0, x - 24))
+                        scrollPosition.scrollTo(x: max(0, x - width / 2))
                     }
                 }
             }
