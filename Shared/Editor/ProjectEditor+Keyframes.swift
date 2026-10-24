@@ -14,17 +14,27 @@ extension ProjectEditor {
     /// Where the selected clip's last keyframe before the playhead is, on
     /// the timeline.
     var previousKeyframeTime: CMTime? {
-        guard let clip = selectedClip else { return nil }
-        return clip.keyframeTime(before: clip.localTime(playback.currentTime), tolerance: keyframeTolerance)
-            .map { $0 + clip.timelineStart }
+        selectedClip.flatMap { previousKeyframeTime(in: $0, times: $0.keyframeTimes) }
     }
 
     /// Where the selected clip's first keyframe after the playhead is, on
     /// the timeline.
     var nextKeyframeTime: CMTime? {
-        guard let clip = selectedClip else { return nil }
-        return clip.keyframeTime(after: clip.localTime(playback.currentTime), tolerance: keyframeTolerance)
-            .map { $0 + clip.timelineStart }
+        selectedClip.flatMap { nextKeyframeTime(in: $0, times: $0.keyframeTimes) }
+    }
+
+    /// Where a clip's last keyframe before the playhead is, on the timeline,
+    /// given its `keyframeTimes`, for a view that has them already.
+    func previousKeyframeTime(in clip: Clip, times: [CMTime]) -> CMTime? {
+        let time = clip.localTime(playback.currentTime) - keyframeTolerance
+        return times.last { $0 < time }.map { $0 + clip.timelineStart }
+    }
+
+    /// Where a clip's first keyframe after the playhead is, on the timeline,
+    /// given its `keyframeTimes`.
+    func nextKeyframeTime(in clip: Clip, times: [CMTime]) -> CMTime? {
+        let time = clip.localTime(playback.currentTime) + keyframeTolerance
+        return times.first { $0 > time }.map { $0 + clip.timelineStart }
     }
 
     func goToPreviousKeyframe() {
@@ -35,11 +45,12 @@ extension ProjectEditor {
         if let time = nextKeyframeTime { playback.seek(to: time) }
     }
 
-    /// The keyframe time, from the clip's start, that the playhead is on.
-    func keyframeTimeAtPlayhead(in clip: Clip) -> CMTime? {
+    /// The keyframe time, from the clip's start, that the playhead is on,
+    /// of the clip's `keyframeTimes`.
+    func keyframeTimeAtPlayhead(in clip: Clip, times: [CMTime]) -> CMTime? {
         let time = clip.localTime(playback.currentTime)
         let tolerance = keyframeTolerance
-        return clip.keyframeTimes.first { $0 >= time - tolerance && $0 <= time + tolerance }
+        return times.first { $0 >= time - tolerance && $0 <= time + tolerance }
     }
 
     /// Changes how every parameter's keyframe at a time in a clip travels on.

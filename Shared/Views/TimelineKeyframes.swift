@@ -50,7 +50,7 @@ struct TimelineKeyframes: View {
         let shown = drag.flatMap { editor.clipAtGestureStart($0.clipID) } ?? clip
         let times = shown.keyframeTimes
         let rect = layout.rect(of: shown, inRow: row)
-        let atPlayhead = editor.keyframeTimeAtPlayhead(in: clip)
+        let atPlayhead = editor.keyframeTimeAtPlayhead(in: shown, times: times)
         ForEach(times.indices, id: \.self) { index in
             let time = drag?.index == index ? drag!.to : times[index]
             diamond(isCurrent: time == atPlayhead)

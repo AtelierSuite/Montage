@@ -10,25 +10,27 @@ struct KeyframeControls: View {
     let clip: Clip
 
     var body: some View {
-        let time = editor.keyframeTimeAtPlayhead(in: clip)
+        // Worked out once, as the section follows the playhead.
+        let times = clip.keyframeTimes
+        let time = editor.keyframeTimeAtPlayhead(in: clip, times: times)
         Section {
             HStack {
                 Button("Inspector.Keyframes.Previous", systemImage: "chevron.left") { editor.goToPreviousKeyframe() }
-                    .disabled(editor.previousKeyframeTime == nil)
+                    .disabled(editor.previousKeyframeTime(in: clip, times: times) == nil)
                     .help(Text("Inspector.Keyframes.Previous"))
                 Spacer()
-                Text(verbatim: "\(clip.keyframeTimes.count)")
+                Text(verbatim: "\(times.count)")
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                     .accessibilityLabel(Text(verbatim: String(
-                        format: String(localized: "Inspector.Keyframes.Count"), clip.keyframeTimes.count.formatted()
+                        format: String(localized: "Inspector.Keyframes.Count"), times.count.formatted()
                     )))
                 Image(systemName: "diamond")
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
                 Spacer()
                 Button("Inspector.Keyframes.Next", systemImage: "chevron.right") { editor.goToNextKeyframe() }
-                    .disabled(editor.nextKeyframeTime == nil)
+                    .disabled(editor.nextKeyframeTime(in: clip, times: times) == nil)
                     .help(Text("Inspector.Keyframes.Next"))
             }
             .labelStyle(.iconOnly)
@@ -47,7 +49,7 @@ struct KeyframeControls: View {
         } header: {
             Text("Inspector.Keyframes")
         } footer: {
-            if clip.keyframeTimes.isEmpty {
+            if times.isEmpty {
                 Text("Inspector.Keyframes.Empty")
             } else if time == nil {
                 Text("Inspector.Keyframes.None")
