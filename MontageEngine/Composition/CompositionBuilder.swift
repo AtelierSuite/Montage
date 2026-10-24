@@ -51,7 +51,9 @@ public struct CompositionBuilder: Sendable {
 
     /// Builds the composition. Clips whose media can't be found or used are
     /// left out as empty time and listed in `skippedClips`; only cancelling
-    /// the task throws.
+    /// the task throws. Runs off the caller's actor, so the main actor can
+    /// call it without waiting on the media being opened.
+    @concurrent
     public func build() async throws -> BuiltComposition {
         let composition = AVMutableComposition()
         var media = MediaLoader(resolver: mediaResolver)
