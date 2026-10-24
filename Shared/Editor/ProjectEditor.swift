@@ -40,10 +40,23 @@ final class ProjectEditor {
     var playback: PlaybackController {
         if let playbackController { return playbackController }
         let playbackController = PlaybackController(project: project, mediaResolver: playbackResolver)
+        playbackController.usesProxies = usesProxies
         self.playbackController = playbackController
         return playbackController
     }
     @ObservationIgnored private(set) var playbackController: PlaybackController?
+
+    /// Whether preview plays large video from smaller copies, made in the
+    /// background. Export always uses the originals. Kept for next time.
+    var usesProxies = UserDefaults.standard.bool(forKey: ProjectEditor.usesProxiesKey) {
+        didSet {
+            guard usesProxies != oldValue else { return }
+            UserDefaults.standard.set(usesProxies, forKey: Self.usesProxiesKey)
+            playbackController?.usesProxies = usesProxies
+            makeDerivedMedia()
+        }
+    }
+    static let usesProxiesKey = "Preview.UsesProxies"
 
     /// The timeline's selection, zoom and editing options.
     let timeline = TimelineState()
