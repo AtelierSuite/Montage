@@ -47,6 +47,11 @@ public struct Project: Equatable, Sendable {
         media.first { $0.id == id }
     }
 
+    /// The media item a clip is made from, if it's made from one.
+    public func mediaItem(id: MediaItem.ID?) -> MediaItem? {
+        id.flatMap { mediaItem(id: $0) }
+    }
+
     /// Finds a clip on whichever track holds it.
     public func clip(id: Clip.ID) -> (track: Track, clip: Clip)? {
         for track in tracks {
@@ -75,6 +80,20 @@ extension Project: Codable {
         bins = try container.decodeIfPresent([MediaBin].self, forKey: .bins) ?? []
         tracks = try container.decodeIfPresent([Track].self, forKey: .tracks) ?? []
         markers = try container.decodeIfPresent([Marker].self, forKey: .markers) ?? []
+        markStillImageClips()
+    }
+
+    /// Makes clips of still images, saved before stills were content of
+    /// their own, into image clips.
+    private mutating func markStillImageClips() {
+        let images = Set(media.filter { $0.kind == .image }.map(\.id))
+        guard !images.isEmpty else { return }
+        for index in tracks.indices {
+            for clip in tracks[index].clips {
+                guard case .media(let id) = clip.content, images.contains(id) else { continue }
+                tracks[index].update(clip.id) { $0.content = .image(id) }
+            }
+        }
     }
 
     public func encode(to encoder: Encoder) throws {
