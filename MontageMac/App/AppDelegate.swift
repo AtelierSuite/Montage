@@ -36,6 +36,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showExports(_ sender: Any?) {
         ExportsWindowController.shared.showWindow(sender)
     }
+
+    /// Exports carry on with their windows closed, so quitting asks first,
+    /// then waits for them to stop and clean up.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let queue = ExportCenter.queue
+        guard queue.hasActiveJobs else { return .terminateNow }
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Export.Quit.Title")
+        alert.informativeText = String(localized: "Export.Quit.Message")
+        alert.addButton(withTitle: String(localized: "Export.Quit.Continue"))
+        alert.addButton(withTitle: String(localized: "Export.Quit.Quit"))
+        guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
+        queue.cancelAll()
+        Task {
+            while queue.hasActiveJobs { try? await Task.sleep(for: .milliseconds(50)) }
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
 }
 
 /// The app's document controller, made first so it is the shared one.

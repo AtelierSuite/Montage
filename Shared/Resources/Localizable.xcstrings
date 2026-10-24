@@ -298,6 +298,50 @@
         }
       }
     },
+    "Export.Quit.Continue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Exporting"
+          }
+        }
+      }
+    },
+    "Export.Quit.Message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exports still in progress will be cancelled."
+          }
+        }
+      }
+    },
+    "Export.Quit.Quit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit"
+          }
+        }
+      }
+    },
+    "Export.Quit.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit while exporting?"
+          }
+        }
+      }
+    },
     "Export.Resolution" : {
       "extractionState" : "manual",
       "localizations" : {
