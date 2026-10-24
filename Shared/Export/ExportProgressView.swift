@@ -20,12 +20,26 @@ struct ExportProgressView: View {
                 }
             }
         }
+        #if os(iOS)
         .toolbar {
-            ToolbarItem(placement: .destructiveAction) {
-                Button("Export.Progress.Clear") { queue.clearFinished() }
-                    .disabled(!queue.jobs.contains { !$0.state.isActive })
-            }
+            ToolbarItem(placement: .destructiveAction) { clearButton }
         }
+        #else
+        // The Mac's exports window has no toolbar.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack {
+                Spacer()
+                clearButton
+            }
+            .padding(10)
+            .background(.bar)
+        }
+        #endif
+    }
+
+    private var clearButton: some View {
+        Button("Export.Progress.Clear") { queue.clearFinished() }
+            .disabled(!queue.jobs.contains { !$0.state.isActive })
     }
 }
 
