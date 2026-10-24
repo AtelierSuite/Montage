@@ -23,6 +23,8 @@ struct ProjectEditorView: View {
     /// Whether the preview floats over the editor, picture in picture,
     /// rather than having its place in the layout.
     @State private var isPreviewFloating = false
+    /// Where the full-screen player zooms out of.
+    @Namespace private var previewTransition
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
     @State private var isShowingExport = false
     @State private var isShowingExports = false
@@ -128,8 +130,10 @@ struct ProjectEditorView: View {
         .environment(\.expandPreview, PreviewAction { isShowingFullscreen = true })
         .environment(\.floatPreview, PreviewAction { setPreviewFloating(true) })
         .environment(\.showsPlaybackOverlay, true)
+        .environment(\.previewTransition, PreviewTransition(id: "preview", namespace: previewTransition))
         .fullScreenCover(isPresented: $isShowingFullscreen) {
             FullscreenPlayerView(playback: editor.playback)
+                .navigationTransition(.zoom(sourceID: "preview", in: previewTransition))
         }
         .inspector(isPresented: $isShowingInspector) {
             InspectorView()
@@ -146,13 +150,12 @@ struct ProjectEditorView: View {
     }
 
     /// The floating preview, in a window over the whole app, while it
-    /// floats; not over the full-screen player, which shows it already.
+    /// floats. It goes full screen in its own window.
     @ViewBuilder
     private var floatingPreview: some View {
-        if isPreviewFloating && editor.playback.hasContent && !isShowingFullscreen {
+        if isPreviewFloating && editor.playback.hasContent {
             FloatingPreviewWindow(preview: FloatingPreview(
                 playback: editor.playback, aspectRatio: previewAspectRatio,
-                onExpand: { isShowingFullscreen = true },
                 onDock: { setPreviewFloating(false) },
                 // Clear of the bar along the bottom, where there is one.
                 reservedBottom: verticalSizeClass == .compact ? 0 : 76

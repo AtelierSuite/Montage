@@ -13,6 +13,7 @@ struct PreviewArea: View {
     @Environment(\.expandPreview) private var expandPreview
     @Environment(\.floatPreview) private var floatPreview
     @Environment(\.showsPlaybackOverlay) private var showsPlaybackOverlay
+    @Environment(\.previewTransition) private var previewTransition
     @State private var showsControls = true
 
     var body: some View {
@@ -38,6 +39,7 @@ struct PreviewArea: View {
     private var frame: some View {
         if editor.playback.hasContent {
             PlayerView(player: editor.playback.player)
+                .modifier(PreviewTransitionSource(transition: previewTransition))
                 .accessibilityElement()
                 .accessibilityLabel(Text("Preview.Title"))
                 .overlay {
@@ -105,6 +107,32 @@ extension EnvironmentValues {
     /// Whether the preview has its playback controls over the picture, as
     /// on iOS, rather than in a bar of their own.
     @Entry var showsPlaybackOverlay = false
+    /// What a transition out of the preview, such as into full screen, grows
+    /// from.
+    @Entry var previewTransition: PreviewTransition?
+}
+
+/// Names the preview as the source of a transition.
+struct PreviewTransition {
+    let id: String
+    let namespace: Namespace.ID
+}
+
+/// Marks the preview as where its transition grows from, where there is one.
+private struct PreviewTransitionSource: ViewModifier {
+    let transition: PreviewTransition?
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if let transition {
+            content.matchedTransitionSource(id: transition.id, in: transition.namespace)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
 }
 
 /// Something to do with the preview, given to it by whatever's around it.

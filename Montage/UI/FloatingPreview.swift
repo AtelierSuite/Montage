@@ -12,6 +12,10 @@ import SwiftUI
 /// it. It has the preview's playback controls over the picture, with buttons
 /// to show it full screen and to put it back in the editor.
 ///
+/// Full screen, the window itself grows to fill the screen, over a black
+/// that fades in behind it, and shrinks back into its corner when it's
+/// closed or swiped down.
+///
 /// It spreads into the safe area at the sides, to rest close to the edge of
 /// the screen and tuck away right against it, except on the side with the
 /// sensor housing, which it keeps clear of.
@@ -19,7 +23,6 @@ struct FloatingPreview: View {
     let playback: PlaybackController
     /// The project's frame shape, width over height.
     let aspectRatio: Double
-    let onExpand: () -> Void
     let onDock: () -> Void
     /// Room kept clear along the bottom, for the controls floating there.
     var reservedBottom = 0.0
@@ -37,12 +40,20 @@ struct FloatingPreview: View {
     @State private var corner = Corner.bottomTrailing
     /// Whether it's tucked away at its corner's side of the screen.
     @State private var isStashed = false
+    /// Whether it fills the screen.
+    @State private var isExpanded = false
     /// How far it's been dragged from where it rests.
     @State private var drag = CGSize.zero
     /// The side of the screen with the Dynamic Island or notch, when the
     /// phone is held sideways and has one.
     @State private var sensorHousing: HorizontalEdge?
     @State private var showsControls = true
+    @State private var showsLargeControls = false
+    /// Whether it's on its way to or from full screen, when it shows no
+    /// controls.
+    @State private var isMoving = false
+    /// Where the window is on screen.
+    @State private var windowFrame = CGRect.zero
 
     /// Room between the window and the edges it rests against.
     private let margin = 12.0
@@ -51,18 +62,17 @@ struct FloatingPreview: View {
     private let cornerRadius = 12.0
     /// Rounder while tucked away, so what's left reads as a tab.
     private let tabCornerRadius = 16.0
+    /// How far down a swipe has to pull the full-screen picture to close it.
+    private let closingPull = 120.0
+    private let expansion = Animation.spring(duration: 0.45, bounce: 0.12)
 
     var body: some View {
-        GeometryReader { geometry in
-            let room = Room(size: geometry.size, insets: geometry.safeAreaInsets)
-            let size = windowSize(in: room)
-            let center = restingCenter(size: size, in: room)
-            window(size: size)
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onFrameChange($0) }
-                .position(x: center.x + drag.width, y: center.y + drag.height)
-                .gesture(dragging(size: size, in: room))
+        // The safe area is read from inside it, where it's known, and the
+        // window is laid out over the whole screen, outside it.
+        GeometryReader { safeArea in
+            room(insets: safeArea.safeAreaInsets)
+                .ignoresSafeArea()
         }
-        .ignoresSafeArea(.container, edges: .horizontal)
         .background { SensorHousingReader { sensorHousing = $0 } }
         // Turned so its side has the sensor housing, it comes out again.
         .onChange(of: sensorHousing) { _, housing in
@@ -70,10 +80,55 @@ struct FloatingPreview: View {
         }
     }
 
+    private func room(insets: EdgeInsets) -> some View {
+        GeometryReader { geometry in
+            let room = Room(size: geometry.size, insets: insets)
+            // Full screen, the picture's own frame fitted to the screen, so it
+            // only grows on the way there, keeping its shape.
+            let size = isExpanded ? fittedSize(in: room.size) : windowSize(in: room)
+            let center = isExpanded
+                ? CGPoint(x: room.size.width / 2, y: room.size.height / 2)
+                : restingCenter(size: size, in: room)
+            ZStack {
+                // Fades in behind the picture as it grows to fill the screen.
+                Color.black
+                    .opacity(isExpanded ? 1 - min(max(drag.height, 0) / 400, 0.6) : 0)
+                    .allowsHitTesting(false)
+                window(size: size)
+                    .scaleEffect(isExpanded ? 1 - min(max(drag.height, 0) / 2000, 0.1) : 1)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+                        windowFrame = frame
+                        reportTouchableFrame(in: room)
+                    }
+                    .position(x: center.x + (isExpanded ? 0 : drag.width), y: center.y + drag.height)
+                    .gesture(isExpanded ? nil : dragging(size: size, in: room))
+                if isExpanded && showsLargeControls {
+                    largeControls
+                        .padding(room.insets)
+                }
+            }
+            .gesture(isExpanded ? closing : nil)
+            .onChange(of: isExpanded) { reportTouchableFrame(in: room) }
+        }
+    }
+
+    /// Full screen, the whole screen takes touches, for the controls around
+    /// the picture; otherwise only the window does.
+    private func reportTouchableFrame(in room: Room) {
+        onFrameChange(isExpanded ? CGRect(origin: .zero, size: room.size) : windowFrame)
+    }
+
+    private func fittedSize(in size: CGSize) -> CGSize {
+        let ratio = max(aspectRatio, 0.1)
+        return size.width / size.height > ratio
+            ? CGSize(width: size.height * ratio, height: size.height)
+            : CGSize(width: size.width, height: size.width / ratio)
+    }
+
     // MARK: - Window
 
     private func window(size: CGSize) -> some View {
-        let shape = RoundedRectangle(cornerRadius: isStashed ? tabCornerRadius : cornerRadius)
+        let shape = RoundedRectangle(cornerRadius: isExpanded ? 0 : isStashed ? tabCornerRadius : cornerRadius)
         return PlayerView(player: playback.player)
             .frame(width: size.width, height: size.height)
             .overlay {
@@ -81,10 +136,12 @@ struct FloatingPreview: View {
                     stashTab
                         .contentShape(.rect)
                         .onTapGesture { setStashed(false) }
-                } else {
+                } else if !isExpanded && !isMoving {
                     PlaybackOverlay(playback: playback, isShown: $showsControls) {
                         HStack {
-                            PlaybackOverlayButton("Preview.Expand", systemImage: "arrow.up.left.and.arrow.down.right", action: onExpand)
+                            PlaybackOverlayButton("Preview.Expand", systemImage: "arrow.up.left.and.arrow.down.right") {
+                                setExpanded(true)
+                            }
                             Spacer(minLength: 0)
                             PlaybackOverlayButton("Preview.Dock", systemImage: "pip.exit", action: onDock)
                         }
@@ -92,7 +149,7 @@ struct FloatingPreview: View {
                 }
             }
             .clipShape(shape)
-            .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
+            .shadow(color: .black.opacity(isExpanded ? 0 : 0.3), radius: 10, y: 4)
             .contentShape(shape)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(Text("Preview.Title"))
@@ -100,6 +157,21 @@ struct FloatingPreview: View {
             .accessibilityAction(named: Text(isStashed ? "Preview.Unstash" : "Preview.Stash")) {
                 if isStashed || canStash(on: corner.isLeading ? .leading : .trailing) { setStashed(!isStashed) }
             }
+    }
+
+    /// The full-screen controls, over the whole screen rather than only the
+    /// picture, as in the full-screen player.
+    private var largeControls: some View {
+        PlaybackOverlay(playback: playback, isShown: $showsControls, isLarge: true) {
+            HStack {
+                PlaybackOverlayButton("Fullscreen.Close", systemImage: "xmark", isLarge: true) {
+                    setExpanded(false)
+                }
+                Spacer()
+            }
+        } bottom: {
+            PlaybackScrubber(playback: playback)
+        }
     }
 
     /// Covers a tucked-away window, with a chevron on the strip still on
@@ -115,10 +187,26 @@ struct FloatingPreview: View {
         }
     }
 
+    /// Grows the window to fill the screen, or shrinks it back into its
+    /// corner. The controls go while it moves, and the full-screen ones come
+    /// once it's there.
+    private func setExpanded(_ expanded: Bool) {
+        showsLargeControls = false
+        showsControls = true
+        isMoving = true
+        withAnimation(expansion) {
+            isExpanded = expanded
+            drag = .zero
+        } completion: {
+            isMoving = false
+            showsLargeControls = isExpanded
+        }
+    }
+
     // MARK: - Placing
 
-    /// The room the window moves in: the editor's, out to the very sides of
-    /// the screen, with the safe area's insets there.
+    /// The room the window moves in: the whole screen, with the safe area's
+    /// insets around it.
     private struct Room {
         var size: CGSize
         var insets: EdgeInsets
@@ -154,7 +242,9 @@ struct FloatingPreview: View {
                 ? inset(on: .leading, in: room) + size.width / 2
                 : room.size.width - inset(on: .trailing, in: room) - size.width / 2
         }
-        let y = corner.isTop ? margin + size.height / 2 : room.size.height - reservedBottom - margin - size.height / 2
+        let y = corner.isTop
+            ? room.insets.top + margin + size.height / 2
+            : room.size.height - room.insets.bottom - reservedBottom - margin - size.height / 2
         return CGPoint(x: x, y: y)
     }
 
@@ -187,6 +277,23 @@ struct FloatingPreview: View {
                     }
                     isStashed = x < 0 && canStash(on: .leading) || x > room.size.width && canStash(on: .trailing)
                     drag = .zero
+                }
+            }
+    }
+
+    /// Full screen, pulling the picture down shrinks it back into its corner
+    /// once it's far enough; let go before, it springs back.
+    private var closing: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                showsLargeControls = false
+                drag = CGSize(width: 0, height: max(0, value.translation.height))
+            }
+            .onEnded { value in
+                if value.translation.height > closingPull || value.predictedEndTranslation.height > closingPull * 2 {
+                    setExpanded(false)
+                } else {
+                    withAnimation(.spring(duration: 0.3)) { drag = .zero } completion: { showsLargeControls = true }
                 }
             }
     }
