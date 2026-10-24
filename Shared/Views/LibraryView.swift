@@ -7,6 +7,15 @@ struct LibraryView: View {
     @Environment(ProjectEditor.self) private var editor
     @Environment(MediaImporter.self) private var importer
     @State private var selection = Set<MediaItem.ID>()
+    /// Which bin, kinds and names the library shows, and in what order.
+    @State private var query = LibraryQuery()
+    @State private var isShowingRelink = false
+    /// The bin being named: a new one, or one being renamed.
+    @State private var renamingBin: MediaBin?
+    @State private var isNamingNewBin = false
+    /// What a new bin is to hold once it's named.
+    @State private var newBinMedia = Set<MediaItem.ID>()
+    @State private var binName = ""
     #if os(macOS)
     /// The item a Shift-click selects from.
     @State private var selectionAnchor: MediaItem.ID?
@@ -26,7 +35,25 @@ struct LibraryView: View {
             } message: { failures in
                 Text(failures.map(\.message).joined(separator: "\n\n"))
             }
+            .sheet(isPresented: $isShowingRelink) {
+                RelinkMediaView()
+                    .environment(editor)
+                    .environment(importer)
+            }
+            .alert("Library.Bin.NameTitle", isPresented: isNamingBin) {
+                TextField("Library.Bin.Name", text: $binName)
+                Button("Library.Bin.Save", action: saveBinName)
+                Button("Relink.Cancel", role: .cancel) {}
+            }
+            .onChange(of: renamingBin) { _, bin in
+                if let bin { binName = bin.name }
+            }
+            // A bin that's gone can't be looked in.
+            .onChange(of: editor.project.bins) { _, bins in
+                if case .bin(let id) = query.scope, !bins.contains(where: { $0.id == id }) { query.scope = .all }
+            }
             #if os(iOS)
+            .searchable(text: $query.search, prompt: Text("Library.Search"))
             .toolbar {
                 ToolbarItem(placement: .primaryAction) { importMenu }
             }
@@ -72,16 +99,62 @@ struct LibraryView: View {
                 #endif
             }
         } else {
-            grid
+            VStack(spacing: 0) {
+                LibraryFilterBar(query: $query, renamingBin: $renamingBin) { newBin(with: []) }
+                    .padding(.horizontal, Self.gridPadding)
+                    .padding(.vertical, 8)
+                if !editor.missingMediaIDs.isEmpty {
+                    missingBanner
+                }
+                Divider()
+                if shownItems.isEmpty {
+                    ContentUnavailableView {
+                        Label("Library.NoResults.Title", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("Library.NoResults.Message")
+                    }
+                    .frame(maxHeight: .infinity)
+                } else {
+                    grid
+                }
+            }
         }
+    }
+
+    /// The media the bin, filters and search leave showing, in order.
+    private var shownItems: [MediaItem] {
+        query.items(in: editor.project)
+    }
+
+    /// Says some media's files can't be found, with the way to find them.
+    private var missingBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text(String(format: String(localized: "Library.Missing"), editor.missingMediaIDs.count))
+                .font(.callout)
+            Spacer(minLength: 0)
+            Button("Library.Relink") { isShowingRelink = true }
+                .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, Self.gridPadding)
+        .padding(.vertical, 6)
+        .background(.orange.opacity(0.12))
+        .accessibilityElement(children: .combine)
     }
 
     private var grid: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: Self.minimumCellWidth), spacing: 10)], spacing: 14) {
-                ForEach(editor.project.media) { item in
-                    LibraryCell(item: item, isSelected: selection.contains(item.id))
+                let clipCounts = editor.project.clipCounts
+                ForEach(shownItems) { item in
+                    LibraryCell(
+                        item: item, isSelected: selection.contains(item.id), clipCount: clipCounts[item.id] ?? 0,
+                        isMissing: editor.missingMediaIDs.contains(item.id)
+                    )
                         .contextMenu { itemMenu(ids(actingOn: item)) }
+                        // Onto the timeline, or onto a bin to file it there.
+                        .draggable(MediaDragPayload(mediaIDs: ordered(ids(actingOn: item))))
                         .accessibilityAction { select(item) }
                         .accessibilityAction(named: Text("Library.AddToTimeline")) { addToTimeline(ids(actingOn: item)) }
                         .accessibilityAction(named: Text("Library.Remove")) { remove(ids(actingOn: item)) }
@@ -134,7 +207,7 @@ struct LibraryView: View {
         #if os(macOS)
         isGridFocused = true
         let modifiers = NSEvent.modifierFlags
-        let ids = editor.project.media.map(\.id)
+        let ids = shownItems.map(\.id)
         if modifiers.contains(.shift), let anchor = selectionAnchor,
            let from = ids.firstIndex(of: anchor), let to = ids.firstIndex(of: item.id) {
             selection.formUnion(ids[min(from, to)...max(from, to)])
@@ -155,14 +228,63 @@ struct LibraryView: View {
     private func itemMenu(_ ids: Set<MediaItem.ID>) -> some View {
         if !ids.isEmpty {
             Button("Library.AddToTimeline", systemImage: "plus.rectangle.on.rectangle") { addToTimeline(ids) }
+            Menu("Library.MoveToBin", systemImage: "folder") {
+                Button("Library.Bin.None") { editor.moveMedia(ids, toBin: nil) }
+                ForEach(editor.project.bins) { bin in
+                    Button(bin.name) { editor.moveMedia(ids, toBin: bin.id) }
+                }
+                Divider()
+                Button("Library.Bin.NewWithSelection", systemImage: "folder.badge.plus") { newBin(with: ids) }
+            }
+            if !ids.isDisjoint(with: editor.missingMediaIDs) {
+                Button("Library.Relink", systemImage: "link") { isShowingRelink = true }
+            }
             Divider()
             Button("Library.Remove", systemImage: "trash", role: .destructive) { remove(ids) }
         }
     }
 
+    /// The items in the order the project's library has them.
+    private func ordered(_ ids: Set<MediaItem.ID>) -> [MediaItem.ID] {
+        editor.project.media.map(\.id).filter(ids.contains)
+    }
+
     /// Adds the items to the timeline in the order the library lists them.
     private func addToTimeline(_ ids: Set<MediaItem.ID>) {
-        editor.addToTimeline(editor.project.media.map(\.id).filter(ids.contains))
+        editor.addToTimeline(ordered(ids))
+    }
+
+    // MARK: - Bins
+
+    private var isNamingBin: Binding<Bool> {
+        Binding { isNamingNewBin || renamingBin != nil } set: { isShowing in
+            guard !isShowing else { return }
+            isNamingNewBin = false
+            renamingBin = nil
+        }
+    }
+
+    /// Asks for a name for a new bin, to file `ids` in.
+    private func newBin(with ids: Set<MediaItem.ID>) {
+        newBinMedia = ids
+        binName = String(localized: "Library.Bin.DefaultName")
+        isNamingNewBin = true
+    }
+
+    private func saveBinName() {
+        let name = binName.trimmingCharacters(in: .whitespacesAndNewlines)
+        defer {
+            isNamingNewBin = false
+            renamingBin = nil
+        }
+        guard !name.isEmpty else { return }
+        if let bin = renamingBin {
+            editor.renameBin(bin.id, to: name)
+        } else if isNamingNewBin {
+            let id = editor.addBin(named: name)
+            if !newBinMedia.isEmpty { editor.moveMedia(newBinMedia, toBin: id) }
+            newBinMedia = []
+        }
     }
 
     private func remove(_ ids: Set<MediaItem.ID>) {
@@ -220,6 +342,10 @@ struct LibraryView: View {
 private struct LibraryCell: View {
     let item: MediaItem
     let isSelected: Bool
+    /// How many clips on the timeline are made from it.
+    let clipCount: Int
+    /// Whether its file can't be found.
+    let isMissing: Bool
 
     static let cornerRadius: CGFloat = 10
 
@@ -229,6 +355,7 @@ private struct LibraryCell: View {
                 .aspectRatio(16 / 9, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: Self.cornerRadius))
                 .overlay(alignment: .bottomTrailing) { badge }
+                .overlay(alignment: .topLeading) { status }
                 .overlay {
                     RoundedRectangle(cornerRadius: Self.cornerRadius)
                         .strokeBorder(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.separator),
@@ -245,6 +372,28 @@ private struct LibraryCell: View {
         .accessibilityLabel(Text(item.name))
         .accessibilityValue(Text(accessibilityValue))
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// Whether the file's missing, or else whether the timeline uses it.
+    @ViewBuilder
+    private var status: some View {
+        if isMissing {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .symbolRenderingMode(.multicolor)
+                .font(.caption)
+                .padding(4)
+                .background(.black.opacity(0.6), in: .circle)
+                .padding(4)
+                .help(Text("Library.Status.Missing"))
+        } else if clipCount > 0 {
+            Image(systemName: "checkmark")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white)
+                .padding(4)
+                .background(.tint, in: .circle)
+                .padding(4)
+                .help(Text("Library.Status.Used"))
+        }
     }
 
     /// How long the media runs, or a glyph for a still image.
@@ -272,8 +421,16 @@ private struct LibraryCell: View {
         case .audio: String(localized: "Library.Kind.Audio")
         case .image: String(localized: "Library.Kind.Image")
         }
-        guard item.kind != .image, let duration = Self.duration(of: item) else { return kind }
-        return kind + ", " + duration.formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide))
+        var parts = [kind]
+        if item.kind != .image, let duration = Self.duration(of: item) {
+            parts.append(duration.formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide)))
+        }
+        if isMissing {
+            parts.append(String(localized: "Library.Status.Missing"))
+        } else {
+            parts.append(clipCount > 0 ? String(localized: "Library.Status.Used") : String(localized: "Library.Status.Unused"))
+        }
+        return parts.joined(separator: ", ")
     }
 
     private static func duration(of item: MediaItem) -> Duration? {
@@ -305,7 +462,13 @@ private struct LibraryThumbnail: View {
             .clipped()
             .animation(.easeOut(duration: 0.2), value: image != nil)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
-            .task(id: pixelSize) { await load() }
+            // Made again for a new size, or a new file once relinked.
+            .task(id: LoadKey(size: pixelSize, location: item.location)) { await load() }
+    }
+
+    private struct LoadKey: Equatable {
+        var size: CGSize
+        var location: MediaLocation
     }
 
     private var placeholder: some View {
