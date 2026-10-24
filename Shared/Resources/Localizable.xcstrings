@@ -9,6 +9,12 @@
             "state" : "translated",
             "value" : "Add Effect"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトを追加"
+          }
         }
       }
     },
@@ -19,6 +25,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add Marker"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マーカーを追加"
           }
         }
       }
@@ -31,6 +43,12 @@
             "state" : "translated",
             "value" : "Add to Timeline"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タイムラインに追加"
+          }
         }
       }
     },
@@ -41,6 +59,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Change Effect"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトを変更"
           }
         }
       }
@@ -53,6 +77,12 @@
             "state" : "translated",
             "value" : "Delete"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "削除"
+          }
         }
       }
     },
@@ -63,6 +93,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete Bin"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビンを削除"
           }
         }
       }
@@ -75,6 +111,12 @@
             "state" : "translated",
             "value" : "Detach Audio"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディオを切り離す"
+          }
         }
       }
     },
@@ -85,6 +127,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import Media"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メディアを読み込む"
           }
         }
       }
@@ -97,6 +145,12 @@
             "state" : "translated",
             "value" : "Import Project"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトを読み込む"
+          }
         }
       }
     },
@@ -107,6 +161,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Move Clip"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップを移動"
           }
         }
       }
@@ -119,6 +179,12 @@
             "state" : "translated",
             "value" : "Move to Bin"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビンに移動"
+          }
         }
       }
     },
@@ -129,6 +195,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New Bin"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新規ビン"
           }
         }
       }
@@ -141,6 +213,12 @@
             "state" : "translated",
             "value" : "Relink Media"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メディアを再リンク"
+          }
         }
       }
     },
@@ -151,6 +229,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove Effect"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトを削除"
           }
         }
       }
@@ -163,6 +247,12 @@
             "state" : "translated",
             "value" : "Remove from Library"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ライブラリから削除"
+          }
         }
       }
     },
@@ -173,6 +263,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove Unused Media"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未使用のメディアを削除"
           }
         }
       }
@@ -185,6 +281,12 @@
             "state" : "translated",
             "value" : "Rename Bin"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビンの名前を変更"
+          }
         }
       }
     },
@@ -195,6 +297,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ripple Delete"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リップル削除"
           }
         }
       }
@@ -207,6 +315,12 @@
             "state" : "translated",
             "value" : "Split Clip"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップを分割"
+          }
         }
       }
     },
@@ -218,6 +332,12 @@
             "state" : "translated",
             "value" : "Trim Clip"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップをトリム"
+          }
         }
       }
     },
@@ -225,6 +345,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ dB"
+          }
+        },
+        "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ dB"
@@ -240,6 +366,12 @@
             "state" : "translated",
             "value" : "Delay"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ディレイ"
+          }
         }
       }
     },
@@ -250,6 +382,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Feedback"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィードバック"
           }
         }
       }
@@ -262,6 +400,12 @@
             "state" : "translated",
             "value" : "Time"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時間"
+          }
         }
       }
     },
@@ -272,6 +416,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Equalizer"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "イコライザ"
           }
         }
       }
@@ -284,6 +434,12 @@
             "state" : "translated",
             "value" : "Band %@"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "バンド%@"
+          }
         }
       }
     },
@@ -294,6 +450,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bandwidth"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帯域幅"
           }
         }
       }
@@ -306,6 +468,12 @@
             "state" : "translated",
             "value" : "Frequency"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "周波数"
+          }
         }
       }
     },
@@ -317,6 +485,12 @@
             "state" : "translated",
             "value" : "Gain"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ゲイン"
+          }
         }
       }
     },
@@ -324,6 +498,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ oct"
+          }
+        },
+        "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ oct"
@@ -339,6 +519,12 @@
             "state" : "translated",
             "value" : "Gain"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ゲイン"
+          }
         }
       }
     },
@@ -349,6 +535,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Level"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "レベル"
           }
         }
       }
@@ -361,6 +553,12 @@
             "state" : "translated",
             "value" : "Mix"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ミックス"
+          }
         }
       }
     },
@@ -371,6 +569,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pan"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "パン"
           }
         }
       }
@@ -383,6 +587,12 @@
             "state" : "translated",
             "value" : "Centre"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中央"
+          }
         }
       }
     },
@@ -393,6 +603,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ L"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左 %@"
           }
         }
       }
@@ -405,6 +621,12 @@
             "state" : "translated",
             "value" : "Position"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位置"
+          }
         }
       }
     },
@@ -415,6 +637,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ R"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右 %@"
           }
         }
       }
@@ -427,6 +655,12 @@
             "state" : "translated",
             "value" : "Reverb"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リバーブ"
+          }
         }
       }
     },
@@ -437,6 +671,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Room"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ルーム"
           }
         }
       }
@@ -449,6 +689,12 @@
             "state" : "translated",
             "value" : "Cathedral"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大聖堂"
+          }
         }
       }
     },
@@ -459,6 +705,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Large Hall"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大ホール"
           }
         }
       }
@@ -471,6 +723,12 @@
             "state" : "translated",
             "value" : "Medium Room"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中部屋"
+          }
         }
       }
     },
@@ -481,6 +739,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plate"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プレート"
           }
         }
       }
@@ -493,6 +757,12 @@
             "state" : "translated",
             "value" : "Small Room"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小部屋"
+          }
         }
       }
     },
@@ -503,6 +773,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add Marker"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マーカーを追加"
           }
         }
       }
@@ -515,6 +791,12 @@
             "state" : "translated",
             "value" : "Delete"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "削除"
+          }
         }
       }
     },
@@ -525,6 +807,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Detach Audio"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディオを切り離す"
           }
         }
       }
@@ -537,6 +825,12 @@
             "state" : "translated",
             "value" : "Ripple Delete"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リップル削除"
+          }
         }
       }
     },
@@ -547,6 +841,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select All"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべてを選択"
           }
         }
       }
@@ -559,6 +859,12 @@
             "state" : "translated",
             "value" : "Split"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分割"
+          }
         }
       }
     },
@@ -569,6 +875,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Preview Size"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プレビューのサイズ"
           }
         }
       }
@@ -581,6 +893,12 @@
             "state" : "translated",
             "value" : "Audio Effect"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディオエフェクト"
+          }
         }
       }
     },
@@ -591,6 +909,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Color Correction"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カラー補正"
           }
         }
       }
@@ -603,6 +927,12 @@
             "state" : "translated",
             "value" : "Mosaic"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "モザイク"
+          }
         }
       }
     },
@@ -613,6 +943,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ (Not Supported)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（非対応）"
           }
         }
       }
@@ -625,6 +961,12 @@
             "state" : "translated",
             "value" : "Export"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出す"
+          }
         }
       }
     },
@@ -635,6 +977,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Exporting from Montage"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montageから書き出し中"
           }
         }
       }
@@ -647,6 +995,12 @@
             "state" : "translated",
             "value" : "Cancel"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キャンセル"
+          }
         }
       }
     },
@@ -657,6 +1011,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Codec"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コーデック"
           }
         }
       }
@@ -669,6 +1029,12 @@
             "state" : "translated",
             "value" : "Destination"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出し先"
+          }
         }
       }
     },
@@ -679,6 +1045,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Files"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイル"
           }
         }
       }
@@ -691,6 +1063,12 @@
             "state" : "translated",
             "value" : "Photos"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真"
+          }
         }
       }
     },
@@ -701,6 +1079,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Photos takes MP4 videos only."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真に保存できるのはMP4ビデオのみです。"
           }
         }
       }
@@ -713,6 +1097,12 @@
             "state" : "translated",
             "value" : "Estimated Size"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推定サイズ"
+          }
         }
       }
     },
@@ -723,6 +1113,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "About %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "約%@"
           }
         }
       }
@@ -735,6 +1131,12 @@
             "state" : "translated",
             "value" : "Format"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォーマット"
+          }
         }
       }
     },
@@ -746,6 +1148,12 @@
             "state" : "translated",
             "value" : "Frame Rate"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フレームレート"
+          }
         }
       }
     },
@@ -753,6 +1161,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld fps"
+          }
+        },
+        "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld fps"
@@ -768,6 +1182,12 @@
             "state" : "translated",
             "value" : "Project (%@ fps)"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクト（%@ fps）"
+          }
         }
       }
     },
@@ -778,6 +1198,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export failed"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出しに失敗しました"
           }
         }
       }
@@ -790,6 +1216,12 @@
             "state" : "translated",
             "value" : "Export finished"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出しが完了しました"
+          }
         }
       }
     },
@@ -800,6 +1232,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export ready to save"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出したファイルを保存できます"
           }
         }
       }
@@ -812,6 +1250,12 @@
             "state" : "translated",
             "value" : "Montage can’t add to your photo library."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montageはフォトライブラリに追加できません。"
+          }
         }
       }
     },
@@ -822,6 +1266,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Allow Montage to add photos and videos in Settings, or export to Files instead."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定でMontageに写真とビデオの追加を許可するか、代わりにファイルに書き出してください。"
           }
         }
       }
@@ -834,6 +1284,12 @@
             "state" : "translated",
             "value" : "Cancel Export"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出しをキャンセル"
+          }
         }
       }
     },
@@ -844,6 +1300,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clear"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消去"
           }
         }
       }
@@ -856,6 +1318,12 @@
             "state" : "translated",
             "value" : "Done"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完了"
+          }
         }
       }
     },
@@ -866,6 +1334,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Exports"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出しなし"
           }
         }
       }
@@ -878,6 +1352,12 @@
             "state" : "translated",
             "value" : "Save…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存…"
+          }
         }
       }
     },
@@ -888,6 +1368,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Exports"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出し"
           }
         }
       }
@@ -900,6 +1386,12 @@
             "state" : "translated",
             "value" : "Quality"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "品質"
+          }
         }
       }
     },
@@ -910,6 +1402,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "High"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高"
           }
         }
       }
@@ -922,6 +1420,12 @@
             "state" : "translated",
             "value" : "Low"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低"
+          }
         }
       }
     },
@@ -932,6 +1436,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Maximum"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高"
           }
         }
       }
@@ -944,6 +1454,12 @@
             "state" : "translated",
             "value" : "Medium"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中"
+          }
         }
       }
     },
@@ -954,6 +1470,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keep Exporting"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出しを続ける"
           }
         }
       }
@@ -966,6 +1488,12 @@
             "state" : "translated",
             "value" : "Exports still in progress will be cancelled."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "進行中の書き出しはキャンセルされます。"
+          }
         }
       }
     },
@@ -976,6 +1504,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quit"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "終了"
           }
         }
       }
@@ -988,6 +1522,12 @@
             "state" : "translated",
             "value" : "Quit while exporting?"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出し中に終了しますか？"
+          }
         }
       }
     },
@@ -998,6 +1538,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Resolution"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解像度"
           }
         }
       }
@@ -1010,6 +1556,12 @@
             "state" : "translated",
             "value" : "Project Size (%@)"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトのサイズ（%@）"
+          }
         }
       }
     },
@@ -1020,6 +1572,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cancelled"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キャンセル済み"
           }
         }
       }
@@ -1032,6 +1590,12 @@
             "state" : "translated",
             "value" : "Done"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完了"
+          }
         }
       }
     },
@@ -1042,6 +1606,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待機中"
           }
         }
       }
@@ -1054,6 +1624,12 @@
             "state" : "translated",
             "value" : "Ready to save"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存できます"
+          }
         }
       }
     },
@@ -1064,6 +1640,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "About %@ remaining"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "残り約%@"
           }
         }
       }
@@ -1076,6 +1658,12 @@
             "state" : "translated",
             "value" : "Exporting…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出し中…"
+          }
         }
       }
     },
@@ -1086,6 +1674,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saving…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存中…"
           }
         }
       }
@@ -1098,6 +1692,12 @@
             "state" : "translated",
             "value" : "Export"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出す"
+          }
         }
       }
     },
@@ -1108,6 +1708,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Untitled"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名称未設定"
           }
         }
       }
@@ -1120,6 +1726,12 @@
             "state" : "translated",
             "value" : "The Project Couldn’t Be Exported"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトを書き出せませんでした"
+          }
         }
       }
     },
@@ -1130,6 +1742,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Close"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "閉じる"
           }
         }
       }
@@ -1142,6 +1760,12 @@
             "state" : "translated",
             "value" : "Position"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位置"
+          }
         }
       }
     },
@@ -1152,6 +1776,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Everything in the project came across."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトのすべての内容が読み込まれました。"
           }
         }
       }
@@ -1164,6 +1794,12 @@
             "state" : "translated",
             "value" : "Done"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完了"
+          }
         }
       }
     },
@@ -1174,6 +1810,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Their clips are on the timeline, but play nothing until the files are relinked."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "これらのクリップはタイムライン上にありますが、ファイルを再リンクするまで何も再生されません。"
           }
         }
       }
@@ -1186,6 +1828,12 @@
             "state" : "translated",
             "value" : "Changed"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "変更された項目"
+          }
         }
       }
     },
@@ -1196,6 +1844,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Missing Media"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "見つからないメディア"
           }
         }
       }
@@ -1208,6 +1862,12 @@
             "state" : "translated",
             "value" : "Left Out"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "除外された項目"
+          }
         }
       }
     },
@@ -1219,6 +1879,12 @@
             "state" : "translated",
             "value" : "Effects Kept Turned Off"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オフのまま保持されたエフェクト"
+          }
         }
       }
     },
@@ -1229,6 +1895,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Imported from %@."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@から読み込みました。"
           }
         }
       }
@@ -1249,6 +1921,18 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld things were changed to fit"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld個の項目が調整のため変更されました"
                 }
               }
             }
@@ -1276,6 +1960,18 @@
               }
             }
           }
+        },
+        "ja" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld個のファイルが見つかりませんでした"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1295,6 +1991,18 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld things were left out"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld個の項目が除外されました"
                 }
               }
             }
@@ -1322,6 +2030,18 @@
               }
             }
           }
+        },
+        "ja" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld個のエフェクトを読み込めませんでした"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1332,6 +2052,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import Report"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込みレポート"
           }
         }
       }
@@ -1344,6 +2070,12 @@
             "state" : "translated",
             "value" : "Add Effect"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトを追加"
+          }
         }
       }
     },
@@ -1354,6 +2086,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Change Effect"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトを変更"
           }
         }
       }
@@ -1366,6 +2104,12 @@
             "state" : "translated",
             "value" : "Move Effect"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトを移動"
+          }
         }
       }
     },
@@ -1376,6 +2120,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove Effect"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトを削除"
           }
         }
       }
@@ -1388,6 +2138,12 @@
             "state" : "translated",
             "value" : "Add Effect"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトを追加"
+          }
         }
       }
     },
@@ -1398,6 +2154,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Audio"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディオ"
           }
         }
       }
@@ -1410,6 +2172,12 @@
             "state" : "translated",
             "value" : "Add Audio Effect"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディオエフェクトを追加"
+          }
         }
       }
     },
@@ -1420,6 +2188,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Blue"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ブルー"
           }
         }
       }
@@ -1432,6 +2206,12 @@
             "state" : "translated",
             "value" : "Brightness"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明るさ"
+          }
         }
       }
     },
@@ -1442,6 +2222,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Contrast"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コントラスト"
           }
         }
       }
@@ -1454,6 +2240,12 @@
             "state" : "translated",
             "value" : "Exposure"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "露出"
+          }
         }
       }
     },
@@ -1464,6 +2256,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gain"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ゲイン"
           }
         }
       }
@@ -1476,6 +2274,12 @@
             "state" : "translated",
             "value" : "Gamma"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ガンマ"
+          }
         }
       }
     },
@@ -1487,6 +2291,12 @@
             "state" : "translated",
             "value" : "Green"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "グリーン"
+          }
         }
       }
     },
@@ -1494,6 +2304,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT"
+          }
+        },
+        "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "LUT"
@@ -1509,6 +2325,12 @@
             "state" : "translated",
             "value" : "Choose LUT…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUTを選択…"
+          }
         }
       }
     },
@@ -1519,6 +2341,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t Use LUT"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUTを使用できませんでした"
           }
         }
       }
@@ -1531,6 +2359,12 @@
             "state" : "translated",
             "value" : "LUT Intensity"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUTの強さ"
+          }
         }
       }
     },
@@ -1541,6 +2375,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "None"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "なし"
           }
         }
       }
@@ -1553,6 +2393,12 @@
             "state" : "translated",
             "value" : "Remove LUT"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUTを削除"
+          }
         }
       }
     },
@@ -1563,6 +2409,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lift"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リフト"
           }
         }
       }
@@ -1575,6 +2427,12 @@
             "state" : "translated",
             "value" : "Red"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "レッド"
+          }
         }
       }
     },
@@ -1585,6 +2443,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saturation"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "彩度"
           }
         }
       }
@@ -1597,6 +2461,12 @@
             "state" : "translated",
             "value" : "Temperature"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "色温度"
+          }
         }
       }
     },
@@ -1607,6 +2477,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tint"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "色合い"
           }
         }
       }
@@ -1619,6 +2495,12 @@
             "state" : "translated",
             "value" : "Effect Actions"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトのアクション"
+          }
         }
       }
     },
@@ -1629,6 +2511,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "On"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オン"
           }
         }
       }
@@ -1641,6 +2529,12 @@
             "state" : "translated",
             "value" : "Move Down"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下に移動"
+          }
         }
       }
     },
@@ -1651,6 +2545,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Move Up"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上に移動"
           }
         }
       }
@@ -1663,6 +2563,12 @@
             "state" : "translated",
             "value" : "Remove Effect"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトを削除"
+          }
         }
       }
     },
@@ -1673,6 +2579,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This effect came from another app and can't be played in Montage. It's kept so it goes back out with the project."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このエフェクトはほかのAppから取り込まれたもので、Montageでは再生できません。プロジェクトを書き出すときに一緒に含まれるよう、保持されています。"
           }
         }
       }
@@ -1685,6 +2597,12 @@
             "state" : "translated",
             "value" : "Video effects can only be added to clips on video tracks."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオエフェクトはビデオトラック上のクリップにのみ追加できます。"
+          }
         }
       }
     },
@@ -1695,6 +2613,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add an effect to change how the clip looks."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エフェクトを追加して、クリップの見た目を変更できます。"
           }
         }
       }
@@ -1707,6 +2631,12 @@
             "state" : "translated",
             "value" : "Select a clip to adjust it."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "調整するクリップを選択してください。"
+          }
         }
       }
     },
@@ -1717,6 +2647,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Selection"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択されていません"
           }
         }
       }
@@ -1729,6 +2665,12 @@
             "state" : "translated",
             "value" : "Add Keyframe"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーフレームを追加"
+          }
         }
       }
     },
@@ -1739,6 +2681,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove Keyframe"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーフレームを削除"
           }
         }
       }
@@ -1751,6 +2699,12 @@
             "state" : "translated",
             "value" : "Mask"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスク"
+          }
         }
       }
     },
@@ -1761,6 +2715,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ellipse"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "楕円"
           }
         }
       }
@@ -1773,6 +2733,12 @@
             "state" : "translated",
             "value" : "Feather"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ぼかし"
+          }
         }
       }
     },
@@ -1783,6 +2749,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Height"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高さ"
           }
         }
       }
@@ -1795,6 +2767,12 @@
             "state" : "translated",
             "value" : "Invert Mask"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスクを反転"
+          }
         }
       }
     },
@@ -1805,6 +2783,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "None"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "なし"
           }
         }
       }
@@ -1817,6 +2801,12 @@
             "state" : "translated",
             "value" : "Path"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "パス"
+          }
         }
       }
     },
@@ -1827,6 +2817,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rectangle"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "長方形"
           }
         }
       }
@@ -1839,6 +2835,12 @@
             "state" : "translated",
             "value" : "Rotation"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回転"
+          }
         }
       }
     },
@@ -1849,6 +2851,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Width"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "幅"
           }
         }
       }
@@ -1861,6 +2869,12 @@
             "state" : "translated",
             "value" : "Center X"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中心X"
+          }
         }
       }
     },
@@ -1871,6 +2885,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Center Y"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中心Y"
           }
         }
       }
@@ -1883,6 +2903,12 @@
             "state" : "translated",
             "value" : "First Color"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1つ目のカラー"
+          }
         }
       }
     },
@@ -1893,6 +2919,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Radius"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "半径"
           }
         }
       }
@@ -1905,6 +2937,12 @@
             "state" : "translated",
             "value" : "Second Color"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2つ目のカラー"
+          }
         }
       }
     },
@@ -1915,6 +2953,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Size"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サイズ"
           }
         }
       }
@@ -1927,6 +2971,12 @@
             "state" : "translated",
             "value" : "Strength"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "強さ"
+          }
         }
       }
     },
@@ -1937,6 +2987,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Style"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スタイル"
           }
         }
       }
@@ -1949,6 +3005,12 @@
             "state" : "translated",
             "value" : "Blur"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ぼかし"
+          }
         }
       }
     },
@@ -1959,6 +3021,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Checkerboard"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "チェッカーボード"
           }
         }
       }
@@ -1971,6 +3039,12 @@
             "state" : "translated",
             "value" : "Pixelate"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ピクセル化"
+          }
         }
       }
     },
@@ -1981,6 +3055,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Inspector"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インスペクタ"
           }
         }
       }
@@ -1993,6 +3073,12 @@
             "state" : "translated",
             "value" : "New Project"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新規プロジェクト"
+          }
         }
       }
     },
@@ -2003,6 +3089,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add to Timeline"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タイムラインに追加"
           }
         }
       }
@@ -2015,6 +3107,12 @@
             "state" : "translated",
             "value" : "All"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべて"
+          }
         }
       }
     },
@@ -2025,6 +3123,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New Bin"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新規ビン"
           }
         }
       }
@@ -2037,6 +3141,12 @@
             "state" : "translated",
             "value" : "Delete Bin"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビンを削除"
+          }
         }
       }
     },
@@ -2047,6 +3157,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Name"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名前"
           }
         }
       }
@@ -2059,6 +3175,12 @@
             "state" : "translated",
             "value" : "Bin Name"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビンの名前"
+          }
         }
       }
     },
@@ -2069,6 +3191,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New Bin"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新規ビン"
           }
         }
       }
@@ -2081,6 +3209,12 @@
             "state" : "translated",
             "value" : "New Bin with Selection…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択項目から新規ビンを作成…"
+          }
         }
       }
     },
@@ -2091,6 +3225,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Bin"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビンなし"
           }
         }
       }
@@ -2103,6 +3243,12 @@
             "state" : "translated",
             "value" : "Rename…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名前を変更…"
+          }
         }
       }
     },
@@ -2113,6 +3259,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Save"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
           }
         }
       }
@@ -2125,6 +3277,12 @@
             "state" : "translated",
             "value" : "Not in a Bin"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビンに入っていない項目"
+          }
         }
       }
     },
@@ -2135,6 +3293,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Media you import is kept inside the project."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込んだメディアはプロジェクト内に保管されます。"
           }
         }
       }
@@ -2147,6 +3311,12 @@
             "state" : "translated",
             "value" : "No Media"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メディアなし"
+          }
         }
       }
     },
@@ -2157,6 +3327,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Filter and Sort"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィルタと並べ替え"
           }
         }
       }
@@ -2169,6 +3345,12 @@
             "state" : "translated",
             "value" : "Audio"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディオ"
+          }
         }
       }
     },
@@ -2179,6 +3361,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Images"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "イメージ"
           }
         }
       }
@@ -2191,6 +3379,12 @@
             "state" : "translated",
             "value" : "Show"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表示"
+          }
         }
       }
     },
@@ -2201,6 +3395,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Only Unused Media"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未使用のメディアのみ"
           }
         }
       }
@@ -2213,6 +3413,12 @@
             "state" : "translated",
             "value" : "Video"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオ"
+          }
         }
       }
     },
@@ -2223,6 +3429,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込む"
           }
         }
       }
@@ -2235,6 +3447,12 @@
             "state" : "translated",
             "value" : "Files"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイル"
+          }
         }
       }
     },
@@ -2246,6 +3464,12 @@
             "state" : "translated",
             "value" : "Photo Library"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォトライブラリ"
+          }
         }
       }
     },
@@ -2253,6 +3477,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "OK"
@@ -2268,6 +3498,12 @@
             "state" : "translated",
             "value" : "Some Media Couldn’t Be Imported"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一部のメディアを読み込めませんでした"
+          }
         }
       }
     },
@@ -2278,6 +3514,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Importing %1$lld of %2$lld…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$lld項目中%1$lld項目を読み込み中…"
           }
         }
       }
@@ -2290,6 +3532,12 @@
             "state" : "translated",
             "value" : "Audio"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディオ"
+          }
         }
       }
     },
@@ -2300,6 +3548,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Image"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "イメージ"
           }
         }
       }
@@ -2312,6 +3566,12 @@
             "state" : "translated",
             "value" : "Video"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオ"
+          }
         }
       }
     },
@@ -2322,6 +3582,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Files missing: %ld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "見つからないファイル: %ld"
           }
         }
       }
@@ -2334,6 +3600,12 @@
             "state" : "translated",
             "value" : "Move to Bin"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビンに移動"
+          }
         }
       }
     },
@@ -2344,6 +3616,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nothing in the library matches. Try another bin, search or filter."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ライブラリに一致する項目がありません。ほかのビン、検索語、またはフィルタを試してください。"
           }
         }
       }
@@ -2356,6 +3634,12 @@
             "state" : "translated",
             "value" : "No Media"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メディアなし"
+          }
         }
       }
     },
@@ -2366,6 +3650,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Relink…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再リンク…"
           }
         }
       }
@@ -2378,6 +3668,12 @@
             "state" : "translated",
             "value" : "Remove from Library"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ライブラリから削除"
+          }
         }
       }
     },
@@ -2388,6 +3684,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove Unused Media"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未使用のメディアを削除"
           }
         }
       }
@@ -2400,6 +3702,12 @@
             "state" : "translated",
             "value" : "Search"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "検索"
+          }
         }
       }
     },
@@ -2410,6 +3718,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clear Search"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "検索を消去"
           }
         }
       }
@@ -2422,6 +3736,12 @@
             "state" : "translated",
             "value" : "Sort By"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "並べ替え"
+          }
         }
       }
     },
@@ -2432,6 +3752,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Duration"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "継続時間"
           }
         }
       }
@@ -2444,6 +3770,12 @@
             "state" : "translated",
             "value" : "Date Imported"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込み日"
+          }
         }
       }
     },
@@ -2454,6 +3786,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kind"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "種類"
           }
         }
       }
@@ -2466,6 +3804,12 @@
             "state" : "translated",
             "value" : "Name"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名前"
+          }
         }
       }
     },
@@ -2476,6 +3820,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Missing"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "見つかりません"
           }
         }
       }
@@ -2488,6 +3838,12 @@
             "state" : "translated",
             "value" : "Not in the timeline"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タイムラインで未使用"
+          }
         }
       }
     },
@@ -2498,6 +3854,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "In the timeline"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タイムラインで使用中"
           }
         }
       }
@@ -2510,6 +3872,12 @@
             "state" : "translated",
             "value" : "Library"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ライブラリ"
+          }
         }
       }
     },
@@ -2520,6 +3888,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Leave files where they are"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルを元の場所に置いたままにする"
           }
         }
       }
@@ -2532,6 +3906,12 @@
             "state" : "translated",
             "value" : "Use the files from where they are now, rather than copying them into the project. Moving or deleting them breaks the project's link to them."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルをプロジェクトにコピーせず、現在の場所から使用します。ファイルを移動または削除すると、プロジェクトからのリンクが切れます。"
+          }
         }
       }
     },
@@ -2542,6 +3922,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "About %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@について"
           }
         }
       }
@@ -2554,6 +3940,12 @@
             "state" : "translated",
             "value" : "Bring All to Front"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべてを手前に移動"
+          }
         }
       }
     },
@@ -2564,6 +3956,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clear Menu"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メニューを消去"
           }
         }
       }
@@ -2576,6 +3974,12 @@
             "state" : "translated",
             "value" : "Close"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "閉じる"
+          }
         }
       }
     },
@@ -2586,6 +3990,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コピー"
           }
         }
       }
@@ -2598,6 +4008,12 @@
             "state" : "translated",
             "value" : "Customize Toolbar…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ツールバーをカスタマイズ…"
+          }
         }
       }
     },
@@ -2608,6 +4024,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cut"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カット"
           }
         }
       }
@@ -2620,6 +4042,12 @@
             "state" : "translated",
             "value" : "Delete"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "削除"
+          }
         }
       }
     },
@@ -2630,6 +4058,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Duplicate"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "複製"
           }
         }
       }
@@ -2642,6 +4076,12 @@
             "state" : "translated",
             "value" : "Edit"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編集"
+          }
         }
       }
     },
@@ -2652,6 +4092,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter Full Screen"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フルスクリーンにする"
           }
         }
       }
@@ -2664,6 +4110,12 @@
             "state" : "translated",
             "value" : "Export…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出す…"
+          }
         }
       }
     },
@@ -2674,6 +4126,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export Final Cut Pro XML…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Cut Pro XMLを書き出す…"
           }
         }
       }
@@ -2686,6 +4144,12 @@
             "state" : "translated",
             "value" : "Exports"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出し"
+          }
         }
       }
     },
@@ -2696,6 +4160,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "File"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイル"
           }
         }
       }
@@ -2708,6 +4178,12 @@
             "state" : "translated",
             "value" : "Help"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ヘルプ"
+          }
         }
       }
     },
@@ -2718,6 +4194,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hide %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@を非表示"
           }
         }
       }
@@ -2730,6 +4212,12 @@
             "state" : "translated",
             "value" : "Hide Others"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ほかを非表示"
+          }
         }
       }
     },
@@ -2740,6 +4228,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import Media…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メディアを読み込む…"
           }
         }
       }
@@ -2752,6 +4246,12 @@
             "state" : "translated",
             "value" : "Import Project…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトを読み込む…"
+          }
         }
       }
     },
@@ -2762,6 +4262,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Minimize"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "しまう"
           }
         }
       }
@@ -2774,6 +4280,12 @@
             "state" : "translated",
             "value" : "Move To…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移動…"
+          }
         }
       }
     },
@@ -2784,6 +4296,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New Project"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新規プロジェクト"
           }
         }
       }
@@ -2796,6 +4314,12 @@
             "state" : "translated",
             "value" : "Open…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開く…"
+          }
         }
       }
     },
@@ -2806,6 +4330,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Recent"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近使った項目を開く"
           }
         }
       }
@@ -2818,6 +4348,12 @@
             "state" : "translated",
             "value" : "Paste"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペースト"
+          }
         }
       }
     },
@@ -2828,6 +4364,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quit %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@を終了"
           }
         }
       }
@@ -2840,6 +4382,12 @@
             "state" : "translated",
             "value" : "Redo"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "やり直す"
+          }
         }
       }
     },
@@ -2850,6 +4398,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rename…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名称変更…"
           }
         }
       }
@@ -2862,6 +4416,12 @@
             "state" : "translated",
             "value" : "Revert To"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "復帰"
+          }
         }
       }
     },
@@ -2872,6 +4432,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Save…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存…"
           }
         }
       }
@@ -2884,6 +4450,12 @@
             "state" : "translated",
             "value" : "Select All"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべてを選択"
+          }
         }
       }
     },
@@ -2894,6 +4466,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Services"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サービス"
           }
         }
       }
@@ -2906,6 +4484,12 @@
             "state" : "translated",
             "value" : "Show All"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべてを表示"
+          }
         }
       }
     },
@@ -2916,6 +4500,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Inspector"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インスペクタを表示"
           }
         }
       }
@@ -2928,6 +4518,12 @@
             "state" : "translated",
             "value" : "Show Library"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ライブラリを表示"
+          }
         }
       }
     },
@@ -2938,6 +4534,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Toolbar"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ツールバーを表示"
           }
         }
       }
@@ -2950,6 +4552,12 @@
             "state" : "translated",
             "value" : "Undo"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取り消す"
+          }
         }
       }
     },
@@ -2960,6 +4568,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "View"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表示"
           }
         }
       }
@@ -2972,6 +4586,12 @@
             "state" : "translated",
             "value" : "Window"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ウインドウ"
+          }
         }
       }
     },
@@ -2982,6 +4602,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Zoom"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拡大/縮小"
           }
         }
       }
@@ -2994,6 +4620,12 @@
             "state" : "translated",
             "value" : "Put Preview Back"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プレビューを元に戻す"
+          }
         }
       }
     },
@@ -3004,6 +4636,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import videos, audio and pictures into the library, then add them to the timeline."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオ、オーディオ、写真をライブラリに読み込んでから、タイムラインに追加してください。"
           }
         }
       }
@@ -3016,6 +4654,12 @@
             "state" : "translated",
             "value" : "No Media"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メディアなし"
+          }
         }
       }
     },
@@ -3026,6 +4670,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Can't Play the Project"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトを再生できません"
           }
         }
       }
@@ -3038,6 +4688,12 @@
             "state" : "translated",
             "value" : "Full Screen"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フルスクリーン"
+          }
         }
       }
     },
@@ -3048,6 +4704,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Float Preview"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プレビューをフローティング表示"
           }
         }
       }
@@ -3060,6 +4722,12 @@
             "state" : "translated",
             "value" : "Tuck Away"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "脇にしまう"
+          }
         }
       }
     },
@@ -3070,6 +4738,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Preview"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プレビュー"
           }
         }
       }
@@ -3082,6 +4756,12 @@
             "state" : "translated",
             "value" : "Bring Back"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "元に戻す"
+          }
         }
       }
     },
@@ -3092,6 +4772,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込む"
           }
         }
       }
@@ -3104,6 +4790,12 @@
             "state" : "translated",
             "value" : "Cancel"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キャンセル"
+          }
         }
       }
     },
@@ -3111,6 +4803,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "OK"
@@ -3126,6 +4824,12 @@
             "state" : "translated",
             "value" : "The Project Couldn’t Be Imported"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトを読み込めませんでした"
+          }
         }
       }
     },
@@ -3136,6 +4840,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Importing Project…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトを読み込み中…"
           }
         }
       }
@@ -3148,6 +4858,12 @@
             "state" : "translated",
             "value" : "The imported project takes the place of this one’s library and timeline. You can undo it."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込んだプロジェクトで、このプロジェクトのライブラリとタイムラインが置き換えられます。この操作は取り消せます。"
+          }
         }
       }
     },
@@ -3158,6 +4874,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Replace This Project?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトを置き換えますか？"
           }
         }
       }
@@ -3170,6 +4892,12 @@
             "state" : "translated",
             "value" : "Cancel"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キャンセル"
+          }
         }
       }
     },
@@ -3180,6 +4908,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Check Again"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再確認"
           }
         }
       }
@@ -3192,6 +4926,12 @@
             "state" : "translated",
             "value" : "Choose Files…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルを選択…"
+          }
         }
       }
     },
@@ -3202,6 +4942,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ long, not %2$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "長さは%2$@ではなく%1$@"
           }
         }
       }
@@ -3214,6 +4960,12 @@
             "state" : "translated",
             "value" : "%1$@, not %2$@"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@ではなく%1$@"
+          }
         }
       }
     },
@@ -3224,6 +4976,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "not the same kind of media"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メディアの種類"
           }
         }
       }
@@ -3236,6 +4994,12 @@
             "state" : "translated",
             "value" : "%1$@, not %2$@"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@ではなく%1$@"
+          }
         }
       }
     },
@@ -3246,6 +5010,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Done"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完了"
           }
         }
       }
@@ -3258,6 +5028,12 @@
             "state" : "translated",
             "value" : "Some Files Couldn't Be Relinked"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一部のファイルを再リンクできませんでした"
+          }
         }
       }
     },
@@ -3268,6 +5044,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Found %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@が見つかりました"
           }
         }
       }
@@ -3280,6 +5062,12 @@
             "state" : "translated",
             "value" : "Found %1$@, but it's %2$@"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@が見つかりましたが、次の点が異なります：%2$@"
+          }
         }
       }
     },
@@ -3287,6 +5075,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ fps"
+          }
+        },
+        "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ fps"
@@ -3302,6 +5096,12 @@
             "state" : "translated",
             "value" : "Relink This File"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このファイルを再リンク"
+          }
         }
       }
     },
@@ -3312,6 +5112,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Will be relinked"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再リンクされます"
           }
         }
       }
@@ -3324,6 +5130,12 @@
             "state" : "translated",
             "value" : "Locate…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "場所を指定…"
+          }
         }
       }
     },
@@ -3334,6 +5146,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "These files can't be found. Their clips stay on the timeline, and play as empty time, until they're relinked. Search a folder or choose files to find them by name, or locate each one yourself."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "これらのファイルが見つかりません。再リンクするまで、クリップはタイムライン上に残り、空の時間として再生されます。フォルダを検索するかファイルを選択して名前で探すか、1つずつ場所を指定してください。"
           }
         }
       }
@@ -3346,6 +5164,12 @@
             "state" : "translated",
             "value" : "No Missing Media"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "見つからないメディアはありません"
+          }
         }
       }
     },
@@ -3356,6 +5180,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not found yet"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "まだ見つかりません"
           }
         }
       }
@@ -3368,6 +5198,12 @@
             "state" : "translated",
             "value" : "Won't be relinked"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再リンクされません"
+          }
         }
       }
     },
@@ -3378,6 +5214,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "None of the files had the name of missing media."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "見つからないメディアと同じ名前のファイルはありませんでした。"
           }
         }
       }
@@ -3390,6 +5232,12 @@
             "state" : "translated",
             "value" : "No Files Found"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルが見つかりません"
+          }
         }
       }
     },
@@ -3400,6 +5248,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Relink"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再リンク"
           }
         }
       }
@@ -3412,6 +5266,12 @@
             "state" : "translated",
             "value" : "Search Folder…"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダを検索…"
+          }
         }
       }
     },
@@ -3422,6 +5282,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Missing Media"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "見つからないメディア"
           }
         }
       }
@@ -3434,6 +5300,12 @@
             "state" : "translated",
             "value" : "Add media from the library to start editing."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ライブラリからメディアを追加して編集を始めましょう。"
+          }
         }
       }
     },
@@ -3444,6 +5316,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Timeline Options"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タイムラインのオプション"
           }
         }
       }
@@ -3456,6 +5334,12 @@
             "state" : "translated",
             "value" : "Select Multiple"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "複数選択"
+          }
         }
       }
     },
@@ -3466,6 +5350,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Snapping"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スナップ"
           }
         }
       }
@@ -3478,6 +5368,12 @@
             "state" : "translated",
             "value" : "Audio"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディオ"
+          }
         }
       }
     },
@@ -3488,6 +5384,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Video"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオ"
           }
         }
       }
@@ -3500,6 +5402,12 @@
             "state" : "translated",
             "value" : "Trimming"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "トリム"
+          }
         }
       }
     },
@@ -3510,6 +5418,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ripple"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リップル"
           }
         }
       }
@@ -3522,6 +5436,12 @@
             "state" : "translated",
             "value" : "Roll"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ロール"
+          }
         }
       }
     },
@@ -3532,6 +5452,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trim"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "トリム"
           }
         }
       }
@@ -3544,6 +5470,12 @@
             "state" : "translated",
             "value" : "Zoom In"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拡大"
+          }
         }
       }
     },
@@ -3554,6 +5486,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Zoom Out"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "縮小"
           }
         }
       }
@@ -3566,6 +5504,12 @@
             "state" : "translated",
             "value" : "Export"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出す"
+          }
         }
       }
     },
@@ -3576,6 +5520,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export Final Cut Pro XML…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Cut Pro XMLを書き出す…"
           }
         }
       }
@@ -3588,6 +5538,12 @@
             "state" : "translated",
             "value" : "Exports"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出し"
+          }
         }
       }
     },
@@ -3598,6 +5554,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import Project…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトを読み込む…"
           }
         }
       }
@@ -3610,6 +5572,12 @@
             "state" : "translated",
             "value" : "Inspector"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インスペクタ"
+          }
         }
       }
     },
@@ -3620,6 +5588,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Library"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ライブラリ"
           }
         }
       }
@@ -3632,6 +5606,12 @@
             "state" : "translated",
             "value" : "More"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "その他"
+          }
         }
       }
     },
@@ -3642,6 +5622,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Redo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "やり直す"
           }
         }
       }
@@ -3654,6 +5640,12 @@
             "state" : "translated",
             "value" : "Undo"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取り消す"
+          }
         }
       }
     },
@@ -3664,6 +5656,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Go to End"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最後に移動"
           }
         }
       }
@@ -3676,6 +5674,12 @@
             "state" : "translated",
             "value" : "Go to Beginning"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先頭に移動"
+          }
         }
       }
     },
@@ -3686,6 +5690,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pause"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一時停止"
           }
         }
       }
@@ -3698,6 +5708,12 @@
             "state" : "translated",
             "value" : "Play"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再生"
+          }
         }
       }
     },
@@ -3709,6 +5725,12 @@
             "state" : "translated",
             "value" : "Back One Frame"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1フレーム戻る"
+          }
         }
       }
     },
@@ -3719,6 +5741,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Forward One Frame"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1フレーム進む"
           }
         }
       }

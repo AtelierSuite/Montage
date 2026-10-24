@@ -9,6 +9,12 @@
             "state" : "translated",
             "value" : "This video can't be exported as AVI at this frame size, frame rate or audio format."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このフレームサイズ、フレームレート、またはオーディオフォーマットでは、このビデオをAVIとして書き出せません。"
+          }
         }
       }
     },
@@ -19,6 +25,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The AVI file has already been finished or cancelled, so nothing more can be added to it."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AVIファイルはすでに完了またはキャンセルされているため、これ以上追加できません。"
           }
         }
       }
@@ -31,6 +43,12 @@
             "state" : "translated",
             "value" : "This video is too large to export as a single AVI file."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このビデオは大きすぎるため、1つのAVIファイルとして書き出せません。"
+          }
         }
       }
     },
@@ -41,6 +59,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Some of the video or audio is in a format that can't be written into an AVI file."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオまたはオーディオの一部が、AVIファイルに書き込めないフォーマットです。"
           }
         }
       }
@@ -53,6 +77,12 @@
             "state" : "translated",
             "value" : "The look-up table couldn’t be read."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ルックアップテーブルを読み込めませんでした。"
+          }
         }
       }
     },
@@ -63,6 +93,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Only 3D look-up tables from 0 to 1 can be used."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用できるのは、0から1の範囲の3Dルックアップテーブルのみです。"
           }
         }
       }
@@ -75,6 +111,12 @@
             "state" : "translated",
             "value" : "There’s no project timeline in this file to import."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このファイルには読み込めるプロジェクトのタイムラインがありません。"
+          }
         }
       }
     },
@@ -85,6 +127,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The project file couldn’t be read. It may be damaged, or not finished being written."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトファイルを読み込めませんでした。ファイルが破損しているか、書き込みが完了していない可能性があります。"
           }
         }
       }
@@ -97,6 +145,12 @@
             "state" : "translated",
             "value" : "This file isn’t a project Montage can import. Montage imports FCPXML from Final Cut Pro or LumaFusion, and Final Cut Pro 7 XML from Premiere Pro."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このファイルはMontageで読み込めるプロジェクトではありません。Montageでは、Final Cut ProまたはLumaFusionのFCPXMLと、Premiere ProのFinal Cut Pro 7 XMLを読み込めます。"
+          }
         }
       }
     },
@@ -104,6 +158,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Cut Pro XML"
+          }
+        },
+        "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Final Cut Pro XML"
@@ -119,6 +179,12 @@
             "state" : "translated",
             "value" : "Final Cut Pro 7 XML"
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Cut Pro 7 XML"
+          }
         }
       }
     },
@@ -129,6 +195,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Only the audition’s chosen clip was imported, without its %lld other picks."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディションで選択されたクリップのみが読み込まれ、ほかの%lld個の候補は読み込まれませんでした。"
           }
         }
       }
@@ -141,6 +213,12 @@
             "state" : "translated",
             "value" : "A caption was left out."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キャプションが除外されました。"
+          }
         }
       }
     },
@@ -151,6 +229,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The clip was turned off, so it was left out."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップがオフになっていたため、除外されました。"
           }
         }
       }
@@ -163,6 +247,12 @@
             "state" : "translated",
             "value" : "The generator “%@” was left out."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ジェネレータ「%@」が除外されました。"
+          }
         }
       }
     },
@@ -173,6 +263,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "A marker was left out."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マーカーが除外されました。"
           }
         }
       }
@@ -185,6 +281,12 @@
             "state" : "translated",
             "value" : "The marker “%@” was left out."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マーカー「%@」が除外されました。"
+          }
         }
       }
     },
@@ -195,6 +297,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The file wasn’t found at %@. Relink it to play the clips made from it."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@にファイルが見つかりませんでした。このファイルから作成したクリップを再生するには、再リンクしてください。"
           }
         }
       }
@@ -207,6 +315,12 @@
             "state" : "translated",
             "value" : "The clip overlapped another, so it was moved to a track of its own."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップがほかのクリップと重なっていたため、専用のトラックに移動されました。"
+          }
         }
       }
     },
@@ -217,6 +331,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The clip was inside a compound or multicam clip whose settings it had too, so its own were kept."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップは、同じ設定を持つ複合クリップまたはマルチカムクリップの中にあったため、クリップ自身の設定が保持されました。"
           }
         }
       }
@@ -229,6 +349,12 @@
             "state" : "translated",
             "value" : "Only the first timeline was imported; the file has %lld more."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最初のタイムラインのみが読み込まれました。ファイルにはほかに%lld個のタイムラインがあります。"
+          }
         }
       }
     },
@@ -239,6 +365,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ has no match in Montage, so it was left out."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」に相当するものがMontageにないため、除外されました。"
           }
         }
       }
@@ -251,6 +383,12 @@
             "state" : "translated",
             "value" : "The clip’s speed change was left out, so it plays at normal speed."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップの速度変更が除外されたため、通常の速度で再生されます。"
+          }
         }
       }
     },
@@ -261,6 +399,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "A title was left out."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タイトルが除外されました。"
           }
         }
       }
@@ -273,6 +417,12 @@
             "state" : "translated",
             "value" : "The title “%@” was left out."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タイトル「%@」が除外されました。"
+          }
         }
       }
     },
@@ -283,6 +433,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The transition “%@” was replaced with a cut halfway through it."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "トランジション「%@」は、その中間点でのカットに置き換えられました。"
           }
         }
       }
@@ -295,6 +451,12 @@
             "state" : "translated",
             "value" : "%@ was different across and down, so the across value was used for both."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」の横方向と縦方向の値が異なっていたため、横方向の値が両方に使用されました。"
+          }
         }
       }
     },
@@ -305,6 +467,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“%@” has no match in Montage. It’s kept on the clip, turned off."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」に相当するものがMontageにありません。クリップ上にオフの状態で保持されます。"
           }
         }
       }
@@ -317,6 +485,12 @@
             "state" : "translated",
             "value" : "This project was saved by a newer version of Montage. Update Montage to open it."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトは新しいバージョンのMontageで保存されました。開くにはMontageをアップデートしてください。"
+          }
         }
       }
     },
@@ -327,6 +501,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This file isn't a Montage project, or it's damaged."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このファイルはMontageプロジェクトではないか、破損しています。"
           }
         }
       }

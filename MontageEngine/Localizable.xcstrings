@@ -9,6 +9,12 @@
             "state" : "translated",
             "value" : "The video couldn’t be encoded."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオをエンコードできませんでした。"
+          }
         }
       }
     },
@@ -19,6 +25,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This format can’t be exported."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このフォーマットでは書き出せません。"
           }
         }
       }
@@ -31,6 +43,12 @@
             "state" : "translated",
             "value" : "There’s nothing in the project to export."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトに書き出すものがありません。"
+          }
         }
       }
     },
@@ -41,6 +59,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The project’s media couldn’t be read."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロジェクトのメディアを読み込めませんでした。"
           }
         }
       }
@@ -53,6 +77,12 @@
             "state" : "translated",
             "value" : "The video couldn’t be written."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオを書き込めませんでした。"
+          }
         }
       }
     },
@@ -64,6 +94,12 @@
             "state" : "translated",
             "value" : "“%@” can’t be imported."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」は読み込めません。"
+          }
         }
       }
     },
@@ -74,6 +110,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Montage imports movies, audio and images this device can play, such as MOV, MP4, M4A, MP3, JPEG, PNG and HEIC files. AVI files and protected media can’t be imported."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montageでは、このデバイスで再生できるムービー、オーディオ、イメージ（MOV、MP4、M4A、MP3、JPEG、PNG、HEICファイルなど）を読み込めます。AVIファイルと保護されたメディアは読み込めません。"
           }
         }
       }
