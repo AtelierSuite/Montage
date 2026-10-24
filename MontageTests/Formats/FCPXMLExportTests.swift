@@ -209,9 +209,11 @@ struct FCPXMLExportTests {
         try FileManager.default.copyItem(at: try #require(Self.installedDTD), to: dtd)
         let file = folder.appending(path: "Export.fcpxml")
         try export(sampleProject()).write(to: file)
+        let titles = folder.appending(path: "Titles.fcpxml")
+        try export(FCPXMLTitleTests.project()).write(to: titles)
         let fixture = InterchangeFixtures.directory.appending(path: "Storylines.fcpxml")
 
-        for document in [file, fixture] {
+        for document in [file, titles, fixture] {
             let process = Process()
             process.executableURL = Self.xmllint
             process.arguments = ["--noout", "--dtdvalid", dtd.path, document.path]

@@ -97,13 +97,23 @@ struct PreviewArea: View {
     }
 
     /// A tap on the picture under the playback controls: picks the layer
-    /// under it, and says so, unless it's picked already, when the tap shows
-    /// or hides the controls as ever. Away from every layer, it lets go of
-    /// the selection.
+    /// under it, or types into text tapped twice, and says so, unless it's
+    /// picked already, when the tap shows or hides the controls as ever.
+    /// Away from every layer, it lets go of the selection.
     private func tapPicture(at location: CGPoint) -> Bool {
         guard !editor.playback.isPlaying else { return false }
         let mapping = PreviewMapping(renderSize: editor.project.settings.renderSize, viewSize: pictureSize)
         let point = mapping.renderPoint(fromView: location)
+        // A double tap on text types into it, with the controls out of the
+        // way; any other tap stops typing.
+        if editor.doubleTapEditsText(at: point) {
+            showsControls = false
+            return true
+        }
+        if editor.timeline.editedTextClipID != nil {
+            editor.endEditingText()
+            return true
+        }
         let layer = editor.project.layer(at: point, time: editor.playback.currentTime, excluding: editor.clipsLeftOutOfPicture)
         guard layer?.clipID != editor.selectedClip?.id || layer == nil else { return false }
         if layer == nil && editor.selectedClipIDs.isEmpty { return false }

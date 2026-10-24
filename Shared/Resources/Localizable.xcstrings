@@ -2176,6 +2176,35 @@
         }
       }
     },
+    "Canvas.Action.EditText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Text"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テキストを編集"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑文本"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編輯文字"
+          }
+        }
+      }
+    },
     "Canvas.Action.Move" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3925,13 +3954,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld text or shape clip can’t be written to FCPXML yet, and was left as a gap."
+                  "value" : "%lld shape or empty text clip can’t be written to FCPXML, and was left out."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld text and shape clips can’t be written to FCPXML yet, and were left as gaps."
+                  "value" : "%lld shape and empty text clips can’t be written to FCPXML, and were left out."
                 }
               }
             }
@@ -3940,19 +3969,19 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld 個のテキストと図形のクリップはまだFCPXMLに書き出せないため、ギャップとして残されました。"
+            "value" : "%lld 個の図形または空のテキストのクリップはFCPXMLに書き出せないため、除外されました。"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld 个文本和形状剪辑暂时无法写入 FCPXML，已保留为空隙。"
+            "value" : "%lld 个形状或空文本剪辑无法写入 FCPXML，已被略去。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld 個文字和形狀剪輯片段暫時無法寫入 FCPXML，已保留為間隙。"
+            "value" : "%lld 個形狀或空白文字剪輯片段無法寫入 FCPXML，已被略去。"
           }
         }
       }

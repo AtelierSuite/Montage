@@ -37,6 +37,13 @@ extension Clip {
         transform.scale = transform.scale.shifted(by: offset)
         transform.rotation = transform.rotation.shifted(by: offset)
         content = content.shifted(by: offset)
+        // The scale and position put back when Ken Burns comes off are on
+        // the clip's time too, so they move with it.
+        if var kenBurns {
+            kenBurns.previousScale = kenBurns.previousScale.shifted(by: offset)
+            kenBurns.previousPosition = kenBurns.previousPosition.shifted(by: offset)
+            self.kenBurns = kenBurns
+        }
     }
 
     /// Moves the clip's start to a time on the timeline, keeping its end,

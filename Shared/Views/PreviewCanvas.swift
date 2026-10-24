@@ -9,6 +9,9 @@ import SwiftUI
 /// box gets handles instead: to move, size, turn and soften it, and to move
 /// a path mask's points.
 ///
+/// Double-clicking or double-tapping a text layer types into its words in
+/// place, in place of its handles.
+///
 /// Each drag is one undo step. Values are set at the playhead: a parameter
 /// that has keyframes gets one there, and one that hasn't changes
 /// throughout. The handles go while playing.
@@ -75,11 +78,16 @@ struct PreviewCanvas: View {
                     Color.clear
                         .contentShape(.rect)
                         .onTapGesture(coordinateSpace: .named(Self.space)) { location in
-                            editor.selectLayer(at: mapping.renderPoint(fromView: location))
+                            tapped(at: mapping.renderPoint(fromView: location))
                         }
                 }
                 if let (clip, layer) = selectedLayer {
-                    if let effect = editedMask(of: clip), let mask = effect.mask {
+                    if editor.timeline.editedTextClipID == clip.id {
+                        // Typing in place of the handles.
+                        InPlaceTextEditor(clip: clip, layer: layer, mapping: mapping)
+                            // A text view of its own for each clip typed into.
+                            .id(clip.id)
+                    } else if let effect = editedMask(of: clip), let mask = effect.mask {
                         maskHandles(clip: clip, effect: effect, placement: MaskPlacement(mask, in: layer, at: clipTime(clip)),
                                     mapping: mapping)
                     } else {
@@ -359,8 +367,17 @@ struct PreviewCanvas: View {
         if let onTapPicture {
             onTapPicture(location)
         } else {
-            editor.selectLayer(at: mapping.renderPoint(fromView: location))
+            tapped(at: mapping.renderPoint(fromView: location))
         }
+    }
+
+    /// A tap at a point of the frame, where the canvas catches taps itself:
+    /// a double tap on text types into it, and any other tap stops typing
+    /// and picks the layer under it.
+    private func tapped(at point: CGPoint) {
+        if editor.doubleTapEditsText(at: point) { return }
+        editor.endEditingText()
+        editor.selectLayer(at: point)
     }
 
     // MARK: - Geometry

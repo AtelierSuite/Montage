@@ -20,6 +20,8 @@ import UniformTypeIdentifiers
 /// it are placed in that. Times are rationals, read into `CMTime` exactly.
 struct FCPXMLImporter {
     private var resources: [String: MarkupElement] = [:]
+    /// Titles' text style definitions by ID, which any title can use.
+    private var textStyles: [String: MarkupElement] = [:]
     private let baseURL: URL?
     private var media = ImportedMedia()
     private var assembler = TimelineAssembler()
@@ -35,6 +37,9 @@ struct FCPXMLImporter {
         self.baseURL = baseURL
         for resource in root.child("resources")?.children ?? [] {
             if let id = resource["id"] { resources[id] = resource }
+        }
+        for definition in root.allDescendants where definition.name == "text-style-def" {
+            if let id = definition["id"] { textStyles[id] = definition }
         }
     }
 
@@ -235,8 +240,7 @@ struct FCPXMLImporter {
                 importSequence(element.children, in: storyline)
                 return offset + sequenceDuration(element.children)
             case "title":
-                let text = element.allDescendants.filter { $0.name == "text-style" }.map(\.text).joined()
-                report.add(.title(text: text), clipName: name, time: timing.timelineStart)
+                importTitle(element, timing: timing, context: context)
             case "caption":
                 report.add(.caption, clipName: name, time: timing.timelineStart)
             case "live-drawing":
@@ -351,12 +355,82 @@ struct FCPXMLImporter {
         if !isAudio && component == .video && item.metadata.hasAudio { clip.isAudioDetached = true }
 
         let name = element["name"] ?? asset["name"] ?? item.name
+        applyAllSettings(of: element, alsoApplying: extra, to: &clip, item: item, isVideo: !isAudio, timing: timing,
+                         context: context, clipName: name)
+        add(clip, kind: isAudio ? .audio : .video, timing: timing, context: context, name: name)
+    }
+
+    /// A title as a text clip, with its words and their formatting. A title
+    /// of a template other than the Basic Title keeps its words but not the
+    /// rest of its look, which the report says.
+    private mutating func importTitle(_ element: MarkupElement, timing: Timing, context: Context) {
+        let effect = element["ref"].flatMap { resources[$0] }
+        let reading = FCPXMLTitles.read(element, definitions: textStyles)
+        let name = element["name"] ?? effect?["name"] ?? FCPXMLTitles.basicTitleName
+        guard !reading.text.string.isEmpty else {
+            report.add(.title, clipName: name, time: timing.timelineStart)
+            return
+        }
+        var clip = Clip(content: .text(reading.text), sourceRange: CMTimeRange(start: .zero, duration: timing.duration),
+                        timelineStart: timing.timelineStart)
+        if FCPXMLTitles.isBasicTitle(effect) {
+            for param in element.children("param") where !["Position", "Flatten", "Alignment"].contains(param["name"] ?? "") {
+                report.add(.setting(name: param["name"] ?? "Title setting"), clipName: name, time: timing.timelineStart)
+            }
+        } else {
+            report.add(.titleTemplate(name: effect?["name"] ?? name), clipName: name, time: timing.timelineStart)
+        }
+        for setting in reading.unsupported {
+            report.add(.setting(name: setting), clipName: name, time: timing.timelineStart)
+        }
+        applyAllSettings(of: element, to: &clip, item: nil, isVideo: true, timing: timing, context: context, clipName: name)
+        // The Basic Title's own position, in the frame's pixels from its
+        // centre, upwards, moves the words within the title.
+        if FCPXMLTitles.isBasicTitle(effect), let param = element.param("Position") {
+            let own = Inherited(element: element, base: timing.timelineStart, origin: timing.start)
+            let toClip: (CMTime) -> CMTime = { own.base + ($0 - own.origin) - timing.timelineStart }
+            if let offset = animatable(param["value"], param, toClip, Self.pair) {
+                movePosition(of: &clip, by: offset, clipName: name)
+            }
+        }
+        add(clip, kind: .video, timing: timing, context: context, name: name)
+    }
+
+    /// Moves a clip's position by an offset in the frame's pixels, y up.
+    private mutating func movePosition(of clip: inout Clip, by offset: Animatable<CGPoint>, clipName: String) {
+        let size = settings.renderSize
+        guard size.width > 0, size.height > 0 else { return }
+        func moved(_ point: CGPoint, _ by: CGPoint) -> CGPoint {
+            CGPoint(x: point.x + by.x / size.width, y: point.y - by.y / size.height)
+        }
+        let position = clip.transform.position
+        if offset.isAnimated && position.isAnimated {
+            report.add(.setting(name: "Position"), clipName: clipName, time: clip.timelineStart)
+            return
+        }
+        if offset.isAnimated {
+            clip.transform.position = Animatable(moved(position.value, offset.value), keyframes: offset.keyframes.map {
+                Keyframe(time: $0.time, value: moved(position.value, $0.value), interpolation: $0.interpolation)
+            })
+        } else {
+            clip.transform.position = Animatable(moved(position.value, offset.value), keyframes: position.keyframes.map {
+                Keyframe(time: $0.time, value: moved($0.value, offset.value), interpolation: $0.interpolation)
+            })
+        }
+    }
+
+    /// Puts a clip's settings and effects onto it, after those of the clips
+    /// it's inside.
+    private mutating func applyAllSettings(
+        of element: MarkupElement, alsoApplying extra: [MarkupElement] = [], to clip: inout Clip, item: MediaItem?,
+        isVideo: Bool, timing: Timing, context: Context, clipName name: String
+    ) {
         let own = Inherited(element: element, base: timing.timelineStart, origin: timing.start)
         let layers = context.inherited + [own] + extra.map { Inherited(element: $0, base: timing.timelineStart, origin: timing.start) }
         var applied: Set<String> = []
         var reportedNesting = false
         for (index, layer) in layers.enumerated() {
-            let names = applySettings(of: layer, to: &clip, item: item, isVideo: !isAudio, clipName: name)
+            let names = applySettings(of: layer, to: &clip, item: item, isVideo: isVideo, clipName: name)
             // A container's setting that the clip has as well: the clip's wins.
             if index >= context.inherited.count, !applied.isDisjoint(with: names), !reportedNesting {
                 report.add(.nestedSettings, clipName: name, time: timing.timelineStart)
@@ -364,20 +438,24 @@ struct FCPXMLImporter {
             }
             applied.formUnion(names)
         }
+    }
 
+    /// Puts a clip on the timeline, trimmed to what the clips it's inside
+    /// show.
+    private mutating func add(_ clip: Clip, kind: Track.Kind, timing: Timing, context: Context, name: String) {
         guard let window = context.window else {
-            assembler.add(clip, kind: isAudio ? .audio : .video, lane: timing.lane, name: name)
+            assembler.add(clip, kind: kind, lane: timing.lane, name: name)
             return
         }
         if let trimmed = clip.trimmed(to: window) {
-            assembler.add(trimmed, kind: isAudio ? .audio : .video, lane: timing.lane, name: name)
+            assembler.add(trimmed, kind: kind, lane: timing.lane, name: name)
         }
     }
 
     /// Puts one element's settings and effects onto a clip made inside it.
     /// Returns the names of the settings it had.
     private mutating func applySettings(
-        of layer: Inherited, to clip: inout Clip, item: MediaItem, isVideo: Bool, clipName: String
+        of layer: Inherited, to clip: inout Clip, item: MediaItem?, isVideo: Bool, clipName: String
     ) -> Set<String> {
         let element = layer.element
         // An element's keyframes are timed in its own local time.
@@ -447,7 +525,7 @@ struct FCPXMLImporter {
         for filter in element.children
         where filter.name == "filter-video" || filter.name == "filter-audio" || filter.name == "filter-video-mask" {
             let isVideoFilter = filter.name != "filter-audio"
-            guard isVideoFilter == isVideo || (!isVideoFilter && item.metadata.hasAudio) else { continue }
+            guard isVideoFilter == isVideo || (!isVideoFilter && item?.metadata.hasAudio == true) else { continue }
             names.insert(filter.name)
             if let effect = effect(for: filter, toClip: toClip, clipName: clipName, at: start) {
                 clip.effects.append(effect)
@@ -476,7 +554,7 @@ struct FCPXMLImporter {
     /// Final Cut's position is measured from the frame's centre, upwards, in
     /// hundredths of the frame's height; its rotation turns anticlockwise.
     private mutating func applyTransform(
-        _ adjustment: MarkupElement, to clip: inout Clip, item: MediaItem, conform: MarkupElement?,
+        _ adjustment: MarkupElement, to clip: inout Clip, item: MediaItem?, conform: MarkupElement?,
         toClip: (CMTime) -> CMTime, clipName: String
     ) {
         let size = settings.renderSize
@@ -514,10 +592,10 @@ struct FCPXMLImporter {
     /// The scale that gives Final Cut's spatial conform in Montage, whose
     /// pictures always start fitted to the frame: filling it, or at the
     /// media's own size.
-    private mutating func conformScale(_ conform: MarkupElement?, item: MediaItem, clipName: String) -> Double {
+    private mutating func conformScale(_ conform: MarkupElement?, item: MediaItem?, clipName: String) -> Double {
         let type = conform?["type"] ?? "fit"
         guard type != "fit" else { return 1 }
-        let media = item.metadata.presentationSize
+        let media = item?.metadata.presentationSize ?? .zero
         let frame = settings.renderSize
         guard media.width > 0, media.height > 0 else {
             report.add(.setting(name: "Spatial conform"), clipName: clipName)
