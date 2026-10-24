@@ -42,7 +42,7 @@ public struct ImportReport: Equatable, Sendable {
         /// The file the media came from, by name or path.
         case missingMedia(file: String)
         /// A title with no words to bring in.
-        case title(text: String)
+        case title
         /// A title brought in as plain text, without the rest of the look
         /// its template, by name, gives it.
         case titleTemplate(name: String)
@@ -87,9 +87,8 @@ public struct ImportReport: Equatable, Sendable {
                 String(format: String(localized: "Interchange.Issue.UnsupportedEffect", bundle: #bundle), name)
             case .missingMedia(let file):
                 String(format: String(localized: "Interchange.Issue.MissingMedia", bundle: #bundle), file)
-            case .title(let text):
-                text.isEmpty ? String(localized: "Interchange.Issue.Title", bundle: #bundle)
-                    : String(format: String(localized: "Interchange.Issue.TitleText", bundle: #bundle), text)
+            case .title:
+                String(localized: "Interchange.Issue.Title", bundle: #bundle)
             case .titleTemplate(let name):
                 String(format: String(localized: "Interchange.Issue.TitleTemplate", bundle: #bundle), name)
             case .generator(let name):

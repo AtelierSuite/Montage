@@ -368,7 +368,7 @@ struct FCPXMLImporter {
         let reading = FCPXMLTitles.read(element, definitions: textStyles)
         let name = element["name"] ?? effect?["name"] ?? FCPXMLTitles.basicTitleName
         guard !reading.text.string.isEmpty else {
-            report.add(.title(text: ""), clipName: name, time: timing.timelineStart)
+            report.add(.title, clipName: name, time: timing.timelineStart)
             return
         }
         var clip = Clip(content: .text(reading.text), sourceRange: CMTimeRange(start: .zero, duration: timing.duration),

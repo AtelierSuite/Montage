@@ -726,35 +726,6 @@
         }
       }
     },
-    "Interchange.Issue.TitleText" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The title “%@” was left out."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "タイトル「%@」が除外されました。"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "标题“%@”被略去。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "標題「%@」被略去。"
-          }
-        }
-      }
-    },
     "Interchange.Issue.Transition" : {
       "extractionState" : "manual",
       "localizations" : {

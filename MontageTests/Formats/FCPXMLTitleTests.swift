@@ -260,7 +260,7 @@ struct FCPXMLTitleTests {
         // The Basic Title's own settings it understands aren't reported, and
         // nothing is left out.
         #expect(!issues.contains(.setting(name: "Flatten")))
-        #expect(!issues.contains { if case .title = $0 { true } else { false } })
+        #expect(!issues.contains { $0 == .title })
         #expect(issues.count == 3)
     }
 
@@ -268,7 +268,7 @@ struct FCPXMLTitleTests {
         let xml = Self.finalCutTitles.replacingOccurrences(of: "<text-style ref=\"ts4\">Jane Doe</text-style>", with: "")
         let imported = try ProjectInterchange.read(Data(xml.utf8))
         #expect(texts(in: imported).count == 2)
-        #expect(imported.report.items.contains { $0.issue == .title(text: "") && $0.time == Self.seconds(7) })
+        #expect(imported.report.items.contains { $0.issue == .title && $0.time == Self.seconds(7) })
     }
 
     @Test func facesNameTheirWeightAndSlant() {
