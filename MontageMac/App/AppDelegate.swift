@@ -20,8 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Ahead of the first window: the document controller has to exist
         // before anything asks for `NSDocumentController.shared`.
         _ = DocumentController.shared
-        // A plain launch should begin with the standard open dialog.
+        // A plain launch should begin with the standard open dialog, but not
+        // a launch to open a project, which may not have opened yet.
         // Defer until AppKit has finished restoring or opening launch items.
+        let isPlainLaunch = notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool ?? true
+        guard isPlainLaunch else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self, NSApp.orderedDocuments.isEmpty else { return }
             DocumentController.shared.openDocument(self)
