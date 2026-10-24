@@ -27,7 +27,9 @@ public enum CubeLUT {
         var dimension: Int?
         var values: [Float32] = []
         for rawLine in text.split(whereSeparator: \.isNewline) {
-            let line = rawLine.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)[0]
+            // A title is quoted, and may have a # of its own.
+            let isTitle = rawLine.trimmingCharacters(in: .whitespaces).hasPrefix("TITLE")
+            let line = (isTitle ? rawLine[...] : rawLine.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)[0])
                 .trimmingCharacters(in: .whitespaces)
             guard let keyword = line.split(maxSplits: 1, whereSeparator: \.isWhitespace).first else { continue }
             let rest = line.dropFirst(keyword.count).trimmingCharacters(in: .whitespaces)

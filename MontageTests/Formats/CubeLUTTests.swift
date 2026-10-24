@@ -37,6 +37,11 @@ struct CubeLUTTests {
         #expect(try CubeLUT.read(text, name: "File").name == "File")
     }
 
+    @Test func keepsAHashInTheTitle() throws {
+        let text = swap.replacingOccurrences(of: "TITLE \"Swap\"", with: "TITLE \"Swap #2\"")
+        #expect(try CubeLUT.read(text, name: "File").name == "Swap #2")
+    }
+
     @Test func refusesWhatItCantUse() {
         #expect(throws: CubeLUTError.self) { try CubeLUT.read("LUT_1D_SIZE 2\n0 0 0\n1 1 1", name: "") }
         #expect(throws: CubeLUTError.self) { try CubeLUT.read(swap.replacingOccurrences(of: "DOMAIN_MAX 1.0", with: "DOMAIN_MAX 2.0"), name: "") }
