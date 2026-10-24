@@ -30,11 +30,9 @@ extension ProjectEditor {
     func selectLayer(at point: CGPoint) -> Bool {
         let layer = project.layer(at: point, time: playback.currentTime, excluding: clipsLeftOutOfPicture)
         if let layer {
-            if layer.clipID != selectedClip?.id { timeline.editedMaskEffectID = nil }
             select(layer.clipID)
         } else {
             deselectAll()
-            timeline.editedMaskEffectID = nil
         }
         return layer != nil
     }
