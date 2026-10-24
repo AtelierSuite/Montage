@@ -39,7 +39,9 @@ struct EditorActionBar: View {
 /// The editor's controls as a panel under the preview, for an iPhone held
 /// sideways, where the preview and its controls share a column beside the
 /// timeline: playback first, then the editing tools, then the library and
-/// the inspector.
+/// the inspector. The groups fill each row as far as the column's width
+/// allows, so a wider column takes fewer rows, leaving room for its taller
+/// preview.
 struct EditorActionPanel: View {
     /// Opens the library; nil where it's already beside the editor.
     var showLibrary: (() -> Void)?
@@ -49,9 +51,10 @@ struct EditorActionPanel: View {
         // Scrolls if a short screen can't fit the whole panel.
         ScrollView(.vertical) {
             GlassEffectContainer(spacing: 10) {
-                VStack(spacing: 10) {
+                RowsLayout(spacing: 10) {
                     TransportActions(axis: .horizontal)
                     EditActions(axis: .horizontal)
+                    // Kept together, so they don't split across rows.
                     HStack(spacing: 10) {
                         if let showLibrary {
                             LibraryActions(axis: .horizontal, showLibrary: showLibrary)
@@ -60,12 +63,61 @@ struct EditorActionPanel: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
         }
         .scrollIndicators(.hidden)
         .scrollClipDisabled()
         .scrollBounceBehavior(.basedOnSize)
+    }
+}
+
+/// Lays views out in rows, as many to a row as fit across, each row
+/// centred, like words in a centred paragraph.
+private struct RowsLayout: Layout {
+    var spacing: Double
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = rows(of: subviews, across: proposal.width ?? .infinity)
+        let height = rows.map(\.height).reduce(0, +) + spacing * Double(max(0, rows.count - 1))
+        return CGSize(width: proposal.width ?? rows.map(\.width).max() ?? 0, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in rows(of: subviews, across: bounds.width) {
+            var x = bounds.midX - row.width / 2
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private struct Row {
+        var indices: [Int] = []
+        var width = 0.0
+        var height = 0.0
+    }
+
+    /// Fills each row in turn until the next view wouldn't fit across.
+    private func rows(of subviews: Subviews, across width: Double) -> [Row] {
+        var rows: [Row] = []
+        var row = Row()
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let widthWithView = row.indices.isEmpty ? size.width : row.width + spacing + size.width
+            if !row.indices.isEmpty && widthWithView > width {
+                rows.append(row)
+                row = Row()
+            }
+            row.width = row.indices.isEmpty ? size.width : row.width + spacing + size.width
+            row.height = max(row.height, size.height)
+            row.indices.append(index)
+        }
+        if !row.indices.isEmpty { rows.append(row) }
+        return rows
     }
 }
 
