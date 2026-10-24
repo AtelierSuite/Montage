@@ -27,8 +27,8 @@ struct TimelineView: View {
                     Label(tracks[index].title, systemImage: tracks[index].systemImage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .frame(width: headerWidth, alignment: .leading)
                         .padding(.leading, 12)
+                        .frame(width: headerWidth, alignment: .leading)
                     lane(isFirst: index == 0)
                 }
                 .frame(height: trackHeight)
@@ -74,7 +74,8 @@ struct TimelineView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(6)
+            .padding(.vertical, 6)
+            .padding(.trailing, 6)
     }
 
     private var playhead: some View {

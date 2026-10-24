@@ -4,15 +4,21 @@ import SwiftUI
 /// controls between, and the timeline below. The library and inspector sit
 /// around it, wherever each platform puts them.
 struct EditorView: View {
+    /// The most of the height the preview takes, however wide the editor is.
+    private let maximumPreviewShare = 0.6
+
     var body: some View {
-        VStack(spacing: 0) {
-            PreviewArea()
-                .layoutPriority(1)
-            Divider()
-            EditorControlBar()
-            Divider()
-            TimelineView()
-                .frame(minHeight: 160, idealHeight: 240)
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // As tall as a 16:9 frame across the full width needs, so a
+                // phone held upright gives the rest to the timeline.
+                PreviewArea()
+                    .frame(height: min(geometry.size.width * 9 / 16 + 24, geometry.size.height * maximumPreviewShare))
+                Divider()
+                EditorControlBar()
+                Divider()
+                TimelineView()
+            }
         }
     }
 }
