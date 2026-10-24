@@ -1,0 +1,30 @@
+# Xcode per-user state: window layouts, breakpoints, the active scheme.
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+
+# Xcode Cloud local artifacts. The ci_scripts/ directory itself is intentionally
+# tracked — only the products of a run are ignored.
+.xcodecloud/
+xcodecloud/
+ci_artifacts/
+
+# Build products and derived state
+build/
+DerivedData/
+*.xcarchive
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+Packages/
+
+# macOS
+.DS_Store
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
