@@ -124,9 +124,6 @@ public struct SkippedClip: Equatable, Sendable {
         case noUsableTrack
         /// The clip's source range lies outside its media.
         case outsideMedia
-        /// Still images need the custom compositor (#8) to be drawn, since an
-        /// `AVComposition` can only hold timed media.
-        case stillImage
         /// More video layers would show along the clip than the device can
         /// decode at once (see `VideoLayerLimit`). Its sound still plays.
         case tooManyLayers
@@ -136,7 +133,7 @@ public struct SkippedClip: Equatable, Sendable {
         public var isMissingMedia: Bool {
             switch self {
             case .mediaNotInProject, .fileNotFound, .unreadable: true
-            case .noUsableTrack, .outsideMedia, .stillImage, .tooManyLayers: false
+            case .noUsableTrack, .outsideMedia, .tooManyLayers: false
             }
         }
     }
