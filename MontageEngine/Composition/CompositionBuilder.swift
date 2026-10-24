@@ -31,6 +31,9 @@ public struct CompositionBuilder: Sendable {
     public var snapshot: ProjectSnapshot?
     /// Whether frames may be rendered with the GPU.
     public var usesGPU = true
+    /// The most video layers that show at once; clips past it are left out
+    /// as `.tooManyLayers`, top layers first.
+    public var maximumVideoLayers = VideoLayerLimit.standard
 
     public init(project: Project, mediaResolver: MediaResolver, snapshot: ProjectSnapshot? = nil) {
         self.project = project
@@ -63,6 +66,7 @@ public struct CompositionBuilder: Sendable {
         var skipped: [SkippedClip] = []
         var pictures: [LayerWriter] = []
         var sounds: [LayerWriter] = []
+        let overLimit = VideoLayerLimit.clipsOverLimit(in: project, limit: maximumVideoLayers)
 
         for track in project.tracks {
             let wantsPicture = track.kind == .video && !track.isHidden
@@ -103,7 +107,10 @@ public struct CompositionBuilder: Sendable {
                             continue
                         }
                         if picture != nil {
-                            if try !picture!.place(clip, from: video, in: composition, settings: project.settings) {
+                            if overLimit.contains(clip.id) {
+                                // Its sound still plays.
+                                skip(.tooManyLayers)
+                            } else if try !picture!.place(clip, from: video, in: composition, settings: project.settings) {
                                 skip(.outsideMedia)
                                 continue
                             }
