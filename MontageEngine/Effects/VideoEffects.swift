@@ -35,6 +35,13 @@ extension Array where Element == Effect {
 /// compositor for every frame.
 enum VideoEffects {
     static func apply(_ kind: Effect.Kind, to image: CIImage, in context: VideoEffectContext) -> CIImage {
-        image
+        switch kind {
+        case .colorCorrection(let correction):
+            correction.apply(to: image, at: context.clipTime)
+        case .mosaic:
+            image
+        case .gain, .pan, .equalizer, .delay, .reverb:
+            image
+        }
     }
 }
