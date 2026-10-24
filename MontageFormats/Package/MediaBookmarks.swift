@@ -53,7 +53,11 @@ public final class MediaBookmarks: Sendable {
 
     /// The bookmark's file, with access to it, or nil if it can't be found.
     public func url(for bookmark: Data) -> URL? {
-        if let resolved = state.withLock({ $0.resolved[bookmark] }) { return resolved.url }
+        if let resolved = state.withLock({ $0.resolved[bookmark] }) {
+            // Still there, or else moved since: resolved again to follow it.
+            if (try? resolved.url.checkResourceIsReachable()) == true { return resolved.url }
+            forget(bookmark)
+        }
 
         var isStale = false
         guard let url = try? URL(

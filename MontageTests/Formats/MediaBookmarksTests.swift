@@ -52,6 +52,21 @@ struct MediaBookmarksTests {
         #expect(bookmarks.takeRefreshedBookmarks().isEmpty)
     }
 
+    @Test func followsAFileMovedAfterItWasFound() throws {
+        let folder = try makeFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appending(path: "Clip.mov")
+        try Data("not really a movie".utf8).write(to: file)
+        let bookmark = try MediaBookmarks.bookmark(for: file)
+        let bookmarks = MediaBookmarks()
+        #expect(samePath(bookmarks.url(for: bookmark), file))
+
+        let moved = folder.appending(path: "Renamed.mov")
+        try FileManager.default.moveItem(at: file, to: moved)
+        #expect(samePath(bookmarks.url(for: bookmark), moved))
+        #expect(bookmarks.takeRefreshedBookmarks()[bookmark] != nil)
+    }
+
     @Test func findsNothingForADeletedFile() throws {
         let folder = try makeFolder()
         let file = folder.appending(path: "Clip.mov")
