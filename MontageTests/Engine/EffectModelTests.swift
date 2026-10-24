@@ -51,4 +51,15 @@ struct EffectModelTests {
         #expect(ColorLUT(name: "", dimension: 4, data: Data(count: 100)) == nil)
         #expect(ColorLUT(name: "", dimension: 2, data: Data(count: 2 * 2 * 2 * 16)) != nil)
     }
+
+    @Test func readsAMosaicSavedBeforeItsStrengthAndColours() throws {
+        let mosaic = try decode(Mosaic.self, #"{"style": "checkerboard", "scale": {"value": 0.1}}"#)
+        #expect(mosaic.style == .checkerboard)
+        #expect(mosaic.strength.value == 1)
+        #expect(mosaic.firstColor.value == .black)
+        var keyframed = Mosaic(style: .pixelate)
+        keyframed.strength.setKeyframe(Keyframe(time: .zero, value: 0.5))
+        keyframed.secondColor = Animatable(RGBAColor(red: 1, green: 0, blue: 0))
+        #expect(try JSONDecoder().decode(Mosaic.self, from: JSONEncoder().encode(keyframed)) == keyframed)
+    }
 }

@@ -102,20 +102,7 @@ extension Effect.Kind: Codable {
 
 // MARK: - Video effects
 //
-// `ColorCorrection` is in a file of its own.
-
-/// Hides part of the picture, such as a face or a number plate.
-public struct Mosaic: Equatable, Sendable, Codable {
-    public enum Style: String, Equatable, Sendable, Codable {
-        case pixelate, blur, checkerboard
-    }
-
-    public var style: Style = .pixelate
-    /// How coarse the mosaic is, as a fraction of the frame's width.
-    public var scale = Animatable(0.03)
-
-    public init() {}
-}
+// `ColorCorrection` and `Mosaic` are in files of their own.
 
 // MARK: - Audio effects
 
