@@ -52,10 +52,17 @@ extension ProjectEditor {
 
     // MARK: - Splitting
 
+    /// The start of the frame the playhead shows: where edits at the
+    /// playhead go, so they stay on the frame grid while playing, when the
+    /// player's time falls between frames.
+    private var playheadFrame: CMTime {
+        playback.frames.snapped(playback.currentTime)
+    }
+
     /// The clips Split cuts: the selected clips under the playhead, or every
     /// clip under it if none of those is selected.
     private var clipsToSplit: Set<Clip.ID> {
-        let time = playback.currentTime
+        let time = playheadFrame
         let minimum = project.minimumClipDuration
         let under = project.tracks.flatMap(\.clips).filter {
             time >= $0.timelineStart + minimum && time <= $0.timelineRange.end - minimum
@@ -70,7 +77,7 @@ extension ProjectEditor {
     func splitAtPlayhead() {
         let ids = clipsToSplit
         guard !ids.isEmpty else { return }
-        let time = playback.currentTime
+        let time = playheadFrame
         perform(String(localized: "Action.Split")) { $0.splitClips(ids, at: time) }
     }
 
@@ -112,14 +119,14 @@ extension ProjectEditor {
 
     /// Marks the playhead's time.
     func addMarkerAtPlayhead() {
-        let time = playback.currentTime
+        let time = playheadFrame
         perform(String(localized: "Action.AddMarker")) { $0.addMarker(at: time) }
     }
 
     /// Marks the start of a range at the playhead, letting go of an end
     /// marked before it.
     func markIn() {
-        let time = playback.currentTime
+        let time = playheadFrame
         timeline.markedIn = time
         if let out = timeline.markedOut, out <= time { timeline.markedOut = nil }
     }
@@ -127,7 +134,7 @@ extension ProjectEditor {
     /// Marks the end of a range at the playhead, letting go of a start
     /// marked after it.
     func markOut() {
-        let time = playback.currentTime
+        let time = playheadFrame
         timeline.markedOut = time
         if let markedIn = timeline.markedIn, markedIn >= time { timeline.markedIn = nil }
     }
