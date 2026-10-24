@@ -1,5 +1,5 @@
 import AudioToolbox
-import CoreAudioTypes
+import AVFoundation
 
 /// One of Apple's built-in effect Audio Units, run in place over buffers of
 /// a tap's audio.
