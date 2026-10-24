@@ -10,21 +10,41 @@ struct ProjectEditorView: View {
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.undoManager) private var undoManager
+    @State private var editor: ProjectEditor
     @State private var history = ProjectHistory()
     @State private var isShowingLibrary = false
     @State private var isShowingInspector = false
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
 
+    init(document: Binding<MontageDocument>) {
+        _document = document
+        _editor = State(initialValue: ProjectEditor(project: document.wrappedValue.project))
+    }
+
     var body: some View {
         layout
-            .onAppear { history.attach(to: undoManager) }
-            .onChange(of: undoManager) { _, undoManager in history.attach(to: undoManager) }
+            .environment(editor)
+            .onAppear {
+                attach(to: undoManager)
+                // Every edit goes back into the document, which marks it
+                // as changed so it's saved.
+                editor.onChange = { [$document] project in $document.wrappedValue.project = project }
+            }
+            .onChange(of: undoManager) { _, undoManager in attach(to: undoManager) }
+            // Reverting, or another device's changes arriving, replace the
+            // document from outside the editor.
+            .onChange(of: document.project) { _, project in editor.replace(with: project) }
+    }
+
+    private func attach(to undoManager: UndoManager?) {
+        editor.undoManager = undoManager
+        history.attach(to: undoManager)
     }
 
     @ViewBuilder
     private var layout: some View {
         if horizontalSizeClass == .compact {
-            editor
+            editorArea
                 .sheet(isPresented: $isShowingLibrary) {
                     NavigationStack {
                         LibraryView()
@@ -38,12 +58,12 @@ struct ProjectEditorView: View {
                 LibraryView()
                     .navigationTitle("Library.Title")
             } detail: {
-                editor
+                editorArea
             }
         }
     }
 
-    private var editor: some View {
+    private var editorArea: some View {
         EditorView(showsControlBar: false)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 EditorActionBar(

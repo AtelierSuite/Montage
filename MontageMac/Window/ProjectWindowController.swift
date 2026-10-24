@@ -9,7 +9,10 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
 
     private static let exportItem = NSToolbarItem.Identifier("Export")
 
-    init() {
+    private let editor: ProjectEditor
+
+    init(editor: ProjectEditor) {
+        self.editor = editor
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -24,12 +27,12 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         let library = NSSplitViewItem(sidebarWithViewController: hosting(LibraryView()))
         library.minimumThickness = 200
         library.maximumThickness = 320
-        let editor = NSSplitViewItem(viewController: hosting(EditorView()))
-        editor.minimumThickness = 480
+        let center = NSSplitViewItem(viewController: hosting(EditorView()))
+        center.minimumThickness = 480
         let inspector = NSSplitViewItem(inspectorWithViewController: hosting(InspectorView()))
         inspector.minimumThickness = 240
         inspector.maximumThickness = 360
-        splitViewController.splitViewItems = [library, editor, inspector]
+        splitViewController.splitViewItems = [library, center, inspector]
         splitViewController.splitView.autosaveName = "ProjectWindow"
         window.contentViewController = splitViewController
 
@@ -51,7 +54,7 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     /// A SwiftUI view as a pane of the window, sized by the split view
     /// rather than sizing the window to itself.
     private func hosting(_ view: some View) -> NSViewController {
-        let controller = NSHostingController(rootView: view)
+        let controller = NSHostingController(rootView: view.environment(editor))
         controller.sizingOptions = []
         return controller
     }
