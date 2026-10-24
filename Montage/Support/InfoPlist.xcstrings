@@ -8,25 +8,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Montage saves the videos you export to your photo library."
+            "value" : "Videos you export are saved to your photo library."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Montageは、書き出したビデオをフォトライブラリに保存します。"
+            "value" : "書き出したビデオはフォトライブラリに保存されます。"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Montage 会将你导出的视频存储到你的照片图库。"
+            "value" : "你导出的视频将存储到你的照片图库。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Montage 會將你輸出的影片儲存到你的照片圖庫。"
+            "value" : "你輸出的影片將儲存到你的照片圖庫。"
           }
         }
       }
