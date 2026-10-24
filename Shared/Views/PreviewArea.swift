@@ -12,6 +12,8 @@ struct PreviewArea: View {
     @Environment(ProjectEditor.self) private var editor
     @Environment(\.expandPreview) private var expandPreview
     @Environment(\.floatPreview) private var floatPreview
+    @Environment(\.showsPlaybackOverlay) private var showsPlaybackOverlay
+    @State private var showsControls = true
 
     var body: some View {
         if fillsWidth {
@@ -36,12 +38,8 @@ struct PreviewArea: View {
     private var frame: some View {
         if editor.playback.hasContent {
             PlayerView(player: editor.playback.player)
-                .contentShape(.rect)
-                .onTapGesture { expandPreview?() }
                 .accessibilityElement()
                 .accessibilityLabel(Text("Preview.Title"))
-                .accessibilityAddTraits(expandPreview == nil ? [] : .isButton)
-                .accessibilityHint(expandPreview == nil ? Text(verbatim: "") : Text("Preview.Expand.Hint"))
                 .overlay {
                     if let error = editor.playback.playbackError {
                         message(
@@ -50,18 +48,21 @@ struct PreviewArea: View {
                         )
                     }
                 }
-                .overlay(alignment: .topTrailing) {
-                    if let floatPreview {
-                        Button("Preview.Float", systemImage: "pip.enter") { floatPreview() }
-                            .labelStyle(.iconOnly)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 30, height: 30)
-                            .glassEffect(.regular.interactive(), in: .circle)
-                            // A thumb's worth of room to hit, more than it shows.
-                            .padding(7)
-                            .contentShape(.rect)
-                            .buttonStyle(.plain)
+                .overlay {
+                    if showsPlaybackOverlay {
+                        PlaybackOverlay(playback: editor.playback, isShown: $showsControls) {
+                            HStack {
+                                if let expandPreview {
+                                    PlaybackOverlayButton("Preview.Expand", systemImage: "arrow.up.left.and.arrow.down.right") {
+                                        expandPreview()
+                                    }
+                                }
+                                Spacer(minLength: 0)
+                                if let floatPreview {
+                                    PlaybackOverlayButton("Preview.Float", systemImage: "pip.enter") { floatPreview() }
+                                }
+                            }
+                        }
                     }
                 }
         } else {
@@ -95,12 +96,15 @@ struct PreviewArea: View {
 }
 
 extension EnvironmentValues {
-    /// Shows the preview full screen, where the platform can: tapping the
+    /// Shows the preview full screen, where the platform can: a button on the
     /// preview calls it.
     @Entry var expandPreview: PreviewAction?
     /// Takes the preview out of the editor's layout into a window floating
     /// over it, where the platform can: a button on the preview calls it.
     @Entry var floatPreview: PreviewAction?
+    /// Whether the preview has its playback controls over the picture, as
+    /// on iOS, rather than in a bar of their own.
+    @Entry var showsPlaybackOverlay = false
 }
 
 /// Something to do with the preview, given to it by whatever's around it.

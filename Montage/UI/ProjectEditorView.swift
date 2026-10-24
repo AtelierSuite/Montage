@@ -123,9 +123,11 @@ struct ProjectEditorView: View {
                     }
             }
         }
-        // Tapping the preview shows it full screen; its button floats it.
+        // The preview's playback controls are over it, with buttons to show it
+        // full screen and to float it.
         .environment(\.expandPreview, PreviewAction { isShowingFullscreen = true })
         .environment(\.floatPreview, PreviewAction { setPreviewFloating(true) })
+        .environment(\.showsPlaybackOverlay, true)
         .fullScreenCover(isPresented: $isShowingFullscreen) {
             FullscreenPlayerView(playback: editor.playback)
         }

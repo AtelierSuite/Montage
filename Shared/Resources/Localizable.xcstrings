@@ -1244,13 +1244,13 @@
         }
       }
     },
-    "Preview.Expand.Hint" : {
+    "Preview.Expand" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows the preview full screen."
+            "value" : "Full Screen"
           }
         }
       }

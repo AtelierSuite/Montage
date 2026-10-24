@@ -9,8 +9,8 @@ import SwiftUI
 /// go. Thrown or dragged past the side of the screen, it tucks away there,
 /// leaving a tab at the very edge of the screen to bring it back, though not
 /// on the side with the Dynamic Island or notch, where the tab would be under
-/// it. Tapping it shows the preview full screen; its button puts it back in
-/// the editor.
+/// it. It has the preview's playback controls over the picture, with buttons
+/// to show it full screen and to put it back in the editor.
 ///
 /// It spreads into the safe area at the sides, to rest close to the edge of
 /// the screen and tuck away right against it, except on the side with the
@@ -42,6 +42,7 @@ struct FloatingPreview: View {
     /// The side of the screen with the Dynamic Island or notch, when the
     /// phone is held sideways and has one.
     @State private var sensorHousing: HorizontalEdge?
+    @State private var showsControls = true
 
     /// Room between the window and the edges it rests against.
     private let margin = 12.0
@@ -78,31 +79,21 @@ struct FloatingPreview: View {
             .overlay {
                 if isStashed {
                     stashTab
+                        .contentShape(.rect)
+                        .onTapGesture { setStashed(false) }
+                } else {
+                    PlaybackOverlay(playback: playback, isShown: $showsControls) {
+                        HStack {
+                            PlaybackOverlayButton("Preview.Expand", systemImage: "arrow.up.left.and.arrow.down.right", action: onExpand)
+                            Spacer(minLength: 0)
+                            PlaybackOverlayButton("Preview.Dock", systemImage: "pip.exit", action: onDock)
+                        }
+                    }
                 }
             }
             .clipShape(shape)
-            .overlay(alignment: .topTrailing) {
-                if !isStashed {
-                    Button("Preview.Dock", systemImage: "pip.exit", action: onDock)
-                        .labelStyle(.iconOnly)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 28, height: 28)
-                        .glassEffect(.regular.interactive(), in: .circle)
-                        .padding(6)
-                        .contentShape(.rect)
-                        .buttonStyle(.plain)
-                }
-            }
             .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
             .contentShape(shape)
-            .onTapGesture {
-                if isStashed {
-                    setStashed(false)
-                } else {
-                    onExpand()
-                }
-            }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(Text("Preview.Title"))
             .accessibilityAction(named: Text("Preview.Dock"), onDock)

@@ -3,8 +3,8 @@ import MontageEngine
 import SwiftUI
 
 /// The preview full screen, held either way up: the picture on black, with
-/// playback controls that come and go with a tap, out of the way while it
-/// plays. Plays through the editor's own player, so it carries on from
+/// the preview's playback controls over it, larger, and a scrubber along the
+/// bottom. Plays through the editor's own player, so it carries on from
 /// wherever the preview was, and the editor is where it left off after.
 /// Swiping down closes it, as does its close button.
 struct FullscreenPlayerView: View {
@@ -12,8 +12,6 @@ struct FullscreenPlayerView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var showsControls = true
-    /// Hides the controls a moment after the last touch, while playing.
-    @State private var hideTask: Task<Void, Never>?
     /// How far the picture has been pulled down, to close.
     @State private var pull = 0.0
 
@@ -37,80 +35,47 @@ struct FullscreenPlayerView: View {
                 }
                 .foregroundStyle(.white.opacity(0.7))
             }
-            if showsControls && pull == 0 {
-                controls
-                    .transition(.opacity)
+            PlaybackOverlay(playback: playback, isShown: $showsControls, isLarge: true) {
+                HStack {
+                    PlaybackOverlayButton("Fullscreen.Close", systemImage: "xmark", isLarge: true) { dismiss() }
+                    Spacer()
+                }
+            } bottom: {
+                scrubber
             }
+            .opacity(pull == 0 ? 1 : 0)
         }
-        .contentShape(.rect)
-        .onTapGesture { setControlsShown(!showsControls) }
         .gesture(closingDrag)
         .statusBarHidden(!showsControls)
         .persistentSystemOverlays(showsControls ? .automatic : .hidden)
-        .onAppear { scheduleHide() }
-        .onChange(of: playback.isPlaying) { _, _ in scheduleHide() }
-        .onDisappear { hideTask?.cancel() }
         .preferredColorScheme(.dark)
     }
 
-    // MARK: - Controls
+    // MARK: - Scrubber
 
-    private var controls: some View {
-        VStack {
-            HStack {
-                Button("Fullscreen.Close", systemImage: "xmark") { dismiss() }
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(width: 44, height: 44)
-                    .glassEffect(.regular.interactive(), in: .circle)
-                Spacer()
-            }
-            Spacer()
-            transport
-        }
-        .padding()
-        .buttonStyle(.plain)
-        .foregroundStyle(.white)
-    }
-
-    private var transport: some View {
+    private var scrubber: some View {
         HStack(spacing: 12) {
-            Button(
-                playback.isPlaying ? "Transport.Pause" : "Transport.Play",
-                systemImage: playback.isPlaying ? "pause.fill" : "play.fill"
-            ) {
-                playback.togglePlayPause()
-                scheduleHide()
-            }
-            .labelStyle(.iconOnly)
-            .font(.system(size: 20))
-            .frame(width: 44, height: 44)
-            .contentShape(.rect)
-            .disabled(!playback.hasContent || playback.playbackError != nil)
-
             timecode(playback.currentTime)
             Slider(value: scrubPosition, in: 0...max(playback.duration.seconds, 0.001)) { isEditing in
                 if isEditing {
-                    hideTask?.cancel()
                     playback.beginScrubbing()
                 } else {
                     playback.endScrubbing()
-                    scheduleHide()
                 }
             }
             .accessibilityLabel(Text("Fullscreen.Position"))
             timecode(playback.duration)
         }
-        .padding(.leading, 6)
-        .padding(.trailing, 16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .frame(maxWidth: 640)
-        .glassEffect(.regular, in: .capsule)
+        .glassEffect(.clear, in: .capsule)
     }
 
     private func timecode(_ time: CMTime) -> some View {
         Text(verbatim: playback.frames.timecode(time))
             .font(.system(size: 12, design: .monospaced))
-            .foregroundStyle(.white.opacity(0.8))
+            .foregroundStyle(.white.opacity(0.9))
             .fixedSize()
     }
 
@@ -120,23 +85,6 @@ struct FullscreenPlayerView: View {
             playback.currentTime.seconds
         } set: { seconds in
             playback.scrub(to: playback.frames.snapped(CMTime(seconds: seconds, preferredTimescale: 6000)))
-        }
-    }
-
-    private func setControlsShown(_ shown: Bool) {
-        withAnimation(.easeInOut(duration: 0.2)) { showsControls = shown }
-        scheduleHide()
-    }
-
-    /// While playing, hides the controls a few seconds after they're shown
-    /// or touched. Paused, they stay.
-    private func scheduleHide() {
-        hideTask?.cancel()
-        guard showsControls, playback.isPlaying else { return }
-        hideTask = Task {
-            try? await Task.sleep(for: .seconds(3))
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeInOut(duration: 0.3)) { showsControls = false }
         }
     }
 

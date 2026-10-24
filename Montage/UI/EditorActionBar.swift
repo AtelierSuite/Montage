@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The Liquid Glass bar that floats over the bottom of the editor on iOS,
-/// keeping playback and editing within thumb reach. The Mac has these in a
-/// bar between its preview and timeline instead.
+/// keeping editing within thumb reach; playback is over the preview. The
+/// Mac has these in a bar between its preview and timeline instead.
 struct EditorActionBar: View {
     /// Opens the library; nil where it's already beside the editor.
     var showLibrary: (() -> Void)?
@@ -20,7 +20,6 @@ struct EditorActionBar: View {
                     if let showLibrary {
                         LibraryActions(axis: .horizontal, showLibrary: showLibrary)
                     }
-                    TransportActions(axis: .horizontal)
                     EditActions(axis: .horizontal)
                     InspectorActions(axis: .horizontal, isShowingInspector: $isShowingInspector)
                 }
@@ -38,8 +37,8 @@ struct EditorActionBar: View {
 
 /// The editor's controls as a panel under the preview, for an iPhone held
 /// sideways, where the preview and its controls share a column beside the
-/// timeline: playback first, then the editing tools, then the library and
-/// the inspector. The groups fill each row as far as the column's width
+/// timeline: the editing tools, then the library and the inspector.
+/// Playback is over the preview. The groups fill each row as far as the column's width
 /// allows, so a wider column takes fewer rows, leaving room for its taller
 /// preview.
 struct EditorActionPanel: View {
@@ -52,7 +51,6 @@ struct EditorActionPanel: View {
         ScrollView(.vertical) {
             GlassEffectContainer(spacing: 10) {
                 RowsLayout(spacing: 10) {
-                    TransportActions(axis: .horizontal)
                     EditActions(axis: .horizontal)
                     // Kept together, so they don't split across rows.
                     HStack(spacing: 10) {
@@ -130,31 +128,6 @@ private struct LibraryActions: View {
     var body: some View {
         ActionGroup(axis: axis) {
             ActionButton("photo.on.rectangle.angled", label: "Toolbar.Library", perform: showLibrary)
-        }
-    }
-}
-
-/// Nothing to play until there's something on the timeline.
-private struct TransportActions: View {
-    let axis: Axis
-
-    @Environment(ProjectEditor.self) private var editor
-
-    var body: some View {
-        let playback = editor.playback
-        ActionGroup(axis: axis) {
-            ActionButton("backward.end.fill", label: "Transport.GoToStart", isEnabled: playback.hasContent) {
-                playback.goToStart()
-            }
-            ActionButton(
-                playback.isPlaying ? "pause.fill" : "play.fill",
-                label: playback.isPlaying ? "Transport.Pause" : "Transport.Play", isEnabled: playback.hasContent
-            ) {
-                playback.togglePlayPause()
-            }
-            ActionButton("forward.end.fill", label: "Transport.GoToEnd", isEnabled: playback.hasContent) {
-                playback.goToEnd()
-            }
         }
     }
 }
