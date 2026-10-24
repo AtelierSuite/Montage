@@ -50,25 +50,11 @@ extension ProjectEditor {
     /// Changes a clip: at once, as an undo step of its own, or as part of a
     /// drag that `endClipChange` finishes.
     func changeClip(_ clipID: Clip.ID, continuously: Bool = false, _ change: (inout Clip) -> Void) {
-        let name = String(localized: "Inspector.Action.ChangeClip")
-        if continuously {
-            if gestureBaseline == nil { beginGesture(name) }
-            updateGesture { $0.updateClip(clipID, change) }
-        } else {
-            perform(name) { $0.updateClip(clipID, change) }
-        }
+        changeClip(clipID, String(localized: "Inspector.Action.ChangeClip"), continuously: continuously, change)
     }
 
     func endClipChange() {
         endGesture()
-    }
-}
-
-extension Project {
-    /// Changes a clip in place on whichever track holds it.
-    mutating func updateClip(_ id: Clip.ID, _ change: (inout Clip) -> Void) {
-        guard let (index, _) = location(of: id) else { return }
-        tracks[index].update(id, change)
     }
 }
 

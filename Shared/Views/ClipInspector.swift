@@ -18,6 +18,7 @@ struct ClipInspector: View {
                 Text(verbatim: name)
                     .font(.headline)
             }
+            KeyframeControls(clip: clip)
             if track.kind == .video {
                 let editing = ClipEditing(editor: editor, clip: clip)
                 switch clip.content {
@@ -25,9 +26,7 @@ struct ClipInspector: View {
                 case .shape: ShapeInspector(editing: editing)
                 case .media, .image: EmptyView()
                 }
-                Section("Inspector.Layer") {
-                    LayerControls(editing: editing, isStill: editor.project.mediaItem(id: clip.mediaID)?.kind == .image)
-                }
+                LayerControls(clip: clip)
                 ForEach(effects) { effect in
                     EffectSection(
                         editing: EffectEditing(editor: editor, clip: clip, effect: effect),
