@@ -81,16 +81,17 @@ extension ProjectEditor {
 
     /// The words being typed in the preview, tagged with their formatting
     /// as `TextContent.tagged()` tags them.
-    func editText(_ string: NSAttributedString, formattings: [TextRun.Formatting]) {
-        guard let clipID = timeline.editedTextClipID else { return }
+    func editText(of clipID: Clip.ID, _ string: NSAttributedString, formattings: [TextRun.Formatting]) {
+        guard timeline.editedTextClipID == clipID else { return }
         changeClip(clipID, String(localized: "Canvas.Action.EditText"), continuously: true) { clip in
             clip.textContent.setWords(from: string, formattings: formattings)
         }
     }
 
     /// Stops typing in the preview, keeping what was typed as one undo step.
-    func endEditingText() {
-        guard timeline.editedTextClipID != nil else { return }
+    /// Given a clip, only if it's that clip's words being typed.
+    func endEditingText(of clipID: Clip.ID? = nil) {
+        guard let edited = timeline.editedTextClipID, clipID == nil || clipID == edited else { return }
         timeline.editedTextClipID = nil
         endGesture()
     }

@@ -33,10 +33,10 @@ struct InPlaceTextEditor: View {
         let measured = InPlaceTextView.height(of: text, display: display, width: width)
         let height = max(layer.pictureRect.height * points, measured)
 
-        InPlaceTextView(text: text, display: display) { string, formattings in
-            editor.editText(string, formattings: formattings)
-        } onEnd: {
-            editor.endEditingText()
+        InPlaceTextView(text: text, display: display) { [id = clip.id] string, formattings in
+            editor.editText(of: id, string, formattings: formattings)
+        } onEnd: { [id = clip.id] in
+            editor.endEditingText(of: id)
         }
         .frame(width: width, height: height)
         .background(RoundedRectangle(cornerRadius: 3).fill(.black.opacity(0.55)))
@@ -160,7 +160,9 @@ struct InPlaceTextView: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ view: NSTextView, coordinator: Coordinator) {
-        coordinator.end()
+        // Taken away in the middle of an update, as when the playhead moves
+        // off the layer: what was typed is kept once the update's done.
+        Task { @MainActor in coordinator.end() }
     }
 
     /// How tall the words are laid out at a width, at least a line.
@@ -336,13 +338,16 @@ struct InPlaceTextView: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ view: UITextView, coordinator: Coordinator) {
-        coordinator.end()
+        // Taken away in the middle of an update, as when the playhead moves
+        // off the layer: what was typed is kept once the update's done.
+        Task { @MainActor in coordinator.end() }
     }
 
     static func height(of text: TextContent, display: TextDisplay, width: Double) -> Double {
         InPlaceTextLayout.height(of: text, display: display, width: width)
     }
 
+    @MainActor
     final class Coordinator: NSObject, UITextViewDelegate {
         var parent: InPlaceTextView
         private(set) var display: TextDisplay?

@@ -85,6 +85,8 @@ struct PreviewCanvas: View {
                     if editor.timeline.editedTextClipID == clip.id {
                         // Typing in place of the handles.
                         InPlaceTextEditor(clip: clip, layer: layer, mapping: mapping)
+                            // A text view of its own for each clip typed into.
+                            .id(clip.id)
                     } else if let effect = editedMask(of: clip), let mask = effect.mask {
                         maskHandles(clip: clip, effect: effect, placement: MaskPlacement(mask, in: layer, at: clipTime(clip)),
                                     mapping: mapping)
