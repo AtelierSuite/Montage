@@ -793,6 +793,28 @@
         }
       }
     },
+    "Mac.Import.ReferenceInPlace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave files where they are"
+          }
+        }
+      }
+    },
+    "Mac.Import.ReferenceInPlace.Help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use the files from where they are now, rather than copying them into the project. Moving or deleting them breaks the project's link to them."
+          }
+        }
+      }
+    },
     "Mac.Menu.About" : {
       "extractionState" : "manual",
       "localizations" : {
