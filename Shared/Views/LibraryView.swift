@@ -30,6 +30,7 @@ struct LibraryView: View {
     var body: some View {
         content
             .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
+            .modifier(MediaDragTracker(timeline: editor.timeline))
             .alert("Library.ImportFailed.Title", isPresented: isShowingFailures, presenting: importer.failures) { _ in
                 Button("Library.ImportFailed.OK") { importer.failures = [] }
             } message: { failures in
@@ -171,7 +172,6 @@ struct LibraryView: View {
             }
             .padding(Self.gridPadding)
         }
-        .tracksMediaDrags(editor.timeline)
         // A click between the items clears the selection.
         .background {
             Color.clear
@@ -524,26 +524,37 @@ private struct ImportProgressRow: View {
     }
 }
 
-private extension View {
-    /// Keeps `isDraggingMedia` up to date while items are dragged out of the
-    /// library, from when a drag is picked up to when it's put down. Drag
-    /// sessions can only be followed from iOS 27.
-    @ViewBuilder
-    func tracksMediaDrags(_ timeline: TimelineState) -> some View {
+/// Keeps `isDraggingMedia` up to date: on once items dragged from the
+/// library are taken out of it, and off when they're put down. A drag within
+/// the library, such as onto a bin, leaves it off. Drag sessions can only be
+/// followed from iOS 27.
+private struct MediaDragTracker: ViewModifier {
+    let timeline: TimelineState
+    @State private var size = CGSize.zero
+
+    func body(content: Content) -> some View {
         #if os(iOS)
         if #available(iOS 27, *) {
-            onDragSessionUpdated { session in
-                let isDragging = switch session.phase {
-                case .initial, .active: true
-                default: false
+            content
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
+                .onDragSessionUpdated { session in
+                    let isOut: Bool
+                    switch session.phase {
+                    case .initial, .active:
+                        // Once out, it stays out, though the library pulled
+                        // down after it may come back under it.
+                        isOut = timeline.isDraggingMedia
+                            || !CGRect(origin: .zero, size: size).contains(session.location)
+                    default:
+                        isOut = false
+                    }
+                    if timeline.isDraggingMedia != isOut { timeline.isDraggingMedia = isOut }
                 }
-                if timeline.isDraggingMedia != isDragging { timeline.isDraggingMedia = isDragging }
-            }
         } else {
-            self
+            content
         }
         #else
-        self
+        content
         #endif
     }
 }
