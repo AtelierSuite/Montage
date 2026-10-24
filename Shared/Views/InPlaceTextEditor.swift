@@ -1,5 +1,6 @@
 import CoreGraphics
 import CoreMedia
+import CoreText
 import MontageEngine
 import SwiftUI
 #if os(macOS)
@@ -87,7 +88,16 @@ struct TextDisplay: Equatable {
         case .center: .center
         case .trailing: .right
         }
-        paragraph.lineSpacing = max(0, lineSpacing)
+        if lineSpacing >= 0 {
+            paragraph.lineSpacing = lineSpacing
+        } else {
+            // Lines drawn closer than the font's own spacing, as the
+            // renderer's spacing adjustment draws them; a paragraph's
+            // spacing can't go below nothing, so the lines' height comes in.
+            let height = CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font)
+            paragraph.minimumLineHeight = max(1, height + lineSpacing)
+            paragraph.maximumLineHeight = max(1, height + lineSpacing)
+        }
         #if os(macOS)
         let platformFont = font as NSFont
         let platformColor = NSColor(cgColor: (formatting.color ?? color).cgColor) ?? .white
