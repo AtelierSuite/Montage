@@ -101,22 +101,8 @@ extension Effect.Kind: Codable {
 }
 
 // MARK: - Video effects
-
-/// Exposure, contrast and colour. Neutral values leave the picture as it is.
-public struct ColorCorrection: Equatable, Sendable, Codable {
-    /// In stops: -1 halves the light, 1 doubles it.
-    public var exposure = Animatable(0.0)
-    /// 1 is unchanged.
-    public var contrast = Animatable(1.0)
-    /// 1 is unchanged, 0 is greyscale.
-    public var saturation = Animatable(1.0)
-    /// White balance, in kelvin; 6500 is unchanged.
-    public var temperature = Animatable(6500.0)
-    /// Green to magenta; 0 is unchanged.
-    public var tint = Animatable(0.0)
-
-    public init() {}
-}
+//
+// `ColorCorrection` is in a file of its own.
 
 /// Hides part of the picture, such as a face or a number plate.
 public struct Mosaic: Equatable, Sendable, Codable {
