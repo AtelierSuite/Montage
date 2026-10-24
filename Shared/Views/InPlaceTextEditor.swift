@@ -148,8 +148,9 @@ struct InPlaceTextView: NSViewRepresentable {
     func updateNSView(_ view: NSTextView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
-        // Words changed from elsewhere, such as the inspector, or a new look.
-        if view.string != text.string || display != coordinator.display {
+        // Words or formatting changed from elsewhere, such as the inspector,
+        // or a new look.
+        if coordinator.needsReload(for: text, display: display) {
             let selection = view.selectedRange()
             coordinator.load(into: view)
             let length = view.string.utf16.count
@@ -175,11 +176,26 @@ struct InPlaceTextView: NSViewRepresentable {
         var parent: InPlaceTextView
         private(set) var display: TextDisplay?
         private var formattings: [TextRun.Formatting] = []
+        /// The words as the view last had them, to tell changes made
+        /// elsewhere by.
+        private var synced: [TextRun] = []
         private var hasEnded = false
         private var clickMonitor: Any?
 
         init(_ parent: InPlaceTextView) {
             self.parent = parent
+        }
+
+        /// Whether the words or their formatting are no longer what the view
+        /// shows, as after formatting from the inspector.
+        func needsReload(for text: TextContent, display: TextDisplay) -> Bool {
+            text.runs != synced || display != self.display
+        }
+
+        private func sync(_ string: NSAttributedString) {
+            var text = parent.text
+            text.setWords(from: string, formattings: formattings)
+            synced = text.runs
         }
 
         /// A click anywhere in the window but the words stops typing, even
@@ -200,6 +216,7 @@ struct InPlaceTextView: NSViewRepresentable {
 
         func load(into view: NSTextView) {
             let tagged = parent.text.tagged()
+            synced = parent.text.runs
             formattings = tagged.formattings
             display = parent.display
             view.textStorage?.setAttributedString(parent.display.styled(tagged.string, formattings: formattings))
@@ -223,6 +240,7 @@ struct InPlaceTextView: NSViewRepresentable {
 
         func textDidChange(_ notification: Notification) {
             guard let view = notification.object as? NSTextView, !hasEnded else { return }
+            sync(view.attributedString())
             parent.onChange(view.attributedString(), formattings)
             centre(view)
         }
@@ -327,7 +345,7 @@ struct InPlaceTextView: UIViewRepresentable {
     func updateUIView(_ view: UITextView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
-        if view.text != text.string || display != coordinator.display {
+        if coordinator.needsReload(for: text, display: display) {
             let selection = view.selectedRange
             coordinator.load(into: view)
             let length = (view.text as NSString).length
@@ -352,14 +370,30 @@ struct InPlaceTextView: UIViewRepresentable {
         var parent: InPlaceTextView
         private(set) var display: TextDisplay?
         private var formattings: [TextRun.Formatting] = []
+        /// The words as the view last had them, to tell changes made
+        /// elsewhere by.
+        private var synced: [TextRun] = []
         private var hasEnded = false
 
         init(_ parent: InPlaceTextView) {
             self.parent = parent
         }
 
+        /// Whether the words or their formatting are no longer what the view
+        /// shows, as after formatting from the inspector.
+        func needsReload(for text: TextContent, display: TextDisplay) -> Bool {
+            text.runs != synced || display != self.display
+        }
+
+        private func sync(_ string: NSAttributedString) {
+            var text = parent.text
+            text.setWords(from: string, formattings: formattings)
+            synced = text.runs
+        }
+
         func load(into view: UITextView) {
             let tagged = parent.text.tagged()
+            synced = parent.text.runs
             formattings = tagged.formattings
             display = parent.display
             let styled = parent.display.styled(tagged.string, formattings: formattings)
@@ -382,6 +416,7 @@ struct InPlaceTextView: UIViewRepresentable {
             if view.attributedText.length == 0, let display {
                 view.typingAttributes = display.attributes(for: formattings[0], tag: 0)
             }
+            sync(view.attributedText)
             parent.onChange(view.attributedText, formattings)
             centre(view)
         }
