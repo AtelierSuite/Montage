@@ -85,6 +85,20 @@ struct PackageCacheTests {
         #expect(PackageCache().url(for: item, .stereoAudio) == nil)
     }
 
+    @Test func neverMakesAPackageAgainForACopy() throws {
+        let package = try makePackage()
+        let cache = PackageCache(packageURL: package)
+        let item = MediaItem(name: "a.caf", kind: .audio, location: .package(path: "Media/a.caf"), metadata: MediaMetadata(audioChannelCount: 1))
+        let stereo = try #require(cache.url(for: item, .stereoAudio))
+        #expect(cache.prepareFolder(for: stereo))
+        #expect(FileManager.default.fileExists(atPath: stereo.deletingLastPathComponent().path))
+
+        // Moved away while a copy was being made: the old place stays gone.
+        try FileManager.default.removeItem(at: package)
+        #expect(!cache.prepareFolder(for: stereo))
+        #expect(!FileManager.default.fileExists(atPath: package.path))
+    }
+
     @Test func keepsNothingBeforeThePackageIsSaved() async throws {
         let cache = PackageCache()
         let id = UUID()

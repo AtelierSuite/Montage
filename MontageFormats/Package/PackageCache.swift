@@ -107,6 +107,17 @@ public final class PackageCache: MediaCacheStore, DerivedMediaStore, Sendable {
         copiesDirectory(kind)?.appending(path: kind.fileName(for: item), directoryHint: .notDirectory)
     }
 
+    /// Makes the copy's folder in the package's `Cache/`, if the package and
+    /// its cache are still there; never the package itself.
+    public func prepareFolder(for url: URL) -> Bool {
+        let folder = url.deletingLastPathComponent()
+        let cache = folder.deletingLastPathComponent()
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: cache.path, isDirectory: &isDirectory), isDirectory.boolValue else { return false }
+        if FileManager.default.fileExists(atPath: folder.path) { return true }
+        return (try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)) != nil
+    }
+
     private func copiesDirectory(_ kind: DerivedMedia) -> URL? {
         let name = switch kind {
         case .stereoAudio: "Stereo"

@@ -87,9 +87,17 @@ public protocol DerivedMediaStore: Sendable {
     /// Where an item's copy goes, whether or not it's been made, named by
     /// `DerivedMedia.fileName(for:)`. Nil when there's nowhere to keep it.
     func url(for item: MediaItem, _ kind: DerivedMedia) -> URL?
+    /// Makes ready the folder a copy at `url` goes in, returning false if it
+    /// can't go there any more, such as when the project has been moved or
+    /// deleted while it was being made.
+    func prepareFolder(for url: URL) -> Bool
 }
 
 extension DerivedMediaStore {
+    public func prepareFolder(for url: URL) -> Bool {
+        (try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)) != nil
+    }
+
     /// The item's copy, if one's been made from its file as it is now.
     public func existingURL(for item: MediaItem, _ kind: DerivedMedia) -> URL? {
         guard let url = url(for: item, kind), FileManager.default.fileExists(atPath: url.path) else { return nil }
@@ -120,8 +128,17 @@ public actor DerivedMediaCache {
         let key = Key(mediaID: item.id, kind: kind)
         if let task = inFlight[key] { return await task.value }
         let task = Task.detached(priority: .utility) { () -> URL? in
+            // Made in a temporary folder, then moved into the store wherever
+            // it is by then: the project may have been moved or renamed.
+            let partial = FileManager.default.temporaryDirectory
+                .appending(path: "MontageDerivedMedia", directoryHint: .isDirectory)
+                .appending(path: "\(UUID().uuidString).\(kind.pathExtension)", directoryHint: .notDirectory)
+            defer { try? FileManager.default.removeItem(at: partial) }
             do {
-                try await DerivedMediaGenerator.make(kind, from: url, to: destination)
+                try await DerivedMediaGenerator.make(kind, from: url, to: partial)
+                guard let destination = store.url(for: item, kind), store.prepareFolder(for: destination) else { return nil }
+                _ = try? FileManager.default.removeItem(at: destination)
+                try FileManager.default.moveItem(at: partial, to: destination)
                 return destination
             } catch {
                 return nil
