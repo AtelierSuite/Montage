@@ -3954,13 +3954,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld shape clip can’t be written to FCPXML yet, and was left out."
+                  "value" : "%lld shape or empty text clip can’t be written to FCPXML, and was left out."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld shape clips can’t be written to FCPXML yet, and were left out."
+                  "value" : "%lld shape and empty text clips can’t be written to FCPXML, and were left out."
                 }
               }
             }
@@ -3969,19 +3969,19 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld 個の図形のクリップはまだFCPXMLに書き出せないため、除外されました。"
+            "value" : "%lld 個の図形または空のテキストのクリップはFCPXMLに書き出せないため、除外されました。"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld 个形状剪辑暂时无法写入 FCPXML，已被略去。"
+            "value" : "%lld 个形状或空文本剪辑无法写入 FCPXML，已被略去。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld 個形狀剪輯片段暫時無法寫入 FCPXML，已被略去。"
+            "value" : "%lld 個形狀或空白文字剪輯片段無法寫入 FCPXML，已被略去。"
           }
         }
       }

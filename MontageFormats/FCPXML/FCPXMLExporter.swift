@@ -54,9 +54,9 @@ struct FCPXMLExporter {
         let connected = videoTracks.dropFirst().enumerated().map { ($0.element, $0.offset + 1) }
             + audioTracks.enumerated().map { ($0.element, -($0.offset + 1)) }
         for (track, lane) in connected {
-            // A connected clip can't be a gap, so shapes, which go out as
-            // gaps, are left out instead.
-            for clip in track.clips where clip.content.shape == nil {
+            // A connected clip can't be a gap, so what goes out as gaps is
+            // left out instead.
+            for clip in track.clips where !Self.isLeftOut(clip) {
                 let range = conformed(clip.timelineRange)
                 guard range.duration > .zero,
                       let index = spine.firstIndex(where: { $0.range.containsTime(range.start) }) else { continue }
@@ -119,12 +119,22 @@ struct FCPXMLExporter {
         }
     }
 
+    /// Whether a clip has nothing FCPXML can hold: a shape, or text with no
+    /// words, which Final Cut would fill with its title's own. These go out
+    /// as gaps, and are listed by `ProjectInterchange.clipsLeftOutOfFCPXML`
+    /// for the export to report.
+    static func isLeftOut(_ clip: Clip) -> Bool {
+        switch clip.content {
+        case .shape: true
+        case .text(let text): text.string.isEmpty
+        case .media, .image: false
+        }
+    }
+
     /// A clip, as an asset clip, a video element for a still image, or a
-    /// title for text. Shapes, which have no media, go out as gaps, and are
-    /// listed by `ProjectInterchange.clipsLeftOutOfFCPXML` for the export to
-    /// report.
+    /// title for text. What `isLeftOut` goes out as a gap.
     private func clipElement(_ clip: Clip, range: CMTimeRange, lane: Int?, resources: inout Resources) -> MarkupElement {
-        if case .text(let text) = clip.content {
+        if case .text(let text) = clip.content, !Self.isLeftOut(clip) {
             return titleElement(clip, text: text, range: range, lane: lane, resources: &resources)
         }
         guard let item = project.mediaItem(id: clip.mediaID) else {
@@ -195,7 +205,7 @@ struct FCPXMLExporter {
         ]
         // A title's local time starts at zero, as its keyframes do.
         let local: (CMTime) -> CMTime = { $0 }
-        var children = text.runs.isEmpty ? [] : [words.text]
+        var children = [words.text]
         children += words.definitions
         if let transform = transformElement(clip.transform, local: local) { children.append(transform) }
         if clip.opacity.isAnimated || clip.opacity.value != 1 {

@@ -90,10 +90,24 @@ struct FCPXMLTitleTests {
         #expect(connected.child("filter-video") != nil)
     }
 
-    @Test func onlyShapesAreLeftOut() {
-        let project = Self.project()
+    @Test func shapesAndEmptyTextAreLeftOut() throws {
+        var project = Self.project()
         let shape = project.tracks[1].clips[1].id
         #expect(ProjectInterchange.clipsLeftOutOfFCPXML(in: project) == [shape])
+        // Text with no words would show Final Cut's own, so it goes too:
+        // as a gap on the storyline, and not at all connected.
+        let empty = Clip(content: .text(TextContent()), sourceRange: CMTimeRange(start: .zero, duration: Self.seconds(1)),
+                         timelineStart: Self.seconds(3))
+        let connected = Clip(content: .text(TextContent()), sourceRange: CMTimeRange(start: .zero, duration: Self.seconds(1)),
+                             timelineStart: Self.seconds(6))
+        project.tracks[0].insert(empty)
+        project.tracks[1].insert(connected)
+        #expect(Set(ProjectInterchange.clipsLeftOutOfFCPXML(in: project)) == [shape, empty.id, connected.id])
+        let root = try MarkupElement.parse(export(project))
+        #expect(root.allDescendants.filter { $0.name == "title" }.count == 2)
+        let spine = try #require(root.allDescendants.first { $0.name == "spine" })
+        #expect(spine.children.map(\.name) == ["title", "gap", "gap"])
+        #expect(!root.allDescendants.contains { $0.name == "gap" && $0["lane"] != nil })
     }
 
     @Test func titlesComeBackAsTheTextTheyWere() throws {
