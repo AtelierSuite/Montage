@@ -59,6 +59,8 @@ struct RelinkMediaView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(editor.missingMedia.isEmpty ? LocalizedStringKey("Relink.Done") : "Relink.Cancel") { dismiss() }
+                        // Closing lets the chosen files go, mid-copy.
+                        .disabled(isRelinking)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Relink.Relink", action: relink)
@@ -67,6 +69,7 @@ struct RelinkMediaView: View {
             }
             .safeAreaInset(edge: .bottom, spacing: 0) { searchBar }
         }
+        .interactiveDismissDisabled(isRelinking)
         #if os(macOS)
         .frame(minWidth: 520, minHeight: 420)
         #endif
