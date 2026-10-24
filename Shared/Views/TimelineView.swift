@@ -40,6 +40,9 @@ struct TimelineView: View {
                         Divider()
                     }
                 }
+                // Held to its width: the dividers would otherwise take half
+                // the timeline's.
+                .frame(width: headerWidth)
                 ScrollView(.horizontal) {
                     lanes(rows)
                         .frame(width: max(viewport.width, contentWidth), alignment: .topLeading)
