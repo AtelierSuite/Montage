@@ -5,11 +5,15 @@ import MontageEngine
 /// The library's bins, clearing out unused media, and dropping media onto
 /// the timeline.
 extension ProjectEditor {
-    /// Makes a bin, as one undo step, and returns its ID.
+    /// Makes a bin with `media` filed in it, as one undo step, and returns
+    /// its ID.
     @discardableResult
-    func addBin(named name: String) -> MediaBin.ID {
+    func addBin(named name: String, filing media: Set<MediaItem.ID> = []) -> MediaBin.ID {
         var id = UUID()
-        perform(String(localized: "Action.NewBin")) { id = $0.addBin(named: name) }
+        perform(String(localized: "Action.NewBin")) { project in
+            id = project.addBin(named: name)
+            project.moveMedia(media, toBin: id)
+        }
         return id
     }
 

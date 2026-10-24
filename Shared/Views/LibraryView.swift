@@ -281,8 +281,7 @@ struct LibraryView: View {
         if let bin = renamingBin {
             editor.renameBin(bin.id, to: name)
         } else if isNamingNewBin {
-            let id = editor.addBin(named: name)
-            if !newBinMedia.isEmpty { editor.moveMedia(newBinMedia, toBin: id) }
+            editor.addBin(named: name, filing: newBinMedia)
             newBinMedia = []
         }
     }
