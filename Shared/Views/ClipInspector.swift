@@ -18,6 +18,7 @@ struct ClipInspector: View {
                     .font(.headline)
             }
             if track.kind == .video {
+                LayerControls(clip: clip)
                 ForEach(effects) { effect in
                     EffectSection(
                         editing: EffectEditing(editor: editor, clip: clip, effect: effect),

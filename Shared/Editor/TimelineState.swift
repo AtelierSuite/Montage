@@ -27,6 +27,9 @@ final class TimelineState {
     /// the timeline. Either end can be marked without the other.
     var markedIn: CMTime?
     var markedOut: CMTime?
+    /// The effect of the selected clip whose mask the preview has handles
+    /// for, in place of the clip's own.
+    var editedMaskEffectID: Effect.ID?
 
     /// How far the timeline zooms in and out.
     static let zoomRange = 2.0...2400.0
