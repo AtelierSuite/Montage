@@ -17,22 +17,25 @@ import CoreMedia
 /// their media with `insertTimeRange`, and gaps between them are empty time,
 /// which draws black and plays silence.
 ///
-/// The video composition fits each clip's picture, turned upright, into the
-/// render size, then moves it by the clip's transform and fades it by its
-/// opacity. AVFoundation's built-in compositor can only move a layer by one
-/// transform per clip and fade it in straight ramps, so the transform is
-/// taken at the clip's start and keyframed opacity and volume are followed
-/// with ramps. The custom compositor (#8) will evaluate every parameter per
-/// frame instead, finding its clips through `BuiltComposition.videoLayers`.
-/// It will also fix a fault of the built-in one: a faded layer with nothing
-/// under it blends with a dark green rather than with black.
+/// The video composition draws with `VideoCompositor`, which stacks the
+/// layers bottom to top and evaluates each clip's transform, opacity, blend
+/// mode and effects every frame. It reads them from `snapshot`, so edits to
+/// them show without a rebuild; only what's placed where is fixed here.
+/// Keyframed volume is followed with the audio mix's straight ramps.
 public struct CompositionBuilder: Sendable {
     public var project: Project
     public var mediaResolver: MediaResolver
+    /// Where the compositor reads clip parameters as they're edited, such as
+    /// the playback controller's. Nil reads them from `project` as it is,
+    /// for a composition that shouldn't follow edits, such as an export's.
+    public var snapshot: ProjectSnapshot?
+    /// Whether frames may be rendered with the GPU.
+    public var usesGPU = true
 
-    public init(project: Project, mediaResolver: MediaResolver) {
+    public init(project: Project, mediaResolver: MediaResolver, snapshot: ProjectSnapshot? = nil) {
         self.project = project
         self.mediaResolver = mediaResolver
+        self.snapshot = snapshot
     }
 
     /// How long a clip's sound keeps going after the clip ends, such as a
@@ -100,7 +103,7 @@ public struct CompositionBuilder: Sendable {
                             continue
                         }
                         if picture != nil {
-                            guard try picture!.place(clip, from: video, in: composition, settings: project.settings) else {
+                            if try !picture!.place(clip, from: video, in: composition, settings: project.settings) {
                                 skip(.outsideMedia)
                                 continue
                             }
@@ -150,7 +153,7 @@ public struct CompositionBuilder: Sendable {
 
     /// One instruction for each stretch of the timeline between the points
     /// where a clip starts or ends, holding the layers showing through it,
-    /// top layer first, over black.
+    /// bottom layer first, drawn over black by the custom compositor.
     private func videoComposition(for layers: [LayerWriter], duration: CMTime) -> AVVideoComposition {
         var cuts = Set([CMTime.zero, duration])
         for layer in layers {
@@ -160,21 +163,15 @@ public struct CompositionBuilder: Sendable {
             }
         }
         let times = cuts.filter { $0 <= duration }.sorted()
-        // One layer instruction per layer, holding every one of its clips'
-        // settings at their times, used in each instruction it shows in.
-        let layerInstructions = layers.map { AVVideoCompositionLayerInstruction(configuration: $0.layerConfiguration) }
-        let black = CGColor(gray: 0, alpha: 1)
+        let snapshot = self.snapshot ?? ProjectSnapshot(project)
         let instructions = zip(times, times.dropFirst()).map { start, end in
-            let showing = layers.indices.reversed().filter { layers[$0].layer.segment(at: start) != nil }
-            return AVVideoCompositionInstruction(configuration: AVVideoCompositionInstruction.Configuration(
-                backgroundColor: black,
-                layerInstructions: showing.map { layerInstructions[$0] },
-                timeRange: CMTimeRange(start: start, end: end)
-            ))
+            CompositorInstruction(
+                timeRange: CMTimeRange(start: start, end: end), layers: layers.compactMap { $0.placement(at: start) },
+                snapshot: snapshot, renderSize: project.settings.renderSize, usesGPU: usesGPU
+            )
         }
-        // TODO: (#8) set `customVideoCompositorClass` to the custom compositor,
-        // with instructions that carry the layers' clips.
         return AVVideoComposition(configuration: AVVideoComposition.Configuration(
+            customVideoCompositorClass: VideoCompositor.self,
             frameDuration: project.settings.frameDuration,
             instructions: instructions,
             renderSize: project.settings.renderSize
@@ -198,18 +195,8 @@ public struct CompositionBuilder: Sendable {
         naturalSize: CGSize, preferredTransform: CGAffineTransform, clipTransform: ClipTransform,
         renderSize: CGSize, at localTime: CMTime
     ) -> CGAffineTransform {
-        let upright = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
-        guard upright.width > 0, upright.height > 0 else { return preferredTransform }
-        // About its own centre, so scaling and turning keep it in place.
-        var transform = preferredTransform
-            .concatenating(CGAffineTransform(translationX: -upright.midX, y: -upright.midY))
-        let fit = min(renderSize.width / upright.width, renderSize.height / upright.height)
-        let scale = fit * clipTransform.scale.value(at: localTime)
-        transform = transform.concatenating(CGAffineTransform(scaleX: scale, y: scale))
-        // Positive angles turn clockwise when y runs down.
-        transform = transform.concatenating(CGAffineTransform(rotationAngle: clipTransform.rotation.value(at: localTime) * .pi / 180))
-        let position = clipTransform.position.value(at: localTime)
-        return transform.concatenating(CGAffineTransform(translationX: position.x * renderSize.width, y: position.y * renderSize.height))
+        FrameComposer.fitTransform(naturalSize: naturalSize, preferredTransform: preferredTransform, renderSize: renderSize)
+            .concatenating(FrameComposer.clipTransform(clipTransform, renderSize: renderSize, at: localTime))
     }
 }
 
@@ -226,7 +213,8 @@ private struct LayerWriter {
     /// Where the composition track ends so far.
     private(set) var cursor = CMTime.zero
     private(set) var segments: [CompositionLayer.Segment] = []
-    private(set) var layerConfiguration = AVVideoCompositionLayerInstruction.Configuration()
+    /// For a video layer, what the compositor needs of each segment's clip.
+    private(set) var placements: [CompositorLayer] = []
     private(set) var audioParameters: AVMutableAudioMixInputParameters?
 
     init(kind: CompositionLayer.Kind, trackID: Track.ID) {
@@ -236,6 +224,12 @@ private struct LayerWriter {
 
     var layer: CompositionLayer {
         CompositionLayer(kind: kind, trackID: trackID, compositionTrackID: compositionTrack?.trackID ?? kCMPersistentTrackID_Invalid, segments: segments)
+    }
+
+    /// The clip the compositor draws at a time, if one plays then.
+    func placement(at time: CMTime) -> CompositorLayer? {
+        segments.firstIndex { $0.timelineRange.start <= time && time < $0.timelineRange.end }
+            .flatMap { placements.indices.contains($0) ? placements[$0] : nil }
     }
 
     /// Puts as much of a clip as its media has at the clip's place on the
@@ -259,9 +253,8 @@ private struct LayerWriter {
         if compositionTrack == nil {
             let mediaType: AVMediaType = kind == .video ? .video : .audio
             compositionTrack = composition.addMutableTrack(withMediaType: mediaType, preferredTrackID: kCMPersistentTrackID_Invalid)
-            if let compositionTrack {
-                layerConfiguration = AVVideoCompositionLayerInstruction.Configuration(trackID: compositionTrack.trackID)
-                if kind == .audio { audioParameters = AVMutableAudioMixInputParameters(track: compositionTrack) }
+            if let compositionTrack, kind == .audio {
+                audioParameters = AVMutableAudioMixInputParameters(track: compositionTrack)
             }
         }
         guard let compositionTrack else { return false }
@@ -275,19 +268,10 @@ private struct LayerWriter {
 
         switch kind {
         case .video:
-            layerConfiguration.setTransform(CompositionBuilder.layerTransform(
-                naturalSize: source.naturalSize, preferredTransform: source.preferredTransform,
-                clipTransform: clip.transform, renderSize: settings.renderSize, at: clip.localTime(start)
-            ), at: start)
-            let ramps = clip.opacity.ramps(over: timelineRange, clipStart: clip.timelineStart)
-            if ramps.isEmpty {
-                layerConfiguration.setOpacity(Float(clip.opacity.value(at: clip.localTime(start))), at: start)
-            }
-            for ramp in ramps {
-                layerConfiguration.addOpacityRamp(AVVideoCompositionLayerInstruction.OpacityRamp(
-                    timeRange: ramp.timeRange, start: Float(ramp.start), end: Float(ramp.end)
-                ))
-            }
+            placements.append(CompositorLayer(
+                trackID: compositionTrack.trackID, clip: clip,
+                naturalSize: source.naturalSize, preferredTransform: source.preferredTransform
+            ))
         case .audio:
             // Where the clip's audio tail would be left room for; nothing
             // rings out yet.

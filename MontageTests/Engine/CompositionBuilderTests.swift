@@ -96,24 +96,24 @@ struct CompositionBuilderTests {
         // An instruction each for the first clip, the gap and the second.
         let instructions = try #require(built.videoComposition).instructions
         #expect(instructions.map(\.timeRange) == [range(0, 2), range(2, 2), range(4, 2)])
-        #expect(instructions.map { ($0 as? AVVideoCompositionInstruction)?.layerInstructions.count } == [1, 0, 1])
+        #expect(instructions.map { ($0 as? CompositorInstruction)?.layers.count } == [1, 0, 1])
 
         #expect(built.videoSegments(at: seconds(1)).map(\.segment.clipID) == [first.id])
         #expect(built.videoSegments(at: seconds(3)).isEmpty)
         #expect(built.videoSegments(at: seconds(5)).map(\.segment.sourceRange) == [range(3, 2)])
     }
 
-    @Test func layersStackWithTheTopTrackFirst() async throws {
+    @Test func layersStackFromTheBottomTrack() async throws {
         let bottom = Track(kind: .video, clips: [Clip(mediaID: SampleMedia.landscape.id, sourceRange: range(0, 4))])
         let top = Track(kind: .video, clips: [Clip(mediaID: SampleMedia.portrait.id, sourceRange: range(0, 2), timelineStart: seconds(1))])
         let built = try await build(project([bottom, top]))
 
         #expect(built.videoLayers.map(\.trackID) == [bottom.id, top.id])
-        let instructions = try #require(built.videoComposition).instructions.compactMap { $0 as? AVVideoCompositionInstruction }
+        let instructions = try #require(built.videoComposition).instructions.compactMap { $0 as? CompositorInstruction }
         #expect(instructions.map(\.timeRange) == [range(0, 1), range(1, 2), range(3, 1)])
         let topID = built.videoLayers[1].compositionTrackID
         let bottomID = built.videoLayers[0].compositionTrackID
-        #expect(instructions[1].layerInstructions.map(\.trackID) == [topID, bottomID])
+        #expect(instructions[1].layers.map(\.trackID) == [bottomID, topID])
         #expect(built.videoSegments(at: seconds(2)).map(\.layer.trackID) == [bottom.id, top.id])
     }
 
