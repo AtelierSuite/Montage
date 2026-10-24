@@ -70,7 +70,12 @@ public enum WaveformGenerator {
             break
         }
         guard let track = main else { throw Failure.noAudio }
-        return try read(track, of: asset, peaksPerSecond: peaksPerSecond)
+        // Reading blocks until the reader has decoded the next buffer, for
+        // as long as the media runs; on a queue of its own, so a timeline
+        // reading many waveforms at once doesn't hold every shared thread.
+        return try await withTaskExecutorPreference(DispatchQueue(label: "Montage.Waveform")) {
+            try read(track, of: asset, peaksPerSecond: peaksPerSecond)
+        }
     }
 
     private static func read(_ track: AVAssetTrack, of asset: AVAsset, peaksPerSecond: Double) throws -> WaveformPeaks {
