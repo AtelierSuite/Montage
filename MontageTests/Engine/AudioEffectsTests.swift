@@ -168,10 +168,12 @@ struct AudioEffectsTests {
         let wet = try await build(project([soundClip(duration: 1.5, effects: [.reverb(reverb)])], runsTo: 4))
         let dry = try await build(project([soundClip(duration: 1.5)], runsTo: 4))
 
-        // The track goes on under the tail, to where the composition ends.
+        // The track goes on under the tail, past the end of the timeline
+        // until the cathedral has died away.
         let wetTrack = try #require(try await wet.composition.loadTracks(withMediaType: .audio).first)
-        #expect(try await wetTrack.load(.timeRange).end == seconds(4))
-        #expect(wet.duration == seconds(4))
+        #expect(try await wetTrack.load(.timeRange).end == seconds(7.5))
+        #expect(wet.duration == seconds(7.5))
+        #expect(dry.duration == seconds(4))
 
         let wetAudio = try await RenderedAudio.read(wet)
         let dryAudio = try await RenderedAudio.read(dry)
@@ -179,6 +181,31 @@ struct AudioEffectsTests {
         #expect(wetAudio.rms(\.left, 1.6, 2.4) > 0.05 * wetAudio.rms(\.left, 0.2, 1.4))
         // Fading away as it goes.
         #expect(wetAudio.rms(\.left, 3.2, 4) < wetAudio.rms(\.left, 1.6, 2.4))
+    }
+
+    @Test func aTailAfterTheLastClipRingsOutPastTheEnd() async throws {
+        var delay = Delay()
+        delay.mix = Animatable(0.5)
+        let echoing = project([soundClip(duration: 1, effects: [.delay(delay)])])
+        let built = try await build(echoing)
+        // The timeline still ends with the clip; the composition runs on for
+        // the echoes.
+        #expect(echoing.duration == seconds(1))
+        #expect(built.duration == seconds(2.5))
+        #expect(built.composition.duration == seconds(2.5))
+        let audio = try await RenderedAudio.read(built)
+        #expect(audio.duration > 2.4)
+        #expect(audio.rms(\.left, 1.05, 1.5) > 0.05 * audio.rms(\.left, 0.1, 0.9))
+
+        // Without a tail, it ends with the clip.
+        let plain = try await build(project([soundClip(duration: 1)]))
+        #expect(plain.duration == seconds(1))
+    }
+
+    @Test func aTailUnderALongerClipLeavesTheLengthAlone() async throws {
+        let echoing = soundClip(duration: 1, effects: [.delay(Delay())])
+        let built = try await build(project([echoing], runsTo: 4))
+        #expect(built.duration == seconds(4))
     }
 
     @Test func aDelayEchoesIntoTheGapAfterTheClip() async throws {

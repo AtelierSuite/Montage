@@ -82,6 +82,19 @@ struct PlaybackControllerTests {
         #expect(controller.hasContent)
     }
 
+    @Test func aTailRingsOnWithoutMovingTheEnd() async throws {
+        var project = project()
+        project.tracks[0].update(project.tracks[0].clips[0].id) { $0.effects = [Effect(.delay(Delay()))] }
+        let controller = PlaybackController(project: project, mediaResolver: resolver, rebuildDelay: .milliseconds(10))
+        defer { controller.invalidate() }
+        try await waitUntil { controller.composition != nil }
+        // The composition runs on for the echoes; the timeline doesn't.
+        #expect(controller.composition?.duration == seconds(5.5))
+        #expect(controller.duration == seconds(4))
+        controller.seek(to: seconds(5))
+        #expect(controller.currentTime == seconds(4))
+    }
+
     @Test func steppingMovesAFrameAtATime() async throws {
         let controller = PlaybackController(project: project(), mediaResolver: resolver, rebuildDelay: .milliseconds(10))
         defer { controller.invalidate() }

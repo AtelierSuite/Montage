@@ -221,7 +221,16 @@ public final class PlaybackController {
         // Where the player stopped, rather than where the last update said.
         if pendingSeek == nil, seekInFlight == nil, player.currentItem != nil {
             currentTime = clamped(player.currentTime())
+            returnFromTail()
         }
+    }
+
+    /// Brings the player back to the end of the timeline if it stopped in a
+    /// tail ringing on after it, where the composition outlasts the project:
+    /// the playhead never goes past the end, so the picture shouldn't either.
+    private func returnFromTail() {
+        guard player.currentTime() > duration else { return }
+        seek(to: duration)
     }
 
     public func togglePlayPause() {
@@ -351,6 +360,7 @@ public final class PlaybackController {
                 self.isPlaying = false
                 if self.pendingSeek == nil, self.seekInFlight == nil {
                     self.currentTime = self.clamped(self.player.currentTime())
+                    self.returnFromTail()
                 }
             }
         }

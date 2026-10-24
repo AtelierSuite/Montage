@@ -53,7 +53,8 @@ public struct CompositionBuilder: Sendable {
     /// composition track of its own, so nothing on the timeline moves. A tail
     /// runs on into empty time, or, after a track's last clip, into filler
     /// that the clip's tap silences, since a composition track can't end in
-    /// empty time. It stops where the composition does.
+    /// empty time. A tail still ringing after the last clip of the timeline
+    /// makes the composition longer than the project, so it isn't cut off.
     public static func audioTail(for clip: Clip) -> CMTime {
         clip.audioTail
     }
@@ -156,8 +157,11 @@ public struct CompositionBuilder: Sendable {
             )
         }
         // A composition can't end in empty time, so it runs to the end of
-        // the last clip placed: clips left out at the end shorten it.
-        let end = writers.map(\.cursor).max() ?? .zero
+        // the last clip placed: clips left out at the end shorten it. A tail
+        // still ringing there runs on past it, over a black picture, so a
+        // reverb or delay on the last clip isn't cut off.
+        let lastClipEnd = writers.map(\.cursor).max() ?? .zero
+        let end = max(lastClipEnd, sounds.map(\.ringsUntil).max() ?? .zero)
         for index in sounds.indices {
             try sounds[index].fillTail(before: end)
         }
