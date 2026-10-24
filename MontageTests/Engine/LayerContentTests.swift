@@ -192,6 +192,35 @@ struct LayerContentTests {
         #expect(clip.transform.position == Animatable(CGPoint(x: 0.4, y: 0.5)))
     }
 
+    @Test func textAndShapeKeyframesShowAndRetime() {
+        var text = TextContent("Grow")
+        text.style.fontSize = Animatable(50, keyframes: [Keyframe(time: .zero, value: 50), Keyframe(time: s(2), value: 80)])
+        var clip = Clip(content: .text(text), sourceRange: range(0, 5))
+        #expect(clip.keyframeTimes == [.zero, s(2)])
+        clip.moveKeyframes(from: s(2), to: s(3), frameDuration: CMTime(value: 1, timescale: 30))
+        #expect(clip.content.text?.style.fontSize.keyframes.map(\.time) == [.zero, s(3)])
+
+        var shape = ShapeContent()
+        shape.stroke.width = Animatable(4, keyframes: [Keyframe(time: s(1), value: 4)])
+        let shapeClip = Clip(content: .shape(shape), sourceRange: range(0, 5))
+        #expect(shapeClip.keyframeTimes == [s(1)])
+    }
+
+    @Test func textAndShapesCanBePickedWhereTheyAreDrawn() throws {
+        let shape = ShapeContent(.rectangle, size: CGSize(width: 400, height: 200))
+        var project = Project(tracks: [Track(kind: .video, clips: [Clip(content: .shape(shape), sourceRange: range(0, 5))])])
+        let size = project.pictureSize(of: project.tracks[0].clips[0])
+        #expect(size.width > 400 && size.width < 420)
+        #expect(project.layer(at: CGPoint(x: 960 + 150, y: 540), time: s(1)) != nil)
+        #expect(project.layer(at: CGPoint(x: 960 + 300, y: 540), time: s(1)) == nil)
+        // A still fills the frame when asked to.
+        let image = MediaItem(name: "Still", kind: .image, location: .package(path: "Media/Still"),
+                              metadata: MediaMetadata(naturalSize: CGSize(width: 100, height: 100)))
+        project.media = [image]
+        project.tracks = [Track(kind: .video, clips: [Clip(content: .image(image.id), sourceRange: range(0, 5), fit: .fill)])]
+        #expect(project.layer(at: CGPoint(x: 50, y: 50), time: s(1)) != nil)
+    }
+
     @Test func presetsSetTheStyleAndPlace() throws {
         var clip = Clip(content: .text(TextContent("Name")), sourceRange: range(0, 5))
         let lowerThird = BuiltInTextPreset.lowerThird
