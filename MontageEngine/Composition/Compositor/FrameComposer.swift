@@ -22,6 +22,10 @@ enum FrameComposer {
         var layer: CompositorLayer
         /// The clip's parameters as of the latest edit.
         var clip: Clip
+        /// For text or a shape, how many of the picture's pixels make one
+        /// of the frame's. Such a picture is centred in the frame at its own
+        /// size rather than fitted into it.
+        var drawnScale: Double?
     }
 
     /// The frame at a time on the timeline. `renderSize` is the project's frame
@@ -48,11 +52,23 @@ enum FrameComposer {
     /// One layer's picture, where it goes in a frame of `outputSize`, with
     /// its effects applied.
     static func picture(_ layer: Layer, at clipTime: CMTime, renderSize: CGSize, outputSize: CGSize) -> CIImage {
-        let fit = fitTransform(
-            naturalSize: layer.layer.naturalSize, preferredTransform: layer.layer.preferredTransform, renderSize: renderSize
-        )
+        let base: CGAffineTransform
+        let sourceHeight: CGFloat
+        if let scale = layer.drawnScale, scale > 0 {
+            let size = layer.image.extent.size
+            base = CGAffineTransform(scaleX: 1 / scale, y: 1 / scale).concatenating(CGAffineTransform(
+                translationX: (renderSize.width - size.width / scale) / 2, y: (renderSize.height - size.height / scale) / 2
+            ))
+            sourceHeight = size.height
+        } else {
+            base = fitTransform(
+                naturalSize: layer.layer.naturalSize, preferredTransform: layer.layer.preferredTransform,
+                renderSize: renderSize, fit: layer.clip.fit
+            )
+            sourceHeight = layer.layer.naturalSize.height
+        }
         var picture = layer.image.transformed(
-            by: coreImage(fit, fromHeight: layer.layer.naturalSize.height, toHeight: renderSize.height),
+            by: coreImage(base, fromHeight: sourceHeight, toHeight: renderSize.height),
             highQualityDownsample: true
         )
         // Effects see the picture fitted into the project's frame, before the
@@ -104,14 +120,23 @@ enum FrameComposer {
     // MARK: - Transforms
 
     /// Turns a picture upright by its track's preferred transform, then fits
-    /// it into the render size and centres it.
-    static func fitTransform(naturalSize: CGSize, preferredTransform: CGAffineTransform, renderSize: CGSize) -> CGAffineTransform {
+    /// it into the render size, filling or stretched to it if asked, and
+    /// centres it.
+    static func fitTransform(
+        naturalSize: CGSize, preferredTransform: CGAffineTransform, renderSize: CGSize, fit: FrameFit = .fit
+    ) -> CGAffineTransform {
         let upright = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
         guard upright.width > 0, upright.height > 0 else { return preferredTransform }
-        let fit = min(renderSize.width / upright.width, renderSize.height / upright.height)
+        let across = renderSize.width / upright.width
+        let down = renderSize.height / upright.height
+        let scale: CGSize = switch fit {
+        case .fit: CGSize(width: min(across, down), height: min(across, down))
+        case .fill: CGSize(width: max(across, down), height: max(across, down))
+        case .stretch: CGSize(width: across, height: down)
+        }
         return preferredTransform
             .concatenating(CGAffineTransform(translationX: -upright.midX, y: -upright.midY))
-            .concatenating(CGAffineTransform(scaleX: fit, y: fit))
+            .concatenating(CGAffineTransform(scaleX: scale.width, y: scale.height))
             .concatenating(CGAffineTransform(translationX: renderSize.width / 2, y: renderSize.height / 2))
     }
 
