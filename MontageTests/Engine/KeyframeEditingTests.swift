@@ -38,6 +38,14 @@ struct KeyframeEditingTests {
         #expect(clip.keyframeTime(after: s(0)) == s(1))
     }
 
+    @Test func passesAKeyframeThePlayheadIsNearlyOn() {
+        let clip = clip()
+        let nearly = s(3) + CMTime(value: 1, timescale: 6000)
+        #expect(clip.keyframeTime(before: nearly) == s(3))
+        #expect(clip.keyframeTime(before: nearly, tolerance: CMTime(value: 1, timescale: 60)) == s(1))
+        #expect(clip.keyframeTime(after: s(3) - CMTime(value: 1, timescale: 6000), tolerance: CMTime(value: 1, timescale: 60)) == s(6))
+    }
+
     @Test func retimesKeyframesOfEveryParameterAtATime() {
         var clip = clip()
         clip.moveKeyframes(from: s(3), to: s(4))

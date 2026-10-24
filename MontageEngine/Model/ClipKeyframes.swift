@@ -56,14 +56,16 @@ extension Clip {
         return collector.times.sorted()
     }
 
-    /// The last keyframe time before a time from the clip's start.
-    public func keyframeTime(before time: CMTime) -> CMTime? {
-        keyframeTimes.last { $0 < time }
+    /// The last keyframe time before a time from the clip's start, by more
+    /// than `tolerance`, so one the playhead is on, give or take, is passed.
+    public func keyframeTime(before time: CMTime, tolerance: CMTime = .zero) -> CMTime? {
+        keyframeTimes.last { $0 < time - tolerance }
     }
 
-    /// The first keyframe time after a time from the clip's start.
-    public func keyframeTime(after time: CMTime) -> CMTime? {
-        keyframeTimes.first { $0 > time }
+    /// The first keyframe time after a time from the clip's start, by more
+    /// than `tolerance`.
+    public func keyframeTime(after time: CMTime, tolerance: CMTime = .zero) -> CMTime? {
+        keyframeTimes.first { $0 > time + tolerance }
     }
 
     /// Moves every parameter's keyframe at one time to another, kept within
