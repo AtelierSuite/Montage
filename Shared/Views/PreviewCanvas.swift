@@ -197,7 +197,10 @@ struct PreviewCanvas: View {
         }
         .stroke(.yellow, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
         .allowsHitTesting(false)
-        ForEach(Self.resizeHandles, id: \.self) { handle in
+        // A path's points often sit on the box's sides, as a new diamond's
+        // do, so a path mask is sized by its corners alone.
+        let resizeHandles = effect.mask?.shape == .path ? Self.resizeHandles.filter(\.isCorner) : Self.resizeHandles
+        ForEach(resizeHandles, id: \.self) { handle in
             self.handle(at: view(handle), shape: .square, color: .yellow)
                 .gesture(dragging(.mask(effect.id, handle, layer), clip: clip, mapping: mapping))
                 .accessibilityHidden(true)
@@ -342,5 +345,13 @@ struct PreviewCanvas: View {
         let length = hypot(dx, dy)
         guard length > 1e-6 else { return CGPoint(x: point.x, y: point.y - distance) }
         return CGPoint(x: point.x + dx / length * distance, y: point.y + dy / length * distance)
+    }
+}
+
+private extension MaskHandle {
+    /// Whether it's one of the box's corners.
+    var isCorner: Bool {
+        if case .resize(let x, let y) = self { return x != 0 && y != 0 }
+        return false
     }
 }
