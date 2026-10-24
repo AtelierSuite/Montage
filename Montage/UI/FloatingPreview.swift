@@ -21,6 +21,11 @@ struct FloatingPreview: View {
     let aspectRatio: Double
     let onExpand: () -> Void
     let onDock: () -> Void
+    /// Room kept clear along the bottom, for the controls floating there.
+    var reservedBottom = 0.0
+    /// Hears where the window is on screen, as it moves, so whatever hosts
+    /// it can let touches anywhere else through.
+    var onFrameChange: (CGRect) -> Void = { _ in }
 
     private enum Corner {
         case topLeading, topTrailing, bottomLeading, bottomTrailing
@@ -52,6 +57,7 @@ struct FloatingPreview: View {
             let size = windowSize(in: room)
             let center = restingCenter(size: size, in: room)
             window(size: size)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onFrameChange($0) }
                 .position(x: center.x + drag.width, y: center.y + drag.height)
                 .gesture(dragging(size: size, in: room))
         }
@@ -157,7 +163,7 @@ struct FloatingPreview: View {
                 ? inset(on: .leading, in: room) + size.width / 2
                 : room.size.width - inset(on: .trailing, in: room) - size.width / 2
         }
-        let y = corner.isTop ? margin + size.height / 2 : room.size.height - margin - size.height / 2
+        let y = corner.isTop ? margin + size.height / 2 : room.size.height - reservedBottom - margin - size.height / 2
         return CGPoint(x: x, y: y)
     }
 

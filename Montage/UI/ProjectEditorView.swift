@@ -113,11 +113,10 @@ struct ProjectEditorView: View {
                 EditorView(showsPreview: !isPreviewFloating) {
                     EditorActionPanel(showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
                 }
-                .overlay { floatingPreview }
+                .background { floatingPreview }
             } else {
                 EditorView(showsControlBar: false, showsPreview: !isPreviewFloating)
-                    // Inside the bar's inset, so it never floats under the bar.
-                    .overlay { floatingPreview }
+                    .background { floatingPreview }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         EditorActionBar(showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
                             .padding(.bottom, 8)
@@ -144,15 +143,20 @@ struct ProjectEditorView: View {
         }
     }
 
+    /// The floating preview, in a window over the whole app, while it
+    /// floats; not over the full-screen player, which shows it already.
     @ViewBuilder
     private var floatingPreview: some View {
-        if isPreviewFloating && editor.playback.hasContent {
-            FloatingPreview(
+        if isPreviewFloating && editor.playback.hasContent && !isShowingFullscreen {
+            FloatingPreviewWindow(preview: FloatingPreview(
                 playback: editor.playback, aspectRatio: previewAspectRatio,
                 onExpand: { isShowingFullscreen = true },
-                onDock: { setPreviewFloating(false) }
-            )
-            .transition(.scale(scale: 0.8).combined(with: .opacity))
+                onDock: { setPreviewFloating(false) },
+                // Clear of the bar along the bottom, where there is one.
+                reservedBottom: verticalSizeClass == .compact ? 0 : 76
+            ))
+            .frame(width: 0, height: 0)
+            .allowsHitTesting(false)
         }
     }
 
