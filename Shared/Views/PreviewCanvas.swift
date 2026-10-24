@@ -93,6 +93,8 @@ struct PreviewCanvas: View {
         .onChange(of: isDragging) { _, isDragging in
             if !isDragging { endDrag() }
         }
+        // Taken away mid-drag, as when playback starts, the drag still ends.
+        .onDisappear { endDrag() }
     }
 
     // MARK: - What's selected

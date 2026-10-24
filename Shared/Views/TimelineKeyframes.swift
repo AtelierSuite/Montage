@@ -38,6 +38,7 @@ struct TimelineKeyframes: View {
         .onChange(of: isDragging) { _, isDragging in
             if !isDragging { endDrag() }
         }
+        .onDisappear { endDrag() }
     }
 
     // MARK: - Keyframes
