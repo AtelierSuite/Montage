@@ -21,6 +21,12 @@
             "state" : "translated",
             "value" : "无法以此画面尺寸、帧速率或音频格式将此视频导出为 AVI。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法以此畫面尺寸、影格速率或音訊格式將此影片輸出為 AVI。"
+          }
         }
       }
     },
@@ -43,6 +49,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AVI 文件已完成或已取消，无法再向其中添加内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AVI 檔案已完成或已取消，無法再加入任何內容。"
           }
         }
       }
@@ -67,6 +79,12 @@
             "state" : "translated",
             "value" : "此视频太大，无法导出为单个 AVI 文件。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此影片太大，無法輸出為單一 AVI 檔案。"
+          }
         }
       }
     },
@@ -89,6 +107,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "部分视频或音频的格式无法写入 AVI 文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分影片或音訊的格式無法寫入 AVI 檔案。"
           }
         }
       }
@@ -113,6 +137,12 @@
             "state" : "translated",
             "value" : "无法读取查找表。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法讀取查找表。"
+          }
         }
       }
     },
@@ -135,6 +165,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "仅可使用范围为 0 到 1 的 3D 查找表。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅可使用範圍為 0 到 1 的 3D 查找表。"
           }
         }
       }
@@ -159,6 +195,12 @@
             "state" : "translated",
             "value" : "此文件中没有可导入的项目时间线。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此檔案中沒有可輸入的專案時間軸。"
+          }
         }
       }
     },
@@ -181,6 +223,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法读取项目文件。文件可能已损坏，或尚未写入完成。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法讀取專案檔案。檔案可能已損毀，或尚未寫入完成。"
           }
         }
       }
@@ -205,6 +253,12 @@
             "state" : "translated",
             "value" : "此文件不是 Montage 可导入的项目。Montage 可导入来自 Final Cut Pro 或 LumaFusion 的 FCPXML，以及来自 Premiere Pro 的 Final Cut Pro 7 XML。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此檔案不是 Montage 可輸入的專案。Montage 可輸入來自 Final Cut Pro 或 LumaFusion 的 FCPXML，以及來自 Premiere Pro 的 Final Cut Pro 7 XML。"
+          }
         }
       }
     },
@@ -224,6 +278,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Cut Pro XML"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Final Cut Pro XML"
@@ -251,6 +311,12 @@
             "state" : "translated",
             "value" : "Final Cut Pro 7 XML"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Cut Pro 7 XML"
+          }
         }
       }
     },
@@ -273,6 +339,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "仅导入了试演中选定的片段，其他 %lld 个备选未导入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅輸入了試演中選定的片段，其他 %lld 個備選未輸入。"
           }
         }
       }
@@ -297,6 +369,12 @@
             "state" : "translated",
             "value" : "一个字幕被略去。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一個字幕被略去。"
+          }
         }
       }
     },
@@ -319,6 +397,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "片段已关闭，因此被略去。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片段已關閉，因此被略去。"
           }
         }
       }
@@ -343,6 +427,12 @@
             "state" : "translated",
             "value" : "生成器“%@”被略去。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "產生器「%@」被略去。"
+          }
         }
       }
     },
@@ -365,6 +455,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "一个标记被略去。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一個標記被略去。"
           }
         }
       }
@@ -389,6 +485,12 @@
             "state" : "translated",
             "value" : "标记“%@”被略去。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標記「%@」被略去。"
+          }
         }
       }
     },
@@ -411,6 +513,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在 %@ 找不到文件。请重新链接，以播放由它制作的片段。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 找不到檔案。請重新連結，以播放由它製作的片段。"
           }
         }
       }
@@ -435,6 +543,12 @@
             "state" : "translated",
             "value" : "片段与另一个片段重叠，因此被移到了单独的轨道。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片段與另一個片段重疊，因此被移到了單獨的軌道。"
+          }
         }
       }
     },
@@ -457,6 +571,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "片段位于复合片段或多机位片段中，而它们也有相同的设置，因此保留了片段自己的设置。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片段位於複合片段或多機位片段中，而它們也有相同的設定，因此保留了片段自己的設定。"
           }
         }
       }
@@ -481,6 +601,12 @@
             "state" : "translated",
             "value" : "仅导入了第一条时间线；文件中还有 %lld 条。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅輸入了第一條時間軸；檔案中還有 %lld 條。"
+          }
         }
       }
     },
@@ -503,6 +629,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Montage 中没有与“%@”对应的功能，因此被略去。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montage 中沒有與「%@」對應的功能，因此被略去。"
           }
         }
       }
@@ -527,6 +659,12 @@
             "state" : "translated",
             "value" : "片段的速度变化被略去，因此会以正常速度播放。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片段的速度變化被略去，因此會以正常速度播放。"
+          }
         }
       }
     },
@@ -549,6 +687,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "一个标题被略去。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一個標題被略去。"
           }
         }
       }
@@ -573,6 +717,12 @@
             "state" : "translated",
             "value" : "标题“%@”被略去。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標題「%@」被略去。"
+          }
         }
       }
     },
@@ -595,6 +745,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "转场“%@”被替换为在其中点处的直接切换。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轉場「%@」被替換為在其中點處的直接切換。"
           }
         }
       }
@@ -619,6 +775,12 @@
             "state" : "translated",
             "value" : "“%@”的横向和纵向值不同，因此两者都使用了横向值。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」的橫向和縱向值不同，因此兩者都使用了橫向值。"
+          }
         }
       }
     },
@@ -641,6 +803,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Montage 中没有与“%@”对应的效果。它会以关闭状态保留在片段上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montage 中沒有與「%@」對應的效果。它會以關閉狀態保留在片段上。"
           }
         }
       }
@@ -665,6 +833,12 @@
             "state" : "translated",
             "value" : "此项目由更新版本的 Montage 存储。请更新 Montage 以打开它。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案由更新版本的 Montage 儲存。請更新 Montage 以開啟它。"
+          }
         }
       }
     },
@@ -687,6 +861,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此文件不是 Montage 项目，或已损坏。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此檔案不是 Montage 專案，或已損毀。"
           }
         }
       }
