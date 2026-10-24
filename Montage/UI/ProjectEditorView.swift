@@ -45,7 +45,10 @@ struct ProjectEditorView: View {
         self.fileURL = fileURL
         let media = document.wrappedValue.media
         media.packageURL = fileURL
-        let editor = ProjectEditor(project: document.wrappedValue.project, mediaResolver: media.resolver)
+        document.wrappedValue.cache.packageURL = fileURL
+        let editor = ProjectEditor(
+            project: document.wrappedValue.project, mediaResolver: media.resolver, cache: document.wrappedValue.cache
+        )
         _editor = State(initialValue: editor)
         _importer = State(initialValue: MediaImporter(store: media, editor: editor))
     }
@@ -56,10 +59,11 @@ struct ProjectEditorView: View {
             .environment(importer)
             .onAppear {
                 attach(to: undoManager)
-                locateMedia(at: fileURL)
                 // Every edit goes back into the document, which marks it
                 // as changed so it's saved.
                 editor.onChange = { [$document] project in $document.wrappedValue.project = project }
+                editor.takeRefreshedBookmarks = { [media = document.media] in media.bookmarks.takeRefreshedBookmarks() }
+                locateMedia(at: fileURL)
             }
             .onChange(of: undoManager) { _, undoManager in attach(to: undoManager) }
             // Closing the document; the player goes with the editor.
@@ -85,6 +89,7 @@ struct ProjectEditorView: View {
             accessedURL = url?.startAccessingSecurityScopedResource() == true ? url : nil
         }
         document.media.packageURL = url
+        document.cache.packageURL = url
         editor.mediaResolver = document.media.resolver
         importer.store = document.media
     }

@@ -78,6 +78,13 @@ enum MainMenu {
         menu.addItem(item(String(localized: "Mac.Menu.Paste"), #selector(NSText.paste(_:)), "v"))
         menu.addItem(item(String(localized: "Mac.Menu.Delete"), #selector(NSText.delete(_:))))
         menu.addItem(item(String(localized: "Mac.Menu.SelectAll"), #selector(NSText.selectAll(_:)), "a"))
+        menu.addItem(.separator())
+        menu.addItem(item(String(localized: "Edit.Split"), #selector(ProjectWindowController.splitClips(_:)), "b"))
+        menu.addItem(item(String(localized: "Edit.DetachAudio"), #selector(ProjectWindowController.detachAudio(_:)),
+                          "s", [.command, .control, .shift]))
+        menu.addItem(item(String(localized: "Edit.RippleDelete"), #selector(ProjectWindowController.rippleDelete(_:))))
+        menu.addItem(item(String(localized: "Edit.AddMarker"), #selector(ProjectWindowController.addMarker(_:))))
+        menu.addItem(item(String(localized: "Timeline.Snapping"), #selector(ProjectWindowController.toggleSnapping(_:))))
         return menu
     }
 
@@ -87,6 +94,9 @@ enum MainMenu {
                           "s", [.command, .control]))
         menu.addItem(item(String(localized: "Mac.Menu.ShowInspector"), #selector(NSSplitViewController.toggleInspector(_:)),
                           "i", [.command, .option]))
+        menu.addItem(.separator())
+        menu.addItem(item(String(localized: "Timeline.ZoomIn"), #selector(ProjectWindowController.zoomInTimeline(_:)), "="))
+        menu.addItem(item(String(localized: "Timeline.ZoomOut"), #selector(ProjectWindowController.zoomOutTimeline(_:)), "-"))
         menu.addItem(.separator())
         menu.addItem(item(String(localized: "Mac.Menu.ShowToolbar"), #selector(NSWindow.toggleToolbarShown(_:)),
                           "t", [.command, .option]))

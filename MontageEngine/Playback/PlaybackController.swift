@@ -32,6 +32,9 @@ public final class PlaybackController {
     public private(set) var currentTime = CMTime.zero
     /// Whether playback is running, or is to run once a seek or rebuild is done.
     public private(set) var isPlaying = false
+    /// How fast playback runs while it does: 1 forwards, faster when
+    /// shuttled, and below zero backwards.
+    public private(set) var rate: Float = 1
     /// Whether the playhead is being dragged.
     public private(set) var isScrubbing = false
     /// Why the player couldn't play the composition, if it couldn't. Cleared
@@ -101,8 +104,20 @@ public final class PlaybackController {
         // the media it finds may be different.
         if Self.needsRebuild(from: previous, to: project) {
             scheduleRebuild(after: rebuildDelay)
+        } else if previous != project, !isPlaying {
+            // The compositor draws the edit from the snapshot, but a paused
+            // player only draws again when asked to.
+            redrawPausedFrame()
         }
         if currentTime > duration { seek(to: duration) }
+    }
+
+    /// Draws the paused frame again, with the latest edit. Seeking to where
+    /// the player already is draws nothing new; handing the item its video
+    /// composition afresh does, without moving the playhead.
+    private func redrawPausedFrame() {
+        guard let item = player.currentItem, let videoComposition = item.videoComposition else { return }
+        item.videoComposition = AVVideoComposition(configuration: AVVideoComposition.Configuration(videoComposition: videoComposition))
     }
 
     /// Hands in a new resolver, such as when the project has moved.
@@ -112,19 +127,27 @@ public final class PlaybackController {
     }
 
     /// Whether a change could change the composition. Conservative: anything
-    /// but clip effects, which nothing renders yet and the compositor (#8)
-    /// will read from the snapshot, rebuilds.
+    /// but how clips' pictures look (their transform, opacity, blend mode and
+    /// effects), which the compositor reads from the snapshot, rebuilds. The
+    /// audio taps read the snapshot too, and only need building again when a
+    /// clip's audio effects change shape: one is added, removed or moved, or
+    /// its tail gets longer or shorter.
     nonisolated static func needsRebuild(from old: Project, to new: Project) -> Bool {
         func structure(_ project: Project) -> Project {
             var project = project
             for index in project.tracks.indices {
-                for clip in project.tracks[index].clips where !clip.effects.isEmpty {
-                    project.tracks[index].update(clip.id) { $0.effects = [] }
+                for clip in project.tracks[index].clips {
+                    project.tracks[index].update(clip.id) {
+                        $0.effects = []
+                        $0.opacity = Animatable(1)
+                        $0.transform = ClipTransform()
+                        $0.blendMode = .normal
+                    }
                 }
             }
             return project
         }
-        return old != new && structure(old) != structure(new)
+        return old != new && (structure(old) != structure(new) || old.audioEffectLayouts != new.audioEffectLayouts)
     }
 
     private func scheduleRebuild(after delay: Duration) {
@@ -135,7 +158,9 @@ public final class PlaybackController {
             if delay > .zero {
                 do { try await Task.sleep(for: delay) } catch { return }
             }
-            guard let builder = self.map({ CompositionBuilder(project: $0.project, mediaResolver: $0.mediaResolver) }) else { return }
+            guard let builder = self.map({
+                CompositionBuilder(project: $0.project, mediaResolver: $0.mediaResolver, snapshot: $0.snapshot)
+            }) else { return }
             // Builds off the main actor; only cancelling throws.
             guard let built = try? await builder.build(), !Task.isCancelled else { return }
             self?.install(built)
@@ -159,7 +184,7 @@ public final class PlaybackController {
         seekInFlight = nil
         pendingSeek = (min(time, duration), .zero)
         startNextSeek()
-        if isPlaying { player.play() }
+        if isPlaying { player.rate = rate }
     }
 
     // MARK: - Transport
@@ -171,7 +196,23 @@ public final class PlaybackController {
             seek(to: .zero)
         }
         isPlaying = true
+        rate = 1
         player.play()
+    }
+
+    /// Plays at a rate, as J, K and L shuttle: 2 is twice as fast, -1 plays
+    /// backwards, and 0 pauses. Forwards from the end starts again from the
+    /// start; backwards stops at the start.
+    public func shuttle(at rate: Float) {
+        guard rate != 0 else { return pause() }
+        guard hasContent, playbackError == nil else { return }
+        if rate > 0, let composition, currentTime >= min(duration, composition.duration) {
+            seek(to: .zero)
+        }
+        guard rate > 0 || currentTime > .zero else { return }
+        isPlaying = true
+        self.rate = rate
+        player.rate = rate
     }
 
     public func pause() {
@@ -294,6 +335,8 @@ public final class PlaybackController {
         // going; the playhead already shows the target.
         guard pendingSeek == nil, seekInFlight == nil, !isScrubbing else { return }
         currentTime = clamped(time)
+        // Played backwards to the start, the player stops without saying so.
+        if isPlaying, rate < 0, currentTime <= .zero { pause() }
     }
 
     private func observeEnd(of item: AVPlayerItem) {

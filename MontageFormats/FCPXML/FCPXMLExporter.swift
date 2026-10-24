@@ -217,6 +217,16 @@ struct FCPXMLExporter {
         case .easeIn: "easeIn"
         case .easeOut: "easeOut"
         case .easeInOut: "ease"
+        // Final Cut has no curves of its own, so a curve goes out as the
+        // easing it's closest to: slow to start where its first handle sits
+        // under the straight line, slow to end where its second sits over it.
+        case .bezier(let curve):
+            switch (curve.y1 < curve.x1, curve.y2 > curve.x2) {
+            case (true, true): "ease"
+            case (true, false): "easeIn"
+            case (false, true): "easeOut"
+            case (false, false): nil
+            }
         }
     }
 
