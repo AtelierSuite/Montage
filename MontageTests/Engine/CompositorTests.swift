@@ -45,6 +45,19 @@ struct CompositorTests {
         }
     }
 
+    @Test func aClipsEffectsAreDrawnIntoTheFrame() async throws {
+        let plain = try await frame([clip(landscape)])
+        var darker = ColorCorrection()
+        darker.exposure = Animatable(-2)
+        let corrected = try await frame([clip(landscape) { $0.effects = [Effect(.colorCorrection(darker))] }])
+        let turnedOff = try await frame([clip(landscape) { $0.effects = [Effect(isEnabled: false, .colorCorrection(darker))] }])
+        for point in points {
+            // Two stops down is about a quarter of the light, well under half.
+            #expect(corrected.brightness(at: point) < plain.brightness(at: point) * 0.5, "\(point)")
+            #expect(turnedOff.isClose(turnedOff[point], plain[point], within: 0.03), "\(point)")
+        }
+    }
+
     @Test func anOverlayIsFadedByItsOpacity() async throws {
         let bottom = try await frame([clip(landscape)])
         let top = try await frame([clip(portrait)])
