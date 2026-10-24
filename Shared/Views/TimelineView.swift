@@ -75,10 +75,16 @@ struct TimelineView: View {
         }
         .simultaneousGesture(pinching)
         .background(.background.secondary)
+        #if os(macOS)
         .focusable()
         .focusEffectDisabled()
         .focused($isFocused)
         .onKeyPress(phases: .down, action: keyPressed)
+        #else
+        // Focusing a view on iOS brings up the software keyboard, so a
+        // hardware keyboard's keys come as shortcuts instead.
+        .background { shortcuts }
+        #endif
         .task(id: thumbnailRequests) { await loadThumbnails() }
         #if os(iOS)
         .sensoryFeedback(.impact(weight: .medium), trigger: pickUps)
@@ -179,7 +185,7 @@ struct TimelineView: View {
     // MARK: - Selecting
 
     private func tapped(at location: CGPoint, layout: TimelineLayout) {
-        isFocused = true
+        focus()
         let extending = editor.timeline.selectsMultiple || Self.isExtendingSelection
         if let (clip, _) = layout.clip(at: location) {
             editor.select(clip.id, extending: extending)
@@ -220,7 +226,7 @@ struct TimelineView: View {
 
     private func moveChanged(start: CGPoint, to location: CGPoint, layout: TimelineLayout) {
         if drag == nil {
-            isFocused = true
+            focus()
             guard let move = TimelineDrag.move(at: start, layout: layout, editor: editor) else { return }
             drag = move
             pickUps += 1
@@ -273,7 +279,7 @@ struct TimelineView: View {
                 DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
                     .onChanged { value in
                         if drag == nil {
-                            isFocused = true
+                            focus()
                             if !editor.timeline.selectedClipIDs.contains(id) { editor.select(id) }
                             drag = TimelineDrag.trim(id, edge: edge, at: value.startLocation, layout: layout, editor: editor)
                         }
@@ -341,29 +347,67 @@ struct TimelineView: View {
 
     // MARK: - Keys
 
+    /// Takes the keyboard's keys, on a Mac. On iOS they come as shortcuts,
+    /// whatever has focus.
+    private func focus() {
+        #if os(macOS)
+        isFocused = true
+        #endif
+    }
+
+    #if os(iOS)
+    /// The keys as buttons nobody sees, as `TransportShortcuts` does.
+    private var shortcuts: some View {
+        let keys: [(KeyEquivalent, EventModifiers)] = [
+            ("j", []), ("k", []), ("l", []), ("i", []), ("o", []), ("x", []), ("m", []), ("b", []), ("n", []),
+            ("=", []), ("-", []), ("z", .shift), ("a", .command), (.delete, []), (.delete, .shift), (.escape, []),
+        ]
+        return ZStack {
+            ForEach(keys.indices, id: \.self) { index in
+                let (key, modifiers) = keys[index]
+                Button(String(key.character)) { _ = perform(key, modifiers: modifiers) }
+                    .keyboardShortcut(key, modifiers: modifiers)
+            }
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+    #endif
+
     private func keyPressed(_ press: KeyPress) -> KeyPress.Result {
+        perform(press.key, modifiers: press.modifiers.subtracting([.capsLock, .numericPad])) ? .handled : .ignored
+    }
+
+    /// Does what a key does, returning whether it did anything.
+    private func perform(_ key: KeyEquivalent, modifiers: EventModifiers) -> Bool {
+        keyAction(key, modifiers: modifiers) == .handled
+    }
+
+    private func keyAction(_ key: KeyEquivalent, modifiers: EventModifiers) -> KeyPress.Result {
         let playback = editor.playback
         let timeline = editor.timeline
-        let modifiers = press.modifiers.subtracting([.capsLock, .numericPad])
-        if press.key == .delete || press.key == .deleteForward {
+        let character = String(key.character).lowercased()
+        if key == .delete || key == .deleteForward {
             guard editor.canDelete else { return .ignored }
             editor.deleteSelection(ripple: modifiers.contains(.shift))
             return .handled
         }
-        if press.key == .escape {
+        if key == .escape {
             editor.deselectAll()
             return .handled
         }
-        if modifiers == .command, press.characters == "a" {
+        if modifiers == .command, character == "a" {
             editor.selectAllClips()
             return .handled
         }
-        if modifiers == .shift, press.characters.lowercased() == "z" {
+        if modifiers == .shift, character == "z" {
             zoomToFit()
             return .handled
         }
         guard modifiers.isEmpty || modifiers == .shift else { return .ignored }
-        switch press.characters {
+        switch character {
         case "j":
             // Again and again, faster backwards.
             playback.shuttle(at: playback.isPlaying && playback.rate < 0 ? max(playback.rate * 2, -8) : -1)
