@@ -164,6 +164,7 @@ struct TimelineView: View {
                 .contentShape(.rect)
                 .gesture(scrubbing(layout))
             trimHandles(layout, visible: origin...(origin + canvasWidth))
+            TimelineKeyframes(layout: layout, space: Self.space)
         }
         .frame(width: width, height: height, alignment: .topLeading)
         .overlay(alignment: .topLeading) {
