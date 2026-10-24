@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE fcpxml>
+
+<!-- Made by hand to cover how Final Cut lays out a project: a primary
+     storyline starting at the sequence's timecode, connected clips above
+     and below it, a secondary storyline, a transition, and compound,
+     multicam, synced, plain and audition clips, with settings, keyframes
+     and effects. The media are the test samples, by name, found beside it. -->
+<fcpxml version="1.11">
+    <resources>
+        <format id="r1" name="FFVideoFormat1080p30" frameDuration="1/30s" width="1920" height="1080"/>
+        <format id="r2" frameDuration="1/30s" width="1920" height="1080"/>
+        <format id="r3" width="1024" height="768"/>
+        <asset id="a1" name="IMG_1805" start="0s" duration="20s" hasVideo="1" format="r2" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="IMG_1805.MOV"/>
+        </asset>
+        <asset id="a2" name="IMG_1813" start="0s" duration="20s" hasVideo="1" format="r2" hasAudio="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="IMG_1813.MOV"/>
+        </asset>
+        <asset id="a3" name="IMG_1841" start="0s" duration="20s" hasVideo="1" format="r2" hasAudio="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="IMG_1841.MOV"/>
+        </asset>
+        <asset id="a4" name="IMG_3311" start="0s" duration="20s" hasVideo="1" format="r2" hasAudio="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="IMG_3311.MOV"/>
+        </asset>
+        <asset id="a5" name="IMG_3312" start="0s" duration="20s" hasVideo="1" format="r2" hasAudio="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="IMG_3312.MOV"/>
+        </asset>
+        <asset id="a6" name="IMG_3313" start="0s" duration="20s" hasVideo="1" format="r2" hasAudio="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="IMG_3313.MOV"/>
+        </asset>
+        <asset id="a7" name="IMG_3314" start="0s" duration="20s" hasVideo="1" format="r2" hasAudio="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="IMG_3314.MOV"/>
+        </asset>
+        <asset id="a8" name="IMG_3312 export" start="0s" duration="20s" hasVideo="1" format="r2" hasAudio="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="IMG_3312.mp4"/>
+        </asset>
+        <asset id="a9" name="Tree" start="0s" duration="0s" hasVideo="1" format="r3">
+            <media-rep kind="original-media" src="How-to-draw-a-cartoon-tree-20.png"/>
+        </asset>
+        <effect id="e1" name="Gaussian Blur" uid=".../Effects.localized/Blur.localized/Gaussian.localized/Gaussian.moef"/>
+        <effect id="e2" name="Glow" uid="com.example.fxplug.glow"/>
+        <effect id="e3" name="Cross Dissolve" uid="FxPlug:4731E73A-8DAC-4113-9A30-AE85B1761265"/>
+        <effect id="e4" name="Basic Title" uid=".../Titles.localized/Bumper:Opener.localized/Basic Title.localized/Basic Title.moti"/>
+        <media id="m1" name="Compound">
+            <sequence format="r1" duration="5s" tcStart="0s">
+                <spine>
+                    <asset-clip ref="a4" offset="0s" name="Inner One" start="0s" duration="2s"/>
+                    <asset-clip ref="a5" offset="2s" name="Inner Two" start="0s" duration="3s"/>
+                </spine>
+            </sequence>
+        </media>
+        <media id="m2" name="Multicam">
+            <multicam format="r1" tcStart="0s">
+                <mc-angle name="Camera" angleID="cam">
+                    <asset-clip ref="a6" offset="0s" name="Camera Angle" duration="10s"/>
+                </mc-angle>
+                <mc-angle name="Recorder" angleID="rec">
+                    <asset-clip ref="a1" offset="0s" name="Recorder Angle" duration="10s"/>
+                </mc-angle>
+            </multicam>
+        </media>
+    </resources>
+    <library>
+        <event name="Fixtures">
+            <project name="Storylines">
+                <sequence format="r1" duration="19s" tcStart="3600s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">
+                    <spine>
+                        <asset-clip ref="a1" offset="3600s" name="Opening" start="1s" duration="11/2s" tcFormat="NDF">
+                            <adjust-transform position="10 -5" scale="0.5 0.5" rotation="90"/>
+                            <adjust-blend amount="1">
+                                <param name="amount">
+                                    <keyframeAnimation>
+                                        <keyframe time="1s" value="0"/>
+                                        <keyframe time="2s" value="1" interp="easeOut"/>
+                                    </keyframeAnimation>
+                                </param>
+                            </adjust-blend>
+                            <adjust-volume amount="-6dB"/>
+                            <adjust-panner amount="-50"/>
+                            <asset-clip ref="a2" lane="1" offset="2s" name="Above" start="0s" duration="2s"/>
+                            <asset-clip ref="a3" lane="-1" offset="1s" name="Below" start="0s" duration="4s" srcEnable="audio"/>
+                            <spine lane="2" offset="3s">
+                                <asset-clip ref="a4" offset="0s" name="Storyline One" start="0s" duration="1s"/>
+                                <asset-clip ref="a5" offset="1s" name="Storyline Two" start="0s" duration="1s"/>
+                            </spine>
+                            <marker start="2s" duration="1/30s" value="Look here"/>
+                            <filter-video ref="e1" name="Gaussian Blur">
+                                <param name="Amount" key="9999/gaussianBlur/amount" value="19.2"/>
+                            </filter-video>
+                            <filter-video ref="e2" name="Glow">
+                                <param name="Radius" key="1" value="12">
+                                    <keyframeAnimation>
+                                        <keyframe time="1s" value="12"/>
+                                        <keyframe time="3s" value="30"/>
+                                    </keyframeAnimation>
+                                </param>
+                            </filter-video>
+                        </asset-clip>
+                        <transition name="Cross Dissolve" offset="7209/2s" duration="1s">
+                            <filter-video ref="e3" name="Cross Dissolve"/>
+                        </transition>
+                        <ref-clip ref="m1" offset="7209/2s" name="Compound" start="0s" duration="3s"/>
+                        <gap name="Gap" offset="7215/2s" start="0s" duration="1s">
+                            <title ref="e4" lane="1" offset="0s" name="Basic Title" duration="1s">
+                                <text>
+                                    <text-style ref="ts1">Hello</text-style>
+                                </text>
+                                <text-style-def id="ts1">
+                                    <text-style font="Helvetica" fontSize="63"/>
+                                </text-style-def>
+                            </title>
+                        </gap>
+                        <mc-clip ref="m2" offset="7217/2s" name="Multicam" start="0s" duration="2s">
+                            <mc-source angleID="cam" srcEnable="video"/>
+                            <mc-source angleID="rec" srcEnable="audio"/>
+                        </mc-clip>
+                        <sync-clip offset="7221/2s" name="Synced" start="0s" duration="2s">
+                            <asset-clip ref="a7" offset="0s" name="Synced Picture" start="0s" duration="2s"/>
+                            <asset-clip ref="a4" lane="-1" offset="0s" name="Synced Sound" start="0s" duration="2s" srcEnable="audio"/>
+                        </sync-clip>
+                        <clip offset="7225/2s" name="Plain" start="0s" duration="2s">
+                            <video ref="a8" offset="0s" start="0s" duration="2s">
+                                <audio ref="a8" lane="-1" offset="0s" start="0s" duration="2s"/>
+                            </video>
+                        </clip>
+                        <audition offset="7229/2s">
+                            <asset-clip ref="a2" offset="7229/2s" name="Pick" start="5s" duration="1s"/>
+                            <asset-clip ref="a3" offset="7229/2s" name="Alternative" start="5s" duration="1s"/>
+                        </audition>
+                        <video ref="a9" offset="7231/2s" name="Tree" start="0s" duration="2s"/>
+                        <asset-clip ref="a5" offset="7235/2s" name="Fast" start="0s" duration="1s">
+                            <timeMap>
+                                <timept time="0s" value="0s" interp="linear"/>
+                                <timept time="1s" value="2s" interp="linear"/>
+                            </timeMap>
+                        </asset-clip>
+                        <asset-clip ref="a6" offset="7237/2s" name="Off" start="0s" duration="1s" enabled="0"/>
+                    </spine>
+                </sequence>
+            </project>
+        </event>
+    </library>
+</fcpxml>
