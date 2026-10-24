@@ -104,4 +104,12 @@ public enum ProjectInterchange {
         if let coordinationError { throw coordinationError }
         return try result.get()
     }
+
+    // MARK: - Exporting
+
+    /// The project as an FCPXML document for Final Cut Pro. `mediaResolver`
+    /// finds the media's files, so Final Cut can find them too.
+    public static func fcpxml(for project: Project, named name: String, mediaResolver: MediaResolver) -> Data {
+        FCPXMLExporter(project: project, name: name, mediaResolver: mediaResolver).document()
+    }
 }

@@ -608,8 +608,9 @@ struct FCPXMLImporter {
         return Double(trimmed)
     }
 
+    /// Final Cut's lowest level, -96dB, is silence.
     static func linearGain(decibels: Double) -> Double {
-        decibels == -.infinity ? 0 : pow(10, decibels / 20)
+        decibels <= -96 ? 0 : pow(10, decibels / 20)
     }
 
     private func time(_ string: String?) -> CMTime? {
