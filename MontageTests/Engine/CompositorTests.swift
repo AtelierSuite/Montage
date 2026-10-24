@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreGraphics
 import CoreMedia
+import ImageIO
 @testable import MontageEngine
 import Testing
 
@@ -120,6 +121,32 @@ struct CompositorTests {
         // and 540 + (480 - 960) × 0.5625 down.
         let landed = CGPoint(x: 960 + 270 * 0.5625, y: 540 - 480 * 0.5625)
         #expect(turned.isClose(turned[landed], full[CGPoint(x: 480, y: 270)], within: 0.08))
+    }
+
+    @Test func aStillImageIsDrawnFittedIntoTheFrame() async throws {
+        // A portrait photo, 1535 by 2729, fitted between x 656 and 1264 like
+        // the portrait recording.
+        let photo = MediaItem(name: "IMG_2459.JPG", kind: .image, location: .package(path: "IMG_2459.JPG"), metadata: MediaMetadata())
+        let still = Clip(mediaID: photo.id, sourceRange: range(0, 3))
+        let composed = try await frame([still], media: [photo])
+        // The photo drawn into the same place in a frame of its own.
+        let photoImage = try #require(
+            CGImageSourceCreateWithURL(Samples.url("IMG_2459.JPG") as CFURL, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) }
+        )
+        let sRGB = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        let context = try #require(CGContext(
+            data: nil, width: 1920, height: 1080, bitsPerComponent: 8, bytesPerRow: 0,
+            space: sRGB, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        context.interpolationQuality = .high
+        let width = 1535 * 1080 / 2729.0
+        context.draw(photoImage, in: CGRect(x: 960 - width / 2, y: 0, width: width, height: 1080))
+        let fitted = FramePixels(try #require(context.makeImage()))
+        for point in points {
+            #expect(composed.isClose(composed[point], fitted[point], within: 0.05), "\(point)")
+        }
+        #expect(composed.brightness(at: CGPoint(x: 300, y: 540)) < 0.02)
+        #expect(composed.brightness(at: CGPoint(x: 1600, y: 540)) < 0.02)
     }
 
     @Test func aRotatedRecordingShowsUpright() async throws {

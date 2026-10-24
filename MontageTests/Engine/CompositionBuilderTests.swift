@@ -178,11 +178,32 @@ struct CompositionBuilderTests {
         #expect(try #require(built.videoComposition).instructions.map(\.timeRange) == [range(0, 2), range(2, 2)])
     }
 
-    @Test func stillImagesAreLeftForTheCustomCompositor() async throws {
+    @Test func aStillImageHoldsItsTimeForTheCompositor() async throws {
         let image = Clip(mediaID: SampleMedia.image.id, sourceRange: range(0, 3))
+        let video = Clip(mediaID: SampleMedia.landscape.id, sourceRange: range(0, 2), timelineStart: seconds(4))
+        let built = try await build(project([Track(kind: .video, clips: [image, video])]))
+        #expect(built.skippedClips.isEmpty, "\(built.skippedClips)")
+        #expect(built.videoLayers.first?.segments.map(\.timelineRange) == [range(0, 3), range(4, 2)])
+        #expect(built.duration == seconds(6))
+        #expect(built.composition.duration == seconds(6))
+        // A still has no sound of its own.
+        #expect(built.audioLayers.first?.segments.map(\.clipID) == [video.id])
+    }
+
+    @Test func aStillImageAloneMakesAPicture() async throws {
+        let image = Clip(mediaID: SampleMedia.image.id, sourceRange: range(0, 10))
         let built = try await build(project([Track(kind: .video, clips: [image])]))
-        #expect(built.skippedClips.map(\.reason) == [.stillImage])
-        #expect(built.missingMedia.isEmpty)
+        #expect(built.skippedClips.isEmpty, "\(built.skippedClips)")
+        #expect(built.duration == seconds(10))
+        #expect(built.composition.duration == seconds(10))
+        #expect(built.audioLayers.isEmpty)
+        #expect(try #require(built.videoComposition).instructions.map(\.timeRange) == [range(0, 10)])
+    }
+
+    @Test func aStillImageOnAnAudioTrackIsSkipped() async throws {
+        let image = Clip(mediaID: SampleMedia.image.id, sourceRange: range(0, 3))
+        let built = try await build(project([Track(kind: .audio, clips: [image])]))
+        #expect(built.skippedClips.map(\.reason) == [.noUsableTrack])
         #expect(built.isEmpty)
     }
 
