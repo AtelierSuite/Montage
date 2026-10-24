@@ -103,10 +103,18 @@ public final class PlaybackController {
             scheduleRebuild(after: rebuildDelay)
         } else if previous != project, !isPlaying {
             // The compositor draws the edit from the snapshot, but a paused
-            // player only draws again when asked to: seek where it is.
-            seek(to: pendingSeek?.time ?? currentTime)
+            // player only draws again when asked to.
+            redrawPausedFrame()
         }
         if currentTime > duration { seek(to: duration) }
+    }
+
+    /// Draws the paused frame again, with the latest edit. Seeking to where
+    /// the player already is draws nothing new; handing the item its video
+    /// composition afresh does, without moving the playhead.
+    private func redrawPausedFrame() {
+        guard let item = player.currentItem, let videoComposition = item.videoComposition else { return }
+        item.videoComposition = AVVideoComposition(configuration: AVVideoComposition.Configuration(videoComposition: videoComposition))
     }
 
     /// Hands in a new resolver, such as when the project has moved.
