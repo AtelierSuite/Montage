@@ -258,6 +258,17 @@ public enum DerivedMediaGenerator {
         input.expectsMediaDataInRealTime = false
         writer.add(input)
 
+        // Reading blocks until the next buffer is decoded, for as long as the
+        // media runs; on a queue of its own, so it doesn't hold a shared
+        // thread the readers and writers it waits on may need.
+        try await withTaskExecutorPreference(DispatchQueue(label: "Montage.StereoCopy")) {
+            try await copy(from: output, of: reader, to: input, of: writer)
+        }
+    }
+
+    private static func copy(
+        from output: AVAssetReaderOutput, of reader: AVAssetReader, to input: AVAssetWriterInput, of writer: AVAssetWriter
+    ) async throws {
         guard reader.startReading(), writer.startWriting() else {
             throw Failure.failed(reader.error ?? writer.error)
         }
