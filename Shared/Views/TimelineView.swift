@@ -47,7 +47,9 @@ struct TimelineView: View {
     /// The pinch under way: the zoom it began at, and the time and place in
     /// the view it's kept over.
     @State private var pinch: (pointsPerSecond: Double, time: Double, x: Double)?
-    @State private var hoverLocation: CGPoint?
+    /// The clip under the pointer. Kept rather than the pointer's place, so
+    /// the timeline is only redrawn when the pointer moves onto another clip.
+    @State private var hoveredClip: Clip.ID?
     @State private var thumbnails: [MediaItem.ID: CGImage] = [:]
     /// Counts the long presses that picked clips up, for a tap of feedback.
     @State private var pickUps = 0
@@ -149,7 +151,7 @@ struct TimelineView: View {
                 .gesture(moving(layout))
             TimelineCanvas(
                 layout: layout, origin: origin, media: mediaByID, frames: editor.playback.frames,
-                selected: editor.timeline.selectedClipIDs, hovered: hoveredClipID(layout),
+                selected: editor.timeline.selectedClipIDs, hovered: hoveredClipID,
                 markers: editor.project.markers, markedIn: editor.timeline.markedIn, markedOut: editor.timeline.markedOut,
                 snapTime: drag?.snap?.point.time, thumbnails: thumbnails, waveforms: waveforms,
                 showsEmptyMessage: editor.project.tracks.allSatisfy(\.clips.isEmpty), viewportWidth: viewport.width
@@ -173,8 +175,11 @@ struct TimelineView: View {
         }
         .onContinuousHover(coordinateSpace: .named(Self.space)) { phase in
             switch phase {
-            case .active(let location): hoverLocation = location
-            case .ended: hoverLocation = nil
+            case .active(let location):
+                let id = layout.clip(at: location)?.clip.id
+                if id != hoveredClip { hoveredClip = id }
+            case .ended:
+                if hoveredClip != nil { hoveredClip = nil }
             }
         }
     }
@@ -184,9 +189,8 @@ struct TimelineView: View {
     }
 
     /// The clip under the pointer, lit up, unless something's being dragged.
-    private func hoveredClipID(_ layout: TimelineLayout) -> Clip.ID? {
-        guard drag == nil, let hoverLocation else { return nil }
-        return layout.clip(at: hoverLocation)?.clip.id
+    private var hoveredClipID: Clip.ID? {
+        drag == nil ? hoveredClip : nil
     }
 
     // MARK: - Selecting
@@ -255,7 +259,7 @@ struct TimelineView: View {
     /// clips in sight, and of the clip under the pointer.
     private func trimHandles(_ layout: TimelineLayout, visible: ClosedRange<Double>) -> some View {
         let selected = editor.timeline.selectedClipIDs
-        let hovered = drag == nil ? hoveredClipID(layout) : nil
+        let hovered = hoveredClipID
         let clips = layout.clips(in: visible).filter { selected.contains($0.clip.id) || $0.clip.id == hovered }
         return ForEach(clips, id: \.clip.id) { clip, row in
             let rect = layout.rect(of: clip, inRow: row)
