@@ -18,6 +18,9 @@ struct EditorView<Controls: View>: View {
     var showsControlBar = true
     /// The controls under the preview, laying the editor out in columns.
     private var columnControls: Controls?
+    /// Whether the preview has its place in the layout. Without it, as when
+    /// it floats over the editor, the timeline takes its room.
+    var showsPreview = true
 
     /// The share of the height the preview was last dragged to, stacked; nil
     /// until it's dragged, sizing the preview to fit the width instead.
@@ -37,8 +40,9 @@ struct EditorView<Controls: View>: View {
     private let minimumPreviewColumnWidth = 190.0
     private let maximumPreviewColumnShare = 0.5
 
-    init(columnControls: () -> Controls) {
+    init(showsPreview: Bool = true, columnControls: () -> Controls) {
         showsControlBar = false
+        self.showsPreview = showsPreview
         self.columnControls = columnControls()
     }
 
@@ -48,46 +52,41 @@ struct EditorView<Controls: View>: View {
                 let width = columnWidth(in: geometry.size.width)
                 HStack(spacing: 0) {
                     VStack(spacing: 0) {
-                        PreviewArea(fillsWidth: false)
-                            .fixedSize(horizontal: false, vertical: true)
+                        if showsPreview {
+                            PreviewArea(fillsWidth: false)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         columnControls
                     }
                     // A gutter along the divider for its grip, clear of the
                     // preview's frame.
                     .padding(.trailing, 8)
                     .frame(width: width)
-                    ResizeHandle(axis: .horizontal) { distance in
-                        let start = dragStartLength ?? width
-                        dragStartLength = start
-                        setColumnWidth(start + distance, in: geometry.size.width)
-                    } onEnd: {
-                        dragStartLength = nil
-                    } onStep: { step in
-                        setColumnWidth(width + step, in: geometry.size.width)
+                    // Only the preview's size is the divider's to change.
+                    if showsPreview {
+                        ResizeHandle(axis: .horizontal) { distance in
+                            let start = dragStartLength ?? width
+                            dragStartLength = start
+                            setColumnWidth(start + distance, in: geometry.size.width)
+                        } onEnd: {
+                            dragStartLength = nil
+                        } onStep: { step in
+                            setColumnWidth(width + step, in: geometry.size.width)
+                        }
+                        // Over the margin beside the controls, and the track
+                        // headers, which only scroll.
+                        .overhang(before: 24, after: 19)
+                    } else {
+                        Divider()
                     }
-                    // Over the margin beside the controls, and the track
-                    // headers, which only scroll.
-                    .overhang(before: 24, after: 19)
                     TimelineView()
                 }
             } else {
                 let height = previewHeight(in: geometry.size)
                 VStack(spacing: 0) {
-                    PreviewArea()
-                        .frame(height: height)
-                    ResizeHandle(axis: .vertical) { distance in
-                        let start = dragStartLength ?? height
-                        dragStartLength = start
-                        setPreviewHeight(start + distance, in: geometry.size.height)
-                    } onEnd: {
-                        dragStartLength = nil
-                    } onStep: { step in
-                        setPreviewHeight(height + step, in: geometry.size.height)
+                    if showsPreview {
+                        stackedPreview(height: height, in: geometry.size)
                     }
-                    // Mostly over the black around the preview's frame, and
-                    // hardly over the ruler, which is dragged along to scrub.
-                    .overhang(before: 38, after: 5)
-                    .gripOverDark()
                     if showsControlBar {
                         EditorControlBar()
                         Divider()
@@ -97,6 +96,26 @@ struct EditorView<Controls: View>: View {
             }
         }
         .background { TransportShortcuts() }
+    }
+
+    /// The preview over the timeline, and the divider under it to drag.
+    @ViewBuilder
+    private func stackedPreview(height: Double, in size: CGSize) -> some View {
+        PreviewArea()
+            .frame(height: height)
+        ResizeHandle(axis: .vertical) { distance in
+            let start = dragStartLength ?? height
+            dragStartLength = start
+            setPreviewHeight(start + distance, in: size.height)
+        } onEnd: {
+            dragStartLength = nil
+        } onStep: { step in
+            setPreviewHeight(height + step, in: size.height)
+        }
+        // Mostly over the black around the preview's frame, and hardly over
+        // the ruler, which is dragged along to scrub.
+        .overhang(before: 38, after: 5)
+        .gripOverDark()
     }
 
     // MARK: - Sizes
@@ -120,8 +139,11 @@ struct EditorView<Controls: View>: View {
         return min(max(height, minimumPreviewHeight), maximum)
     }
 
+    /// Without the preview, the column only needs room for its controls;
+    /// the width it was dragged to is kept for when the preview's back.
     private func columnWidth(in totalWidth: Double) -> Double {
-        clampedColumnWidth(previewColumnShare * totalWidth, in: totalWidth)
+        guard showsPreview else { return minimumPreviewColumnWidth }
+        return clampedColumnWidth(previewColumnShare * totalWidth, in: totalWidth)
     }
 
     private func setColumnWidth(_ width: Double, in totalWidth: Double) {
@@ -136,8 +158,9 @@ struct EditorView<Controls: View>: View {
 }
 
 extension EditorView where Controls == EmptyView {
-    init(showsControlBar: Bool = true) {
+    init(showsControlBar: Bool = true, showsPreview: Bool = true) {
         self.showsControlBar = showsControlBar
+        self.showsPreview = showsPreview
         columnControls = nil
     }
 }

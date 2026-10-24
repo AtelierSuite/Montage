@@ -1200,6 +1200,17 @@
         }
       }
     },
+    "Preview.Dock" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Put Preview Back"
+          }
+        }
+      }
+    },
     "Preview.Empty.Message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1244,6 +1255,28 @@
         }
       }
     },
+    "Preview.Float" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Float Preview"
+          }
+        }
+      }
+    },
+    "Preview.Stash" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuck Away"
+          }
+        }
+      }
+    },
     "Preview.Title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1251,6 +1284,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Preview"
+          }
+        }
+      }
+    },
+    "Preview.Unstash" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bring Back"
           }
         }
       }

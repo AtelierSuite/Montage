@@ -11,6 +11,7 @@ struct PreviewArea: View {
 
     @Environment(ProjectEditor.self) private var editor
     @Environment(\.expandPreview) private var expandPreview
+    @Environment(\.floatPreview) private var floatPreview
 
     var body: some View {
         if fillsWidth {
@@ -49,6 +50,20 @@ struct PreviewArea: View {
                         )
                     }
                 }
+                .overlay(alignment: .topTrailing) {
+                    if let floatPreview {
+                        Button("Preview.Float", systemImage: "pip.enter") { floatPreview() }
+                            .labelStyle(.iconOnly)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .glassEffect(.regular.interactive(), in: .circle)
+                            // A thumb's worth of room to hit, more than it shows.
+                            .padding(7)
+                            .contentShape(.rect)
+                            .buttonStyle(.plain)
+                    }
+                }
         } else {
             Rectangle()
                 .fill(Color(white: 0.08))
@@ -82,11 +97,14 @@ struct PreviewArea: View {
 extension EnvironmentValues {
     /// Shows the preview full screen, where the platform can: tapping the
     /// preview calls it.
-    @Entry var expandPreview: PreviewExpandAction?
+    @Entry var expandPreview: PreviewAction?
+    /// Takes the preview out of the editor's layout into a window floating
+    /// over it, where the platform can: a button on the preview calls it.
+    @Entry var floatPreview: PreviewAction?
 }
 
-/// Shows the preview full screen.
-struct PreviewExpandAction {
+/// Something to do with the preview, given to it by whatever's around it.
+struct PreviewAction {
     let perform: @MainActor () -> Void
 
     @MainActor

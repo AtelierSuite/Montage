@@ -20,6 +20,9 @@ struct ProjectEditorView: View {
     @State private var isShowingLibrary = false
     @State private var isShowingInspector = false
     @State private var isShowingFullscreen = false
+    /// Whether the preview floats over the editor, picture in picture,
+    /// rather than having its place in the layout.
+    @State private var isPreviewFloating = false
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
     @State private var isShowingExport = false
     @State private var isShowingExports = false
@@ -107,19 +110,23 @@ struct ProjectEditorView: View {
             if verticalSizeClass == .compact {
                 // An iPhone held sideways: the preview and its controls in a
                 // column, beside a timeline with the whole height.
-                EditorView {
+                EditorView(showsPreview: !isPreviewFloating) {
                     EditorActionPanel(showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
                 }
+                .overlay { floatingPreview }
             } else {
-                EditorView(showsControlBar: false)
+                EditorView(showsControlBar: false, showsPreview: !isPreviewFloating)
+                    // Inside the bar's inset, so it never floats under the bar.
+                    .overlay { floatingPreview }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         EditorActionBar(showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
                             .padding(.bottom, 8)
                     }
             }
         }
-        // Tapping the preview shows it full screen.
-        .environment(\.expandPreview, PreviewExpandAction { isShowingFullscreen = true })
+        // Tapping the preview shows it full screen; its button floats it.
+        .environment(\.expandPreview, PreviewAction { isShowingFullscreen = true })
+        .environment(\.floatPreview, PreviewAction { setPreviewFloating(true) })
         .fullScreenCover(isPresented: $isShowingFullscreen) {
             FullscreenPlayerView(playback: editor.playback)
         }
@@ -135,6 +142,28 @@ struct ProjectEditorView: View {
             ExportsSheet(queue: ExportCenter.queue)
                 .presentationDetents([.medium, .large])
         }
+    }
+
+    @ViewBuilder
+    private var floatingPreview: some View {
+        if isPreviewFloating && editor.playback.hasContent {
+            FloatingPreview(
+                playback: editor.playback, aspectRatio: previewAspectRatio,
+                onExpand: { isShowingFullscreen = true },
+                onDock: { setPreviewFloating(false) }
+            )
+            .transition(.scale(scale: 0.8).combined(with: .opacity))
+        }
+    }
+
+    private func setPreviewFloating(_ floating: Bool) {
+        withAnimation(.spring(duration: 0.35)) { isPreviewFloating = floating }
+    }
+
+    /// The project's frame shape, or 16:9 if its settings have none.
+    private var previewAspectRatio: Double {
+        let size = editor.project.settings.renderSize
+        return size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9
     }
 
     /// Opens the library, where it's not already beside the editor in an
