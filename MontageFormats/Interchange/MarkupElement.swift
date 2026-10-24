@@ -67,6 +67,11 @@ struct MarkupElement: Equatable, Sendable {
         return root
     }
 
+    /// Deeper than any interchange file goes. Reading, walking and even
+    /// freeing a tree is recursive, so a file nested far deeper would run
+    /// out of stack; it's refused instead.
+    static let maximumDepth = 256
+
     private final class Builder: NSObject, XMLParserDelegate {
         var stack: [MarkupElement] = []
         var texts: [String] = []
@@ -76,6 +81,10 @@ struct MarkupElement: Equatable, Sendable {
             _ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?,
             qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]
         ) {
+            guard stack.count < MarkupElement.maximumDepth else {
+                parser.abortParsing()
+                return
+            }
             // The parser hands attributes over unordered; sorting keeps the
             // tree the same every time the file is read.
             var element = MarkupElement(elementName)

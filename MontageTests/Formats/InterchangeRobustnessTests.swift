@@ -57,4 +57,10 @@ struct InterchangeRobustnessTests {
         let imported = try ProjectInterchange.read(Data(xml.utf8))
         #expect(imported.project.tracks.flatMap(\.clips).count == 1)
     }
+
+    @Test func refusesNestingTooDeepToWalk() {
+        let depth = 100_000
+        let xml = "<fcpxml>" + String(repeating: "<a>", count: depth) + String(repeating: "</a>", count: depth) + "</fcpxml>"
+        #expect(throws: InterchangeError.self) { try ProjectInterchange.read(Data(xml.utf8)) }
+    }
 }
