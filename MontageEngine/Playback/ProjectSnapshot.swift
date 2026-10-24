@@ -29,6 +29,12 @@ public final class ProjectSnapshot: Sendable {
         current.withLock { body($0) }
     }
 
+    /// Like `read`, but gives up rather than waits while an edit is being put
+    /// in, returning nil: for the audio thread, which mustn't wait on a lock.
+    public func readIfAvailable<Result: Sendable>(_ body: (borrowing Project) -> Result) -> Result? {
+        current.withLockIfAvailable { body($0) }
+    }
+
     public func update(_ project: Project) {
         current.withLock { $0 = project }
     }
