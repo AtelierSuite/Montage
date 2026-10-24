@@ -20,6 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Ahead of the first window: the document controller has to exist
         // before anything asks for `NSDocumentController.shared`.
         _ = DocumentController.shared
+        #if DEBUG
+        if let stage = ScreenshotStage.requested {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { ScreenshotStage.stage(stage) }
+        }
+        #endif
         // A plain launch should begin with the standard open dialog, but not
         // a launch to open a project, which may not have opened yet.
         // Defer until AppKit has finished restoring or opening launch items.

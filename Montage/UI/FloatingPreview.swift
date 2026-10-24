@@ -178,6 +178,7 @@ struct FloatingPreview: View {
         let shape = RoundedRectangle(cornerRadius: radius)
         return PlayerView(player: playback.player)
             .frame(width: size.width, height: size.height)
+            .overlay { ScreenshotStill(playback: playback) }
             .overlay {
                 if isStashed {
                     stashTab
