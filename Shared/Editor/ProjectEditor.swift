@@ -16,15 +16,17 @@ import Observation
 final class ProjectEditor {
     private(set) var project: Project {
         didSet {
-            playbackController?.update(project: project, mediaResolver: mediaResolver)
+            playbackController?.update(project: project, mediaResolver: playbackResolver)
             if project.media != oldValue.media { checkMedia() }
+            makeDerivedMedia()
         }
     }
     /// Finds the media's files, wherever the project is kept.
     var mediaResolver: MediaResolver {
         didSet {
-            playbackController?.update(mediaResolver: mediaResolver)
+            playbackController?.update(mediaResolver: playbackResolver)
             checkMedia()
+            makeDerivedMedia()
         }
     }
     /// The media whose files can't be found, as of the last `checkMedia()`,
@@ -37,11 +39,11 @@ final class ProjectEditor {
     /// doesn't build anything; it goes when the editor does.
     var playback: PlaybackController {
         if let playbackController { return playbackController }
-        let playbackController = PlaybackController(project: project, mediaResolver: mediaResolver)
+        let playbackController = PlaybackController(project: project, mediaResolver: playbackResolver)
         self.playbackController = playbackController
         return playbackController
     }
-    @ObservationIgnored private var playbackController: PlaybackController?
+    @ObservationIgnored private(set) var playbackController: PlaybackController?
 
     /// The timeline's selection, zoom and editing options.
     let timeline = TimelineState()
@@ -53,6 +55,12 @@ final class ProjectEditor {
     @ObservationIgnored let waveforms: WaveformCache
     /// Where thumbnails and waveforms are kept on disk, if anywhere.
     @ObservationIgnored let cacheStore: (any MediaCacheStore)?
+    /// Makes the copies of media the composition plays in their place, into
+    /// the same cache.
+    @ObservationIgnored let derivedMedia: DerivedMediaCache
+    /// The copies being made, and whether more were asked for meanwhile.
+    @ObservationIgnored var derivedMediaTask: Task<Void, Never>?
+    @ObservationIgnored var needsDerivedMedia = false
 
     /// The gesture under way: the project as it was when it began, and the
     /// name of the undo step it makes.
@@ -77,7 +85,9 @@ final class ProjectEditor {
         thumbnails = ThumbnailCache(store: cache, capacity: 600)
         waveforms = WaveformCache(store: cache)
         cacheStore = cache
+        derivedMedia = DerivedMediaCache(store: cache as? any DerivedMediaStore)
         checkMedia()
+        makeDerivedMedia()
     }
 
     /// Makes a change as one undo step, named for the Edit menu. A change
