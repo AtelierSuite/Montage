@@ -223,11 +223,3 @@ private struct KeyframeRemover: AnimatableVisitor {
         if !parameter.isAnimated { parameter.value = held }
     }
 }
-
-extension Project {
-    /// Changes a clip in place, on whichever track holds it.
-    public mutating func updateClip(_ id: Clip.ID, _ change: (inout Clip) -> Void) {
-        guard let index = tracks.firstIndex(where: { $0.clip(id: id) != nil }) else { return }
-        tracks[index].update(id, change)
-    }
-}
