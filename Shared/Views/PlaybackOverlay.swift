@@ -39,6 +39,12 @@ struct PlaybackOverlay<Corners: View, Bottom: View>: View {
     /// Laid across the top: a row with whatever goes in the corners.
     @ViewBuilder var corners: Corners
     @ViewBuilder var bottom: Bottom
+    /// Laid over the picture under the controls, such as handles to edit
+    /// it with: see `canvas(_:onTapPicture:)`.
+    var canvas: AnyView?
+    /// Hears a tap on the picture away from the controls, and says whether
+    /// it took it; one it didn't shows or hides the controls.
+    var onTapPicture: ((CGPoint) -> Bool)?
 
     @State private var hideTask: Task<Void, Never>?
 
@@ -47,10 +53,15 @@ struct PlaybackOverlay<Corners: View, Bottom: View>: View {
             // Whatever isn't a control toggles the controls.
             Color.clear
                 .contentShape(.rect)
-                .onTapGesture { setShown(!isShown) }
+                .onTapGesture { location in
+                    if onTapPicture?(location) != true { setShown(!isShown) }
+                }
             if isShown {
                 Color.black.opacity(0.3)
                     .allowsHitTesting(false)
+            }
+            canvas
+            if isShown {
                 VStack(spacing: 0) {
                     corners
                     Spacer(minLength: 0)
@@ -68,6 +79,15 @@ struct PlaybackOverlay<Corners: View, Bottom: View>: View {
             setShown(!isPlaying)
         }
         .onDisappear { hideTask?.cancel() }
+    }
+
+    /// The overlay with a view laid over the picture under its controls,
+    /// and what a tap on the picture does before it shows or hides them.
+    func canvas(_ canvas: some View, onTapPicture: @escaping (CGPoint) -> Bool) -> Self {
+        var overlay = self
+        overlay.canvas = AnyView(canvas)
+        overlay.onTapPicture = onTapPicture
+        return overlay
     }
 
     private var playButton: some View {
