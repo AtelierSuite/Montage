@@ -33,6 +33,9 @@ final class ProjectEditor {
     }
     @ObservationIgnored private var playbackController: PlaybackController?
 
+    /// The timeline's selection, zoom and editing options.
+    let timeline = TimelineState()
+
     /// The library's thumbnails, kept while the project is open.
     @ObservationIgnored let thumbnails = ThumbnailCache()
 

@@ -1,6 +1,17 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Action.AddMarker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Marker"
+          }
+        }
+      }
+    },
     "Action.AddToTimeline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8,6 +19,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add to Timeline"
+          }
+        }
+      }
+    },
+    "Action.Delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
+    "Action.DetachAudio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detach Audio"
           }
         }
       }
@@ -30,6 +63,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove from Library"
+          }
+        }
+      }
+    },
+    "Action.RippleDelete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ripple Delete"
+          }
+        }
+      }
+    },
+    "Action.Split" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split Clip"
           }
         }
       }
