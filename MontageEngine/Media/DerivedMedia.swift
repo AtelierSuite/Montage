@@ -91,9 +91,14 @@ public protocol DerivedMediaStore: Sendable {
     /// can't go there any more, such as when the project has been moved or
     /// deleted while it was being made.
     func prepareFolder(for url: URL) -> Bool
+    /// Throws away every copy made from a media item, whatever file it was
+    /// made from.
+    func removeCopies(for mediaID: MediaItem.ID)
 }
 
 extension DerivedMediaStore {
+    public func removeCopies(for mediaID: MediaItem.ID) {}
+
     public func prepareFolder(for url: URL) -> Bool {
         (try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)) != nil
     }

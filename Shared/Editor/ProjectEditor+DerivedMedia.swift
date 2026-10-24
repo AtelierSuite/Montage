@@ -69,6 +69,17 @@ extension ProjectEditor {
         settledDerivedMedia = settledDerivedMedia.filter { !$0.contains(mediaID.uuidString) }
     }
 
+    /// Throws away the copies of media taken out of the project, which
+    /// would otherwise stay in its package. Undone, they're made again.
+    func removeCopies(ofMediaRemovedFrom previous: Project) {
+        guard let store = derivedMedia.store else { return }
+        let removed = Set(previous.media.map(\.id)).subtracting(project.media.map(\.id))
+        for id in removed {
+            store.removeCopies(for: id)
+            forgetDerivedMedia(for: id)
+        }
+    }
+
     /// Stops making copies, of one kind or every kind, such as when the
     /// project closes, rather than letting them run on. The next edit starts
     /// any that are still wanted again.

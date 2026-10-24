@@ -17,7 +17,10 @@ final class ProjectEditor {
     private(set) var project: Project {
         didSet {
             playbackController?.update(project: project, mediaResolver: playbackResolver)
-            if project.media != oldValue.media { checkMedia() }
+            if project.media != oldValue.media {
+                checkMedia()
+                removeCopies(ofMediaRemovedFrom: oldValue)
+            }
             // Not on every step of a drag: once it ends.
             if gesture == nil { makeDerivedMedia() }
         }
