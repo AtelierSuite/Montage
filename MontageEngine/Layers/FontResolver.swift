@@ -29,7 +29,7 @@ public enum FontResolver {
         return names.filter { !$0.hasPrefix(".") }.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
-    static func font(family: String, size: Double, weight: FontWeight, isItalic: Bool) -> CTFont {
+    public static func font(family: String, size: Double, weight: FontWeight, isItalic: Bool) -> CTFont {
         let key = Key(family: family, weight: weight, isItalic: isItalic)
         let face = faces.withLock { $0[key] } ?? {
             let face = findFace(for: key)
