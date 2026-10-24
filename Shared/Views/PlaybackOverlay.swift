@@ -58,7 +58,10 @@ struct PlaybackOverlay<Corners: View, Bottom: View>: View {
                 }
                 .padding(size == .large ? 16 : 6)
                 .padding(contentInsets)
-                playButton
+                // Nothing to play, it would only cover why.
+                if playback.playbackError == nil {
+                    playButton
+                }
             }
         }
         .onChange(of: playback.isPlaying) { _, isPlaying in
@@ -83,7 +86,7 @@ struct PlaybackOverlay<Corners: View, Bottom: View>: View {
         .contentShape(.circle)
         .glassEffect(.clear.interactive(), in: .circle)
         .buttonStyle(.plain)
-        .disabled(!playback.hasContent || playback.playbackError != nil)
+        .disabled(!playback.hasContent)
     }
 
     /// Shows or hides the controls at once, without fading.
