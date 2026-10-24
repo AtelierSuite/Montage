@@ -26,7 +26,7 @@ struct AudioEffectsSection: View {
                     // The playhead only matters, and is only followed, for
                     // settings that change over time.
                     let time = effect.kind.isKeyframed ? localTime(in: clip) : .zero
-                    AudioEffectEditor(effect: effect, time: time) { kind, isFinal in
+                    AudioEffectEditor(effect: effect, time: time, keyframeTime: keyframeTime(in: clip)) { kind, isFinal in
                         change(effect.id, isFinal: isFinal) { $0.kind = kind }
                     }
                     .disabled(!effect.isEnabled)
@@ -43,6 +43,13 @@ struct AudioEffectsSection: View {
         guard track.kind == .audio || !clip.isAudioDetached else { return false }
         guard let item = project.mediaItem(id: clip.mediaID) else { return false }
         return item.kind != .image && (item.metadata.hasAudio || item.metadata.duration == .zero)
+    }
+
+    /// Where a diamond sets or takes away a keyframe: the playhead's time
+    /// in the clip, read when it's pressed, or nil while it's off the clip.
+    private func keyframeTime(in clip: Clip) -> () -> CMTime? {
+        let editor = editor
+        return { editor.isPlayheadOn(clip) ? editor.clipTime(in: clip) : nil }
     }
 
     /// The playhead's time from the clip's start, kept within the clip.
@@ -124,6 +131,9 @@ struct AudioEffectEditor: View {
     let effect: Effect
     /// The time from the clip's start that the settings are shown at.
     let time: CMTime
+    /// Where a diamond sets or takes away a keyframe, read when it's
+    /// pressed; nil while the playhead's off the clip.
+    var keyframeTime: () -> CMTime? = { nil }
     /// Hands back the effect with a setting changed, and whether the change
     /// is final or a step of a drag.
     let onChange: (Effect.Kind, Bool) -> Void
@@ -200,9 +210,23 @@ struct AudioEffectEditor: View {
             parameters[keyPath: path] = parameters[keyPath: path].setting(value, at: time)
             onChange(wrap(parameters), isFinal)
         }
+        let keyframeTime = self.keyframeTime
+        let parameter = parameters[keyPath: path]
         return AudioParameterSlider(
-            title: title, value: parameters[keyPath: path].value(at: time), range: range, scale: scale, format: format,
-            onPreview: { changed($0, isFinal: false) }, onCommit: { changed($0, isFinal: true) }
+            title: title, value: parameter.value(at: time), range: range, scale: scale, format: format,
+            onPreview: { changed($0, isFinal: false) }, onCommit: { changed($0, isFinal: true) },
+            keyframe: AudioParameterSlider.Keyframing(
+                isOnKeyframe: parameter.hasKeyframe(at: time), isAnimated: parameter.isAnimated,
+                // Not read from the playhead here, which would redraw the
+                // settings every frame while playing.
+                isEnabled: true,
+                toggle: {
+                    guard let time = keyframeTime() else { return }
+                    var parameters = parameters
+                    parameters[keyPath: path].toggleKeyframe(at: time)
+                    onChange(wrap(parameters), true)
+                }
+            )
         )
     }
 
@@ -277,3 +301,4 @@ private extension MontageEngine.Animatable<Double> {
         return parameter
     }
 }
+
