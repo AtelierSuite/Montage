@@ -61,6 +61,12 @@ struct InterpolationTests {
         #expect(try JSONDecoder().decode([Keyframe<Double>].self, from: data) == keyframes)
     }
 
+    @Test func readsACurveWithItsTimeKeptInOrder() throws {
+        let json = #"{"x1": -1, "y1": 0.5, "x2": 2, "y2": 0.5}"#
+        let curve = try JSONDecoder().decode(TimingCurve.self, from: Data(json.utf8))
+        #expect(curve == TimingCurve(x1: 0, y1: 0.5, x2: 1, y2: 0.5))
+    }
+
     @Test func morphsPathsWithAsManyPoints() {
         let square = MaskPath([
             .init(CGPoint(x: 0, y: 0)), .init(CGPoint(x: 1, y: 0)),

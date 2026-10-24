@@ -20,6 +20,20 @@ public struct TimingCurve: Equatable, Hashable, Sendable, Codable {
         self.y2 = y2
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case x1, y1, x2, y2
+    }
+
+    // Read through the initializer, so a file can't make a curve that runs
+    // back in time either.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            x1: try container.decode(Double.self, forKey: .x1), y1: try container.decode(Double.self, forKey: .y1),
+            x2: try container.decode(Double.self, forKey: .x2), y2: try container.decode(Double.self, forKey: .y2)
+        )
+    }
+
     /// How far along the values are, `t` of the way through the time.
     public func progress(at t: Double) -> Double {
         if t <= 0 { return 0 }
