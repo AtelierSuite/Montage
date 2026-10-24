@@ -23,7 +23,10 @@ struct AudioEffectsSection: View {
             }
             ForEach(clip.effects.filter { !$0.kind.isVideo }) { effect in
                 Section {
-                    AudioEffectEditor(effect: effect, time: localTime(in: clip)) { kind, isFinal in
+                    // The playhead only matters, and is only followed, for
+                    // settings that change over time.
+                    let time = effect.kind.isKeyframed ? localTime(in: clip) : .zero
+                    AudioEffectEditor(effect: effect, time: time) { kind, isFinal in
                         change(effect.id, isFinal: isFinal) { $0.kind = kind }
                     }
                     .disabled(!effect.isEnabled)
@@ -234,6 +237,21 @@ struct AudioEffectEditor: View {
 
     private static func percent(_ value: Double) -> String {
         value.formatted(.percent.precision(.fractionLength(0)))
+    }
+}
+
+private extension Effect.Kind {
+    /// Whether any of the effect's settings has keyframes.
+    var isKeyframed: Bool {
+        switch self {
+        case .gain(let gain): gain.decibels.isAnimated
+        case .pan(let pan): pan.position.isAnimated
+        case .equalizer(let equalizer):
+            equalizer.bands.contains { $0.frequency.isAnimated || $0.gain.isAnimated || $0.bandwidth.isAnimated }
+        case .delay(let delay): delay.time.isAnimated || delay.feedback.isAnimated || delay.mix.isAnimated
+        case .reverb(let reverb): reverb.mix.isAnimated
+        case .colorCorrection, .mosaic: false
+        }
     }
 }
 
