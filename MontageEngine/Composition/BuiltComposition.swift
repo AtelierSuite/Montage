@@ -30,10 +30,13 @@ public struct BuiltComposition: @unchecked Sendable {
     public let audioLayers: [CompositionLayer]
     /// Clips that were left out, and why.
     public let skippedClips: [SkippedClip]
+    /// How loud each clip's sound is as it plays, after its effects.
+    public let audioLevels: AudioLevels
 
     init(
         project: Project, composition: AVComposition, videoComposition: AVVideoComposition?, audioMix: AVAudioMix?,
-        duration: CMTime, videoLayers: [CompositionLayer], audioLayers: [CompositionLayer], skippedClips: [SkippedClip]
+        duration: CMTime, videoLayers: [CompositionLayer], audioLayers: [CompositionLayer], skippedClips: [SkippedClip],
+        audioLevels: AudioLevels = AudioLevels()
     ) {
         self.project = project
         self.composition = composition
@@ -43,6 +46,7 @@ public struct BuiltComposition: @unchecked Sendable {
         self.videoLayers = videoLayers
         self.audioLayers = audioLayers
         self.skippedClips = skippedClips
+        self.audioLevels = audioLevels
     }
 
     /// Whether there's nothing to play: no clip made it into the composition.

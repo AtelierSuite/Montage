@@ -29,24 +29,28 @@ import CoreMedia
 public struct CompositionBuilder: Sendable {
     public var project: Project
     public var mediaResolver: MediaResolver
+    /// Where the audio taps read the clips' effects as they play. Preview
+    /// hands in the one its edits go into, so changed values are heard
+    /// without a rebuild; without one, the taps keep to `project`.
+    public var snapshot: ProjectSnapshot?
 
-    public init(project: Project, mediaResolver: MediaResolver) {
+    public init(project: Project, mediaResolver: MediaResolver, snapshot: ProjectSnapshot? = nil) {
         self.project = project
         self.mediaResolver = mediaResolver
+        self.snapshot = snapshot
     }
 
     /// How long a clip's sound keeps going after the clip ends, such as a
     /// reverb or delay ringing out, so the composition can leave room for it.
     ///
-    /// TODO: (#5, with the audio taps) work this out from the clip's enabled
-    /// effects whose `hasTail` is set, and have `LayerWriter.place` keep that
-    /// much empty time after the clip, before the next one on its audio track
-    /// (moving a clip that would cut the tail off onto a track of its own).
-    /// Until the taps exist nothing rings out, so there's no tail. A tail
-    /// after the very last clip needs more: a composition can't end in empty
-    /// time, so the taps will have to keep the track going themselves.
+    /// The room is kept on the clip's composition track: the next clip on the
+    /// same timeline track that starts before the tail is over goes on a
+    /// composition track of its own, so nothing on the timeline moves. A tail
+    /// runs on into empty time, or, after a track's last clip, into filler
+    /// that the clip's tap silences, since a composition track can't end in
+    /// empty time. It stops where the composition does.
     public static func audioTail(for clip: Clip) -> CMTime {
-        .zero
+        clip.audioTail
     }
 
     /// Builds the composition. Clips whose media can't be found or used are
@@ -66,7 +70,17 @@ public struct CompositionBuilder: Sendable {
             let wantsSound = !track.isMuted
             guard wantsPicture || wantsSound else { continue }
             var picture = wantsPicture ? LayerWriter(kind: .video, trackID: track.id) : nil
-            var sound = wantsSound ? LayerWriter(kind: .audio, trackID: track.id) : nil
+            // The track's sound, on as many composition tracks as it takes
+            // to keep clips out of the tails of the ones before them.
+            var sound: [LayerWriter] = []
+            func placeSound(_ clip: Clip, from audio: SourceTrack) throws -> Bool {
+                guard wantsSound else { return true }
+                let lane = sound.firstIndex { $0.ringsUntil <= clip.timelineStart } ?? {
+                    sound.append(LayerWriter(kind: .audio, trackID: track.id))
+                    return sound.count - 1
+                }()
+                return try sound[lane].place(clip, from: audio, in: composition, settings: project.settings)
+            }
 
             for clip in track.clips {
                 try Task.checkCancellation()
@@ -106,14 +120,14 @@ public struct CompositionBuilder: Sendable {
                             }
                         }
                         if !clip.isAudioDetached, let audio = source.audio {
-                            _ = try sound?.place(clip, from: audio, in: composition, settings: project.settings)
+                            _ = try placeSound(clip, from: audio)
                         }
                     case .audio:
                         guard let audio = source.audio else {
                             skip(.noUsableTrack)
                             continue
                         }
-                        if try sound?.place(clip, from: audio, in: composition, settings: project.settings) == false {
+                        if try placeSound(clip, from: audio) == false {
                             skip(.outsideMedia)
                         }
                     }
@@ -122,7 +136,7 @@ public struct CompositionBuilder: Sendable {
                 }
             }
             if let picture, picture.compositionTrack != nil { pictures.append(picture) }
-            if let sound, sound.compositionTrack != nil { sounds.append(sound) }
+            sounds += sound.filter { $0.compositionTrack != nil }
         }
 
         let writers = pictures + sounds
@@ -135,16 +149,22 @@ public struct CompositionBuilder: Sendable {
         // A composition can't end in empty time, so it runs to the end of
         // the last clip placed: clips left out at the end shorten it.
         let end = writers.map(\.cursor).max() ?? .zero
+        for index in sounds.indices {
+            try sounds[index].fillTail(before: end)
+        }
 
+        var meters: [Clip.ID: AudioMeter] = [:]
+        let audioMix = sounds.isEmpty ? nil : audioMix(for: sounds, duration: end, meters: &meters)
         return BuiltComposition(
             project: project,
             composition: composition.copy() as! AVComposition,
             videoComposition: pictures.isEmpty ? nil : videoComposition(for: pictures, duration: end),
-            audioMix: sounds.isEmpty ? nil : audioMix(for: sounds),
+            audioMix: audioMix,
             duration: end,
             videoLayers: pictures.map(\.layer),
             audioLayers: sounds.map(\.layer),
-            skippedClips: skipped
+            skippedClips: skipped,
+            audioLevels: AudioLevels(meters)
         )
     }
 
@@ -181,9 +201,18 @@ public struct CompositionBuilder: Sendable {
         ))
     }
 
-    private func audioMix(for layers: [LayerWriter]) -> AVAudioMix {
+    /// Each layer's volumes, and a tap that runs its clips' effects and
+    /// meters them, adding their meters to `meters`.
+    private func audioMix(for layers: [LayerWriter], duration: CMTime, meters: inout [Clip.ID: AudioMeter]) -> AVAudioMix {
         let mix = AVMutableAudioMix()
-        mix.inputParameters = layers.compactMap(\.audioParameters).map { $0.copy() as! AVAudioMixInputParameters }
+        let snapshot = self.snapshot ?? ProjectSnapshot(project)
+        mix.inputParameters = layers.compactMap { layer in
+            guard let parameters = layer.audioParameters else { return nil }
+            parameters.audioTapProcessor = AudioEffectsProcessor.tap(
+                for: layer.layer, in: project, snapshot: snapshot, end: duration, meters: &meters
+            )
+            return parameters.copy() as? AVAudioMixInputParameters
+        }
         return mix.copy() as! AVAudioMix
     }
 
@@ -228,6 +257,12 @@ private struct LayerWriter {
     private(set) var segments: [CompositionLayer.Segment] = []
     private(set) var layerConfiguration = AVVideoCompositionLayerInstruction.Configuration()
     private(set) var audioParameters: AVMutableAudioMixInputParameters?
+    /// Where the last clip's sound stops ringing on, after its tail. Earlier
+    /// than `cursor` when it has none, so only a tail keeps clips away.
+    private(set) var ringsUntil = CMTime.negativeInfinity
+    /// What the last clip played, for filler to keep the track going under
+    /// its tail.
+    private var lastPlaced: (source: SourceTrack, range: CMTimeRange)?
 
     init(kind: CompositionLayer.Kind, trackID: Track.ID) {
         self.kind = kind
@@ -271,6 +306,9 @@ private struct LayerWriter {
         try compositionTrack.insertTimeRange(sourceRange, of: source.track, at: start)
         let timelineRange = CMTimeRange(start: start, duration: sourceRange.duration)
         cursor = timelineRange.end
+        let tail = CompositionBuilder.audioTail(for: clip)
+        ringsUntil = kind == .audio && tail > .zero ? cursor + tail : .negativeInfinity
+        lastPlaced = (source, sourceRange)
         segments.append(CompositionLayer.Segment(clipID: clip.id, mediaID: clip.mediaID, timelineRange: timelineRange, sourceRange: sourceRange))
 
         switch kind {
@@ -289,9 +327,6 @@ private struct LayerWriter {
                 ))
             }
         case .audio:
-            // Where the clip's audio tail would be left room for; nothing
-            // rings out yet.
-            _ = CompositionBuilder.audioTail(for: clip)
             let ramps = clip.volume.ramps(over: timelineRange, clipStart: clip.timelineStart)
             if ramps.isEmpty {
                 audioParameters?.setVolume(Float(clip.volume.value(at: clip.localTime(start))), at: start)
@@ -301,6 +336,21 @@ private struct LayerWriter {
             }
         }
         return true
+    }
+
+    /// Keeps the track going under the last clip's tail, as far as `end`.
+    /// Empty time can't end a track, so it's filled with the clip's own
+    /// media, stretched if it's shorter, which the clip's tap silences.
+    mutating func fillTail(before end: CMTime) throws {
+        guard let compositionTrack, let lastPlaced, ringsUntil > cursor else { return }
+        let fill = min(ringsUntil, end) - cursor
+        guard fill > .zero else { return }
+        let piece = min(fill, lastPlaced.range.duration)
+        try compositionTrack.insertTimeRange(CMTimeRange(start: lastPlaced.range.start, duration: piece), of: lastPlaced.source.track, at: cursor)
+        if piece < fill {
+            compositionTrack.scaleTimeRange(CMTimeRange(start: cursor, duration: piece), toDuration: fill)
+        }
+        cursor = cursor + fill
     }
 }
 
