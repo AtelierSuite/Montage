@@ -2,7 +2,7 @@ import Synchronization
 
 /// The project as it is right now, readable from any thread.
 ///
-/// Rendering doesn't happen on the main actor: a custom compositor (#8) draws
+/// Rendering doesn't happen on the main actor: the video compositor draws
 /// frames on AVFoundation's queues and audio taps run on the audio thread. They
 /// read clip parameters from here, so an edit that only changes a parameter
 /// (an effect's value, a keyframe) shows on the next frame without the
