@@ -11,9 +11,24 @@ import Observation
 @MainActor
 @Observable
 final class ProjectEditor {
-    private(set) var project: Project
+    private(set) var project: Project {
+        didSet { playbackController?.update(project: project, mediaResolver: mediaResolver) }
+    }
     /// Finds the media's files, wherever the project is kept.
-    var mediaResolver: MediaResolver
+    var mediaResolver: MediaResolver {
+        didSet { playbackController?.update(mediaResolver: mediaResolver) }
+    }
+
+    /// Plays the project in the preview, following every change to it. Made
+    /// the first time a view asks for it, so an editor that's never shown
+    /// doesn't build anything; it goes when the editor does.
+    var playback: PlaybackController {
+        if let playbackController { return playbackController }
+        let playbackController = PlaybackController(project: project, mediaResolver: mediaResolver)
+        self.playbackController = playbackController
+        return playbackController
+    }
+    @ObservationIgnored private var playbackController: PlaybackController?
 
     /// Where undo steps go: the document's undo manager.
     @ObservationIgnored weak var undoManager: UndoManager?
@@ -39,6 +54,11 @@ final class ProjectEditor {
     func replace(with project: Project) {
         guard project != self.project else { return }
         self.project = project
+    }
+
+    /// Stops playback for good, when the project closes.
+    func close() {
+        playbackController?.invalidate()
     }
 
     private func apply(_ project: Project, undoName: String) {

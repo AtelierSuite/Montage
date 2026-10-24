@@ -32,6 +32,11 @@ final class ProjectDocument: NSDocument {
         addWindowController(ProjectWindowController(editor: editor, importer: importer))
     }
 
+    override func close() {
+        editor.close()
+        super.close()
+    }
+
     // MARK: - Reading and writing
 
     // Documents are read and written on the main thread: neither

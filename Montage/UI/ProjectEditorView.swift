@@ -44,6 +44,8 @@ struct ProjectEditorView: View {
                 editor.onChange = { [$document] project in $document.wrappedValue.project = project }
             }
             .onChange(of: undoManager) { _, undoManager in attach(to: undoManager) }
+            // Closing the document; the player goes with the editor.
+            .onDisappear { editor.playback.pause() }
             // Reverting, or another device's changes arriving, replace the
             // document from outside the editor.
             .onChange(of: document.project) { _, project in editor.replace(with: project) }
