@@ -373,3 +373,67 @@ private final class PCMSink: EncodedFrameSink, @unchecked Sendable {
     func finish() throws {}
     func cancel() {}
 }
+
+/// Runs an `AudioEffectsProcessor` directly over made-up stereo buffers.
+@Suite struct AudioEffectsProcessorTests {
+    @Test func anEffectTurnedBackOnDoesNotReplayWhatItHeldBefore() throws {
+        var delay = Delay()
+        delay.mix = Animatable(1)
+        delay.feedback = Animatable(0)
+        delay.time = Animatable(0.1)
+        let clip = Clip(
+            mediaID: MediaItem.ID(), sourceRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
+            timelineStart: .zero, effects: [Effect(.delay(delay))]
+        )
+        let track = Track(kind: .audio, clips: [clip])
+        var project = Project(tracks: [track])
+        let snapshot = ProjectSnapshot(project)
+        let processor = AudioEffectsProcessor(snapshot: snapshot, trackID: track.id, sections: [AudioEffectsProcessor.Section(
+            clipID: clip.id, clipStart: 0, start: 0, end: 10, tailEnd: 10, layout: clip.audioEffectLayout, meter: AudioMeter()
+        )])
+        let sampleRate = 48_000.0
+        let frames = 512
+        let format = AudioStreamBasicDescription(
+            mSampleRate: sampleRate, mFormatID: kAudioFormatLinearPCM,
+            mFormatFlags: kAudioFormatFlagIsFloat | kAudioFormatFlagIsNonInterleaved | kAudioFormatFlagIsPacked,
+            mBytesPerPacket: 4, mFramesPerPacket: 1, mBytesPerFrame: 4, mChannelsPerFrame: 2, mBitsPerChannel: 32, mReserved: 0
+        )
+        processor.prepare(format: format, maxFrames: frames)
+        defer { processor.unprepare() }
+
+        let buffers = AudioBufferList.allocate(maximumBuffers: 2)
+        let storage = (0..<2).map { _ in UnsafeMutablePointer<Float>.allocate(capacity: frames) }
+        defer {
+            storage.forEach { $0.deallocate() }
+            free(buffers.unsafeMutablePointer)
+        }
+        var position = 0
+        /// Processes one buffer of a constant level, and gives back its peak.
+        func process(_ level: Float) -> Float {
+            for index in 0..<2 {
+                storage[index].update(repeating: level, count: frames)
+                buffers[index] = AudioBuffer(mNumberChannels: 1, mDataByteSize: UInt32(frames * 4), mData: storage[index])
+            }
+            let range = CMTimeRange(
+                start: CMTime(value: CMTimeValue(position), timescale: 48_000), duration: CMTime(value: CMTimeValue(frames), timescale: 48_000)
+            )
+            processor.process(buffers, frameCount: frames, timeRange: range, isDiscontinuity: position == 0)
+            position += frames
+            return (0..<frames).map { abs(storage[0][$0]) }.max() ?? 0
+        }
+        func setEnabled(_ isEnabled: Bool) {
+            project.tracks[0].update(clip.id) { $0.effects[0].isEnabled = isEnabled }
+            snapshot.update(project)
+        }
+
+        // Sound goes into the delay, and it's turned off before it echoes.
+        for _ in 0..<4 { _ = process(0.5) }
+        setEnabled(false)
+        for _ in 0..<20 { _ = process(0) }
+        // Turned back on over silence, it has nothing to echo.
+        setEnabled(true)
+        var peak: Float = 0
+        for _ in 0..<20 { peak = max(peak, process(0)) }
+        #expect(peak < 1e-6)
+    }
+}

@@ -241,6 +241,9 @@ final class AudioEffectsProcessor: AudioTapProcessor, @unchecked Sendable {
                     slot.isEnabled = false
                     continue
                 }
+                // A unit left off kept what it held then; turned back on,
+                // it mustn't play that out over audio from another time.
+                if effect.isEnabled, !slot.isEnabled { slot.unit?.reset() }
                 slot.isEnabled = effect.isEnabled
                 switch effect.kind {
                 case .gain(let gain):
