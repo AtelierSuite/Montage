@@ -14,6 +14,8 @@ struct PreviewArea: View {
     @Environment(\.floatPreview) private var floatPreview
     @Environment(\.showsPlaybackOverlay) private var showsPlaybackOverlay
     @Environment(\.previewTransition) private var previewTransition
+    @Environment(\.previewFrameReporter) private var previewFrameReporter
+    @Environment(\.hidesPreviewPicture) private var hidesPreviewPicture
     @State private var showsControls = true
 
     var body: some View {
@@ -39,6 +41,10 @@ struct PreviewArea: View {
     private var frame: some View {
         if editor.playback.hasContent {
             PlayerView(player: editor.playback.player)
+                .opacity(hidesPreviewPicture ? 0 : 1)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+                    previewFrameReporter?(frame)
+                }
                 .modifier(PreviewTransitionSource(transition: previewTransition))
                 .accessibilityElement()
                 .accessibilityLabel(Text("Preview.Title"))
@@ -51,7 +57,7 @@ struct PreviewArea: View {
                     }
                 }
                 .overlay {
-                    if showsPlaybackOverlay {
+                    if showsPlaybackOverlay && !hidesPreviewPicture {
                         PlaybackOverlay(playback: editor.playback, isShown: $showsControls) {
                             HStack {
                                 if let expandPreview {
@@ -110,6 +116,22 @@ extension EnvironmentValues {
     /// What a transition out of the preview, such as into full screen, grows
     /// from.
     @Entry var previewTransition: PreviewTransition?
+    /// Hears where the preview's picture is on screen, for something to move
+    /// into or out of it.
+    @Entry var previewFrameReporter: PreviewFrameReporter?
+    /// Leaves the preview's picture out, keeping its frame, while something
+    /// else showing the picture moves into it.
+    @Entry var hidesPreviewPicture = false
+}
+
+/// Hears where the preview's picture is on screen.
+struct PreviewFrameReporter {
+    let report: @MainActor (CGRect) -> Void
+
+    @MainActor
+    func callAsFunction(_ frame: CGRect) {
+        report(frame)
+    }
 }
 
 /// Names the preview as the source of a transition.

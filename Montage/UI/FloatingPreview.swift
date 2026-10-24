@@ -26,6 +26,17 @@ struct FloatingPreview: View {
     let onDock: () -> Void
     /// Room kept clear along the bottom, for the controls floating there.
     var reservedBottom = 0.0
+    /// Where the window first appears, on screen, before it moves to its
+    /// corner: where the preview was in the editor.
+    var launchFrame: CGRect?
+    /// Where to move the window, on screen, to put it back in the editor:
+    /// set once the preview's place there is laid out.
+    var dockFrame: CGRect?
+    /// How round the preview's corners are in the editor, to match on the
+    /// way into or out of it.
+    var dockedCornerRadius = 0.0
+    /// Called once the window has moved into the editor's preview.
+    var onDocked: () -> Void = {}
     /// Hears where the window is on screen, as it moves, so whatever hosts
     /// it can let touches anywhere else through.
     var onFrameChange: (CGRect) -> Void = { _ in }
@@ -54,6 +65,10 @@ struct FloatingPreview: View {
     @State private var isMoving = false
     /// Where the window is on screen.
     @State private var windowFrame = CGRect.zero
+    /// Where the window is while it's on its way out of or into the editor's
+    /// preview, rather than where it rests.
+    @State private var placedFrame: CGRect?
+    @State private var isLaunched = false
 
     /// Room between the window and the edges it rests against.
     private let margin = 12.0
@@ -85,10 +100,10 @@ struct FloatingPreview: View {
             let room = Room(size: geometry.size, insets: insets)
             // Full screen, the picture's own frame fitted to the screen, so it
             // only grows on the way there, keeping its shape.
-            let size = isExpanded ? fittedSize(in: room.size) : windowSize(in: room)
-            let center = isExpanded
+            let size = placedFrame?.size ?? (isExpanded ? fittedSize(in: room.size) : windowSize(in: room))
+            let center = placedFrame.map { CGPoint(x: $0.midX, y: $0.midY) } ?? (isExpanded
                 ? CGPoint(x: room.size.width / 2, y: room.size.height / 2)
-                : restingCenter(size: size, in: room)
+                : restingCenter(size: size, in: room))
             ZStack {
                 // Fades in behind the picture as it grows to fill the screen.
                 Color.black
@@ -109,6 +124,37 @@ struct FloatingPreview: View {
             .gesture(isExpanded ? closing : nil)
             .onChange(of: isExpanded) { reportTouchableFrame(in: room) }
         }
+        .onAppear(perform: launch)
+        .onChange(of: dockFrame) { _, frame in
+            if let frame { dock(into: frame) }
+        }
+    }
+
+    /// Starts where the preview was in the editor, then moves to its corner.
+    private func launch() {
+        guard !isLaunched else { return }
+        isLaunched = true
+        guard let launchFrame else { return }
+        placedFrame = launchFrame
+        isMoving = true
+        // From the next frame, so it's drawn where it starts first.
+        Task {
+            withAnimation(expansion) { placedFrame = nil } completion: { isMoving = false }
+        }
+    }
+
+    /// Moves into the preview's place in the editor, then hands over to it.
+    private func dock(into frame: CGRect) {
+        isMoving = true
+        showsLargeControls = false
+        withAnimation(expansion) {
+            isStashed = false
+            isExpanded = false
+            drag = .zero
+            placedFrame = frame
+        } completion: {
+            onDocked()
+        }
     }
 
     /// Full screen, the whole screen takes touches, for the controls around
@@ -127,7 +173,9 @@ struct FloatingPreview: View {
     // MARK: - Window
 
     private func window(size: CGSize) -> some View {
-        let shape = RoundedRectangle(cornerRadius: isExpanded ? 0 : isStashed ? tabCornerRadius : cornerRadius)
+        let radius = placedFrame != nil ? dockedCornerRadius
+            : isExpanded ? 0 : isStashed ? tabCornerRadius : cornerRadius
+        let shape = RoundedRectangle(cornerRadius: radius)
         return PlayerView(player: playback.player)
             .frame(width: size.width, height: size.height)
             .overlay {
@@ -148,7 +196,7 @@ struct FloatingPreview: View {
                 }
             }
             .clipShape(shape)
-            .shadow(color: .black.opacity(isExpanded ? 0 : 0.3), radius: 10, y: 4)
+            .shadow(color: .black.opacity(isExpanded || placedFrame != nil ? 0 : 0.3), radius: 10, y: 4)
             .contentShape(shape)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(Text("Preview.Title"))

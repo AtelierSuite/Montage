@@ -23,6 +23,13 @@ struct ProjectEditorView: View {
     /// Whether the preview floats over the editor, picture in picture,
     /// rather than having its place in the layout.
     @State private var isPreviewFloating = false
+    /// Whether the floating preview is on its way back into the editor,
+    /// whose preview has its place again, waiting for it.
+    @State private var isDockingPreview = false
+    /// Where the preview's picture is on screen, for the floating preview to
+    /// move out of and back into.
+    @State private var previewFrame = CGRect.zero
+    @State private var floatingLaunchFrame: CGRect?
     /// Where the full-screen player zooms out of.
     @Namespace private var previewTransition
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
@@ -112,12 +119,12 @@ struct ProjectEditorView: View {
             if verticalSizeClass == .compact {
                 // An iPhone held sideways: the preview and its controls in a
                 // column, beside a timeline with the whole height.
-                EditorView(showsPreview: !isPreviewFloating) {
+                EditorView(showsPreview: !isPreviewFloating || isDockingPreview) {
                     EditorActionPanel(showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
                 }
                 .background { floatingPreview }
             } else {
-                EditorView(showsControlBar: false, showsPreview: !isPreviewFloating)
+                EditorView(showsControlBar: false, showsPreview: !isPreviewFloating || isDockingPreview)
                     .background { floatingPreview }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         EditorActionBar(showLibrary: showLibrary, isShowingInspector: $isShowingInspector)
@@ -129,6 +136,8 @@ struct ProjectEditorView: View {
         // full screen and to float it.
         .environment(\.expandPreview, PreviewAction { isShowingFullscreen = true })
         .environment(\.floatPreview, PreviewAction { setPreviewFloating(true) })
+        .environment(\.previewFrameReporter, PreviewFrameReporter { previewFrame = $0 })
+        .environment(\.hidesPreviewPicture, isDockingPreview)
         .environment(\.showsPlaybackOverlay, true)
         .environment(\.previewTransition, PreviewTransition(id: "preview", namespace: previewTransition))
         .fullScreenCover(isPresented: $isShowingFullscreen) {
@@ -158,15 +167,31 @@ struct ProjectEditorView: View {
                 playback: editor.playback, aspectRatio: previewAspectRatio,
                 onDock: { setPreviewFloating(false) },
                 // Clear of the bar along the bottom, where there is one.
-                reservedBottom: verticalSizeClass == .compact ? 0 : 76
+                reservedBottom: verticalSizeClass == .compact ? 0 : 76,
+                launchFrame: floatingLaunchFrame,
+                dockFrame: isDockingPreview && previewFrame != .zero ? previewFrame : nil,
+                // Sideways, the preview keeps to a rounded frame.
+                dockedCornerRadius: verticalSizeClass == .compact ? 10 : 0,
+                onDocked: {
+                    isPreviewFloating = false
+                    isDockingPreview = false
+                }
             ))
             .frame(width: 0, height: 0)
             .allowsHitTesting(false)
         }
     }
 
+    /// Floats the preview out of the editor, from where it is, or sends it
+    /// back: the editor makes room for it, and it moves in.
     private func setPreviewFloating(_ floating: Bool) {
-        withAnimation(.spring(duration: 0.35)) { isPreviewFloating = floating }
+        if floating {
+            floatingLaunchFrame = previewFrame == .zero ? nil : previewFrame
+            withAnimation(.spring(duration: 0.45, bounce: 0.12)) { isPreviewFloating = true }
+        } else {
+            previewFrame = .zero
+            withAnimation(.spring(duration: 0.45, bounce: 0.12)) { isDockingPreview = true }
+        }
     }
 
     /// The project's frame shape, or 16:9 if its settings have none.
