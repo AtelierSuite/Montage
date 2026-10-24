@@ -114,6 +114,8 @@ private struct PeakAccumulator {
     /// Frames (samples across all channels) into the current stretch.
     private var framesInCurrent = 0
     private var framesPerPeak = 0
+    /// Where each buffer's samples are copied, kept from one to the next.
+    private var samples: [Float] = []
 
     init(peaksPerSecond: Double) {
         self.peaksPerSecond = peaksPerSecond
@@ -129,13 +131,15 @@ private struct PeakAccumulator {
         }
         let frames = CMSampleBufferGetNumSamples(buffer)
         let length = CMBlockBufferGetDataLength(block)
-        guard frames > 0, length > 0 else { return }
-        var samples = [Float](repeating: 0, count: length / MemoryLayout<Float>.size)
+        let available = length / MemoryLayout<Float>.size
+        guard frames > 0, available > 0 else { return }
+        if samples.count < available { samples = [Float](repeating: 0, count: available) }
         let status = samples.withUnsafeMutableBytes { bytes in
-            CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: bytes.count, destination: bytes.baseAddress!)
+            CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: available * MemoryLayout<Float>.size,
+                                       destination: bytes.baseAddress!)
         }
         guard status == kCMBlockBufferNoErr else { return }
-        let count = min(frames * channels, samples.count)
+        let count = min(frames * channels, available)
         var index = 0
         while index < count {
             let frameEnd = min(index + channels, count)
