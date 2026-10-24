@@ -107,22 +107,69 @@ struct TimelineCanvas: View {
 
     private func color(for clip: Clip, on track: Track) -> Color {
         if track.kind == .audio { return .green }
-        return media[clip.mediaID]?.kind == .image ? .indigo : .blue
+        switch clip.content {
+        case .text: return .orange
+        case .shape: return .pink
+        case .image: return .indigo
+        case .media(let id): return media[id]?.kind == .image ? .indigo : .blue
+        }
+    }
+
+    /// What a clip's label says: its media's name, or its words, or the
+    /// name of its shape.
+    private func label(for clip: Clip) -> String {
+        switch clip.content {
+        case .media(let id), .image(let id): media[id]?.name ?? ""
+        case .text(let text): text.string.split(whereSeparator: \.isNewline).joined(separator: " ")
+        case .shape(let shape): shape.kind.title
+        }
+    }
+
+    /// A text clip's words in their own colour, or a shape clip's shape, along
+    /// the clip under its label, so they read apart from media at a glance.
+    private func drawContent(of clip: Clip, in rect: CGRect, context: inout GraphicsContext, visible: ClosedRange<Double>) {
+        let band = CGRect(x: max(rect.minX, visible.lowerBound) + 6, y: rect.minY + 18, width: 0, height: rect.height - 22)
+        guard band.height > 6 else { return }
+        switch clip.content {
+        case .text(let text):
+            let colour = text.style.fill.color.value
+            let preview = Text(verbatim: label(for: clip))
+                .font(.system(size: min(band.height * 0.75, 16), weight: .bold, design: .serif))
+                .foregroundStyle(Color(.sRGB, red: colour.red, green: colour.green, blue: colour.blue).opacity(0.9))
+            context.draw(preview, at: CGPoint(x: band.minX, y: band.midY), anchor: .leading)
+        case .shape(let shape):
+            let size = shape.size.value
+            let height = band.height - 4
+            let aspect = size.height > 0 ? min(max(size.width / size.height, 0.5), 3) : 3
+            let box = CGRect(x: band.minX, y: band.minY + 2, width: height * aspect, height: shape.kind == .line ? 0 : height)
+            let resolved = shape.resolved(at: .zero)
+            let path = Path(ShapeRenderer.path(of: resolved, in: shape.kind == .line ? box.offsetBy(dx: 0, dy: height / 2) : box))
+            let colour = resolved.fill.style == .none ? resolved.stroke?.color ?? .white : resolved.fill.color
+            let swatch = Color(.sRGB, red: colour.red, green: colour.green, blue: colour.blue)
+            if shape.kind == .line || resolved.fill.style == .none {
+                context.stroke(path, with: .color(swatch), lineWidth: 2)
+            } else {
+                context.fill(path, with: .color(swatch))
+                context.stroke(path, with: .color(.white.opacity(0.6)), lineWidth: 1)
+            }
+        case .media, .image:
+            break
+        }
     }
 
     private func drawClip(_ clip: Clip, on track: Track, row: Int, in context: inout GraphicsContext, visible: ClosedRange<Double>) {
         let rect = layout.rect(of: clip, inRow: row)
         let shape = RoundedRectangle(cornerRadius: 5).path(in: rect)
         let color = color(for: clip, on: track)
-        let item = media[clip.mediaID]
         context.fill(shape, with: .color(color.opacity(0.75)))
 
         context.drawLayer { layer in
             layer.clip(to: shape)
-            if track.kind == .video, let image = thumbnails[clip.mediaID] {
+            if track.kind == .video, let id = clip.mediaID, let image = thumbnails[id] {
                 drawThumbnails(image, in: rect, context: &layer, visible: visible)
             }
-            if let peaks = waveforms[clip.mediaID], track.kind == .audio || !clip.isAudioDetached {
+            drawContent(of: clip, in: rect, context: &layer, visible: visible)
+            if let id = clip.mediaID, let peaks = waveforms[id], track.kind == .audio || !clip.isAudioDetached {
                 drawWaveform(peaks, of: clip, in: rect, context: &layer, visible: visible, onPicture: track.kind == .video)
             }
             if clip.id == hovered {
@@ -140,7 +187,7 @@ struct TimelineCanvas: View {
                 layer.draw(symbol, at: CGPoint(x: labelX, y: rect.minY + 3), anchor: .topLeading)
                 labelX += symbol.measure(in: rect.size).width + 4
             }
-            let label = Text(verbatim: item?.name ?? "").font(.caption2.weight(.medium)).foregroundStyle(.white)
+            let label = Text(verbatim: label(for: clip)).font(.caption2.weight(.medium)).foregroundStyle(.white)
             layer.draw(label, at: CGPoint(x: labelX, y: rect.minY + 3), anchor: .topLeading)
         }
 
