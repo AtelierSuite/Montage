@@ -97,6 +97,32 @@ struct ExporterTests {
         try await exportMP4("IMG_3312.mp4", codec: .hevc, expectedSubtype: kCMVideoCodecType_HEVC)
     }
 
+    @Test func exportsAProjectAsPreviewPlaysIt() async throws {
+        // Two clips with a gap between them, landscape then portrait, in a
+        // 1080p project: the built composition, exported as it plays.
+        let landscape = MediaItem(name: "IMG_3311.mp4", kind: .video, location: .package(path: "IMG_3311.mp4"), metadata: MediaMetadata())
+        let portrait = MediaItem(name: "IMG_3312.mp4", kind: .video, location: .package(path: "IMG_3312.mp4"), metadata: MediaMetadata())
+        let first = Clip(mediaID: landscape.id, sourceRange: range(1, 1), timelineStart: .zero)
+        let second = Clip(mediaID: portrait.id, sourceRange: range(1, 1), timelineStart: CMTime(value: 3, timescale: 2))
+        let project = Project(media: [landscape, portrait], tracks: [Track(kind: .video, clips: [first, second])])
+        let resolver = MediaResolver { item in
+            guard case .package(let path) = item.location else { return nil }
+            return Samples.url(path)
+        }
+        let built = try await CompositionBuilder(project: project, mediaResolver: resolver).build()
+        let source = RenderSource(built)
+        #expect(source.renderSize == CGSize(width: 1920, height: 1080))
+
+        let url = try temporaryURL("mp4")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try await Exporter().export(source, settings: ExportSettings(resolution: .hd720, quality: .low), to: url)
+        let output = AVURLAsset(url: url)
+        #expect(abs(try await output.load(.duration).seconds - 2.5) < 0.1)
+        let video = try #require(try await output.loadTracks(withMediaType: .video).first)
+        #expect(try await video.load(.naturalSize) == CGSize(width: 1280, height: 720))
+        #expect(!(try await output.loadTracks(withMediaType: .audio)).isEmpty)
+    }
+
     @Test func cancellingRemovesThePartialFile() async throws {
         let source = try await RenderSource.file(at: Samples.url("IMG_3311.mp4"))
         let settings = ExportSettings(format: .mp4, codec: .h264, resolution: .project)

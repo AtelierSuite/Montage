@@ -36,6 +36,17 @@ public struct RenderSource: @unchecked Sendable {
         self.timeRange = timeRange
     }
 
+    /// The project as preview plays it: the very composition, video
+    /// composition and audio mix the player is given.
+    public init(_ built: BuiltComposition) {
+        self.init(
+            asset: built.composition, videoComposition: built.videoComposition, audioMix: built.audioMix,
+            renderSize: built.videoComposition?.renderSize ?? built.project.settings.renderSize,
+            frameDuration: built.project.settings.frameDuration,
+            timeRange: CMTimeRange(start: .zero, duration: built.duration)
+        )
+    }
+
     /// A source for a plain media file, sized and timed as its video track is.
     public static func file(at url: URL, timeRange: CMTimeRange? = nil) async throws -> RenderSource {
         let asset = AVURLAsset(url: url)

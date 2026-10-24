@@ -52,10 +52,12 @@ public struct Exporter: Sendable {
         }
     }
 
-    /// Renders the source to a file at `url`, replacing what's there.
+    /// Renders the source to a file at `url`, replacing what's there. Runs
+    /// off the caller's actor.
     ///
     /// - Parameter progress: Called as the export goes, with how much of it
     ///   is done, from 0 to 1, from whichever thread the export is on.
+    @concurrent
     public func export(
         _ source: RenderSource, settings: ExportSettings, to url: URL,
         progress: @escaping @Sendable (Double) -> Void = { _ in }
