@@ -4,7 +4,7 @@ import Foundation
 import Synchronization
 import Testing
 
-@Suite struct AVIWriterTests {
+@Suite final class AVIWriterTests {
     let directory: URL
 
     init() throws {
@@ -13,15 +13,13 @@ import Testing
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
-    // The suite is a struct, so clean up from a scope rather than deinit.
-    func removeDirectory() {
+    deinit {
         try? FileManager.default.removeItem(at: directory)
     }
 
     // MARK: Motion JPEG
 
     @Test func writesMotionJPEGWithAudio() throws {
-        defer { removeDirectory() }
         let url = directory.appending(path: "mjpeg.avi")
         let frameRate = AVIWriter.FrameRate(30000, 1001)
         let video = AVIWriter.VideoSettings(codec: .motionJPEG, width: 320, height: 240, frameRate: frameRate)
@@ -62,7 +60,6 @@ import Testing
     // MARK: H.264
 
     @Test func writesH264FromVideoToolbox() throws {
-        defer { removeDirectory() }
         let url = directory.appending(path: "h264.avi")
         let frameRate = AVIWriter.FrameRate(30)
         let video = AVIWriter.VideoSettings(codec: .h264, width: 320, height: 240, frameRate: frameRate)
@@ -122,7 +119,6 @@ import Testing
     // MARK: OpenDML
 
     @Test func continuesInAVIXSegments() throws {
-        defer { removeDirectory() }
         let url = directory.appending(path: "segments.avi")
         let video = AVIWriter.VideoSettings(codec: .motionJPEG, width: 320, height: 240, frameRate: .init(25))
         let audio = AVIWriter.AudioSettings(sampleRate: 22050, channels: 1)
@@ -148,7 +144,6 @@ import Testing
     }
 
     @Test func stopsWhenTheSuperIndexIsFull() throws {
-        defer { removeDirectory() }
         let url = directory.appending(path: "full.avi")
         let video = AVIWriter.VideoSettings(codec: .motionJPEG, width: 16, height: 16, frameRate: .init(30))
         // Every frame goes in a segment of its own.
@@ -172,7 +167,6 @@ import Testing
     // MARK: Errors
 
     @Test func rejectsWhatAVICantHold() throws {
-        defer { removeDirectory() }
         let url = directory.appending(path: "errors.avi")
         let video = AVIWriter.VideoSettings(codec: .motionJPEG, width: 64, height: 64, frameRate: .init(24))
 
@@ -217,7 +211,6 @@ import Testing
     /// `TEST_RUNNER_MONTAGE_LARGE_FILE_TESTS=1`).
     @Test(.tags(.largeFile), .enabled(if: ProcessInfo.processInfo.environment["MONTAGE_LARGE_FILE_TESTS"] != nil))
     func writesPastOneGigabyte() throws {
-        defer { removeDirectory() }
         let url = directory.appending(path: "large.avi")
         let video = AVIWriter.VideoSettings(codec: .motionJPEG, width: 1920, height: 1080, frameRate: .init(30000, 1001))
         let audio = AVIWriter.AudioSettings(sampleRate: 48000, channels: 2)
