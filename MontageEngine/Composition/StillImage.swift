@@ -2,7 +2,6 @@
 import CoreGraphics
 import CoreImage
 import ImageIO
-import Synchronization
 
 /// A still image clip's picture, which the compositor draws in place of the
 /// frames of the filler its clip is placed with (see `StillFiller`).
@@ -11,13 +10,15 @@ import Synchronization
 /// needs it, and kept in a small cache shared by every compositor, so a
 /// timeline full of photos doesn't hold them all at once.
 struct StillImage: Sendable {
+    /// The media item it's the picture of.
+    let id: MediaItem.ID
     let url: URL
     /// The image's size shown upright, as stored.
     let size: CGSize
 
     /// Reads the image's size, without decoding it. Nil when the file isn't
     /// an image that can be read.
-    init?(url: URL) {
+    init?(id: MediaItem.ID, url: URL) {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil), CGImageSourceGetCount(source) > 0,
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int,
@@ -25,6 +26,7 @@ struct StillImage: Sendable {
         let orientation = (properties[kCGImagePropertyOrientation] as? UInt32)
             .flatMap(CGImagePropertyOrientation.init(rawValue:)) ?? .up
         let isTurned = MediaProbe.rotation(for: orientation) % 180 != 0
+        self.id = id
         self.url = url
         self.size = isTurned ? CGSize(width: height, height: width) : CGSize(width: width, height: height)
     }
@@ -34,7 +36,7 @@ struct StillImage: Sendable {
     func picture(for renderSize: CGSize) -> CIImage? {
         // Twice the frame's size leaves room to zoom in before it softens.
         let maxPixelSize = Int(max(renderSize.width, renderSize.height) * 2)
-        guard let image = Self.cache.image(for: url, maxPixelSize: maxPixelSize) else { return nil }
+        guard let image = Self.cache.image(for: id, at: url, maxPixelSize: maxPixelSize) else { return nil }
         let picture = CIImage(cgImage: image)
         return picture.transformed(by: CGAffineTransform(
             scaleX: size.width / picture.extent.width, y: size.height / picture.extent.height
@@ -44,33 +46,57 @@ struct StillImage: Sendable {
     private static let cache = StillImageCache()
 }
 
-/// Decoded still images, the few most recently used.
+/// Decoded still images, shared by every compositor and kept across builds,
+/// so a rebuild after an edit doesn't decode them again. Kept by the memory
+/// they take, letting the least used go past it, and under memory pressure.
 private final class StillImageCache: Sendable {
-    private struct Key: Hashable {
+    private final class Key: NSObject {
+        let id: MediaItem.ID
         let url: URL
         let maxPixelSize: Int
+
+        init(id: MediaItem.ID, url: URL, maxPixelSize: Int) {
+            self.id = id
+            self.url = url
+            self.maxPixelSize = maxPixelSize
+        }
+
+        override func isEqual(_ object: Any?) -> Bool {
+            guard let other = object as? Key else { return false }
+            return id == other.id && url == other.url && maxPixelSize == other.maxPixelSize
+        }
+
+        override var hash: Int {
+            var hasher = Hasher()
+            hasher.combine(id)
+            hasher.combine(url)
+            hasher.combine(maxPixelSize)
+            return hasher.finalize()
+        }
     }
 
-    /// Enough for the images around a cut on a few layers.
-    private static let capacity = 6
-    private let images = Mutex<[(key: Key, image: CGImage)]>([])
+    private final class Entry: @unchecked Sendable {
+        let image: CGImage
+        init(_ image: CGImage) { self.image = image }
+    }
 
-    func image(for url: URL, maxPixelSize: Int) -> CGImage? {
-        let key = Key(url: url, maxPixelSize: maxPixelSize)
-        if let image = images.withLock({ images -> CGImage? in
-            guard let index = images.firstIndex(where: { $0.key == key }) else { return nil }
-            let found = images.remove(at: index)
-            images.append(found)
-            return found.image
-        }) {
-            return image
-        }
+    /// Room for a few 4K-frame photos either side of a cut on several layers.
+    private static let byteLimit = 384 * 1024 * 1024
+    // NSCache is safe to use from any thread.
+    nonisolated(unsafe) private let images: NSCache<Key, Entry> = {
+        let cache = NSCache<Key, Entry>()
+        cache.totalCostLimit = byteLimit
+        cache.name = "Montage still images"
+        return cache
+    }()
+
+    /// The image of a media item at a URL, which a relinked item changes,
+    /// decoded no larger than `maxPixelSize`.
+    func image(for id: MediaItem.ID, at url: URL, maxPixelSize: Int) -> CGImage? {
+        let key = Key(id: id, url: url, maxPixelSize: maxPixelSize)
+        if let entry = images.object(forKey: key) { return entry.image }
         guard let image = Self.decode(url, maxPixelSize: maxPixelSize) else { return nil }
-        images.withLock { images in
-            images.removeAll { $0.key == key }
-            images.append((key, image))
-            if images.count > Self.capacity { images.removeFirst(images.count - Self.capacity) }
-        }
+        images.setObject(Entry(image), forKey: key, cost: image.bytesPerRow * image.height)
         return image
     }
 

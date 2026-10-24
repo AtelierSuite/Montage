@@ -504,7 +504,7 @@ private struct MediaLoader {
         guard let url = resolver.url(for: item), (try? url.checkResourceIsReachable()) == true else {
             return .failure(LoadFailure(reason: .fileNotFound))
         }
-        guard let image = StillImage(url: url) else { return .failure(LoadFailure(reason: .unreadable)) }
+        guard let image = StillImage(id: item.id, url: url) else { return .failure(LoadFailure(reason: .unreadable)) }
         return .success(image)
     }
 
