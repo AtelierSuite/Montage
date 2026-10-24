@@ -82,6 +82,17 @@ struct FCPXMLImporter {
         var component: Component?
         /// The settings and effects of the clips this one is inside.
         var inherited: [Inherited] = []
+        /// The compound and multicam media being read, outermost first.
+        var expanding: [String] = []
+
+        /// Notes that a compound or multicam clip's media is being read.
+        /// False if it already is, as for media that holds itself, or if
+        /// it's nested deeper than any real project would be.
+        mutating func enter(_ resource: String) -> Bool {
+            guard !expanding.contains(resource), expanding.count < 64 else { return false }
+            expanding.append(resource)
+            return true
+        }
 
         func timeline(_ local: CMTime) -> CMTime { base + (local - origin) }
 
@@ -206,7 +217,7 @@ struct FCPXMLImporter {
             case "ref-clip":
                 inside.component = Component.combine(Component(sourceEnable: element["srcEnable"]), context.component)
                 inside.inherited.append(Inherited(element: element, base: inside.base, origin: inside.origin))
-                if let spine = element["ref"].flatMap({ resources[$0] })?.child("sequence")?.child("spine") {
+                if let ref = element["ref"], inside.enter(ref), let spine = resources[ref]?.child("sequence")?.child("spine") {
                     importSequence(spine.children, in: inside)
                 }
             case "mc-clip":
@@ -255,7 +266,8 @@ struct FCPXMLImporter {
     /// A multicam clip shows one angle's picture and one angle's sound,
     /// which may be different angles.
     private mutating func importMulticam(_ element: MarkupElement, in context: Context) {
-        guard let multicam = element["ref"].flatMap({ resources[$0] })?.child("multicam") else { return }
+        var context = context
+        guard let ref = element["ref"], context.enter(ref), let multicam = resources[ref]?.child("multicam") else { return }
         let angles = multicam.children("mc-angle")
         let sources = element.children("mc-source")
         func angle(for components: Set<String>) -> MarkupElement? {

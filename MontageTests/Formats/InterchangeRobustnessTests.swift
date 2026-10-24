@@ -38,4 +38,23 @@ struct InterchangeRobustnessTests {
             """
         _ = try ProjectInterchange.read(Data(xml.utf8))
     }
+
+    @Test func stopsAtCompoundClipsThatContainThemselves() throws {
+        let xml = """
+            <fcpxml version="1.11"><resources><format id="r1" frameDuration="1/30s" width="1920" height="1080"/>
+            <asset id="a1" name="A" start="0s" duration="10s" hasVideo="1" format="r1"><media-rep kind="original-media" src="a.mov"/></asset>
+            <media id="m1" name="Loop"><sequence format="r1" tcStart="0s"><spine>
+            <asset-clip ref="a1" offset="0s" start="0s" duration="1s"/>
+            <ref-clip ref="m1" offset="1s" start="0s" duration="2s"/>
+            </spine></sequence></media>
+            <media id="m2" name="Cam"><multicam format="r1"><mc-angle angleID="x">
+            <mc-clip ref="m2" offset="0s" start="0s" duration="2s"/></mc-angle></multicam></media>
+            </resources><library><event><project name="P"><sequence format="r1" tcStart="0s"><spine>
+            <ref-clip ref="m1" offset="0s" start="0s" duration="3s"/>
+            <mc-clip ref="m2" offset="3s" start="0s" duration="2s"/>
+            </spine></sequence></project></event></library></fcpxml>
+            """
+        let imported = try ProjectInterchange.read(Data(xml.utf8))
+        #expect(imported.project.tracks.flatMap(\.clips).count == 1)
+    }
 }
