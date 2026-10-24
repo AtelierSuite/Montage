@@ -160,13 +160,13 @@ private struct EffectSection: View {
 
 extension Effect.Kind {
     /// The effect's name, as the inspector heads it.
-    var title: LocalizedStringKey {
+    var title: String {
         switch self {
-        case .colorCorrection: "Effect.ColorCorrection"
-        case .mosaic: "Effect.Mosaic"
+        case .colorCorrection: String(localized: "Effect.ColorCorrection")
+        case .mosaic: String(localized: "Effect.Mosaic")
         // Not shown with the video effects; their own inspector names them.
-        case .gain, .pan, .equalizer, .delay, .reverb: "Effect.Audio"
-        case .unsupported(let effect): "Effect.Unsupported \(effect.name)"
+        case .gain, .pan, .equalizer, .delay, .reverb: String(localized: "Effect.Audio")
+        case .unsupported(let effect): String(format: String(localized: "Effect.Unsupported"), effect.name)
         }
     }
 

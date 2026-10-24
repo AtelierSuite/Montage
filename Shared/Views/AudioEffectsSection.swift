@@ -128,15 +128,15 @@ struct AudioEffectEditor: View {
     /// is final or a step of a drag.
     let onChange: (Effect.Kind, Bool) -> Void
 
-    static func name(of kind: Effect.Kind) -> LocalizedStringKey {
+    static func name(of kind: Effect.Kind) -> String {
         switch kind {
-        case .gain: "AudioEffect.Gain"
-        case .pan: "AudioEffect.Pan"
-        case .equalizer: "AudioEffect.Equalizer"
-        case .delay: "AudioEffect.Delay"
-        case .reverb: "AudioEffect.Reverb"
+        case .gain: String(localized: "AudioEffect.Gain")
+        case .pan: String(localized: "AudioEffect.Pan")
+        case .equalizer: String(localized: "AudioEffect.Equalizer")
+        case .delay: String(localized: "AudioEffect.Delay")
+        case .reverb: String(localized: "AudioEffect.Reverb")
         case .colorCorrection, .mosaic: ""
-        case .unsupported(let effect): "Effect.Unsupported \(effect.name)"
+        case .unsupported(let effect): String(format: String(localized: "Effect.Unsupported"), effect.name)
         }
     }
 

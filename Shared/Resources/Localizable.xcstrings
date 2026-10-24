@@ -1,9 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {
-
-    },
     "Action.AddEffect" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -609,7 +606,7 @@
         }
       }
     },
-    "Effect.Unsupported %@" : {
+    "Effect.Unsupported" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -1236,7 +1233,7 @@
         }
       }
     },
-    "ImportReport.Summary.Changed %lld" : {
+    "ImportReport.Summary.Changed" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -1259,7 +1256,7 @@
         }
       }
     },
-    "ImportReport.Summary.MissingMedia %lld" : {
+    "ImportReport.Summary.MissingMedia" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -1282,7 +1279,7 @@
         }
       }
     },
-    "ImportReport.Summary.NotImported %lld" : {
+    "ImportReport.Summary.NotImported" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -1305,7 +1302,7 @@
         }
       }
     },
-    "ImportReport.Summary.UnsupportedEffect %lld" : {
+    "ImportReport.Summary.UnsupportedEffect" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -1493,17 +1490,6 @@
         }
       }
     },
-    "Inspector.Color.Lift" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lift"
-          }
-        }
-      }
-    },
     "Inspector.Color.LUT" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1566,6 +1552,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove LUT"
+          }
+        }
+      }
+    },
+    "Inspector.Color.Lift" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lift"
           }
         }
       }
@@ -3363,6 +3360,17 @@
         }
       }
     },
+    "Relink.NotIncluded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Won't be relinked"
+          }
+        }
+      }
+    },
     "Relink.NothingFound.Message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3381,17 +3389,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Files Found"
-          }
-        }
-      }
-    },
-    "Relink.NotIncluded" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Won't be relinked"
           }
         }
       }

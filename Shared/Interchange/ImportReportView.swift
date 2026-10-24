@@ -69,10 +69,10 @@ struct ImportReportView: View {
     private func summary(of category: ImportReport.Category) -> String {
         let count = report.items(in: category).count
         return switch category {
-        case .unsupportedEffect: String(localized: "ImportReport.Summary.UnsupportedEffect \(count)")
-        case .missingMedia: String(localized: "ImportReport.Summary.MissingMedia \(count)")
-        case .notImported: String(localized: "ImportReport.Summary.NotImported \(count)")
-        case .changed: String(localized: "ImportReport.Summary.Changed \(count)")
+        case .unsupportedEffect: String(format: String(localized: "ImportReport.Summary.UnsupportedEffect"), count)
+        case .missingMedia: String(format: String(localized: "ImportReport.Summary.MissingMedia"), count)
+        case .notImported: String(format: String(localized: "ImportReport.Summary.NotImported"), count)
+        case .changed: String(format: String(localized: "ImportReport.Summary.Changed"), count)
         }
     }
 
