@@ -166,7 +166,7 @@ struct FCPXMLImporter {
         let duration = time(element["duration"]) ?? assetDuration(of: element, from: start) ?? .zero
         let timing = Timing(
             offset: offset, start: start, duration: duration, timelineStart: context.timeline(offset),
-            lane: context.lane + (element["lane"].flatMap(Int.init) ?? 0)
+            lane: context.lane + Self.lane(element["lane"])
         )
         let name = element["name"]
         // Inside this element: its local time, from `start`.
@@ -611,6 +611,12 @@ struct FCPXMLImporter {
     /// Final Cut's lowest level, -96dB, is silence.
     static func linearGain(decibels: Double) -> Double {
         decibels <= -96 ? 0 : pow(10, decibels / 20)
+    }
+
+    /// A lane number, held to what a project could really have, so lanes
+    /// added up through nested storylines can't overflow.
+    private static func lane(_ string: String?) -> Int {
+        string.flatMap { Int($0) }.map { max(-1000, min(1000, $0)) } ?? 0
     }
 
     private func time(_ string: String?) -> CMTime? {

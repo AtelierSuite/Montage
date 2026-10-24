@@ -25,4 +25,17 @@ struct InterchangeRobustnessTests {
             """
         _ = try ProjectInterchange.read(Data(xml.utf8))
     }
+
+    @Test func readsHugeLanesWithoutCrashing() throws {
+        let xml = """
+            <fcpxml version="1.11"><resources><format id="r1" frameDuration="1/30s" width="1920" height="1080"/>
+            <asset id="a1" name="A" start="0s" duration="10s" hasVideo="1" format="r1"><media-rep kind="original-media" src="a.mov"/></asset>
+            </resources><library><event><project name="P"><sequence format="r1" tcStart="0s"><spine>
+            <asset-clip ref="a1" offset="0s" start="0s" duration="5s">
+            <asset-clip ref="a1" lane="9223372036854775807" offset="0s" start="0s" duration="1s"/>
+            <spine lane="-9223372036854775807" offset="0s"><asset-clip ref="a1" lane="-9223372036854775807" offset="0s" start="0s" duration="1s"/></spine>
+            </asset-clip></spine></sequence></project></event></library></fcpxml>
+            """
+        _ = try ProjectInterchange.read(Data(xml.utf8))
+    }
 }
