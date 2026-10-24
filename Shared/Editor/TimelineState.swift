@@ -27,8 +27,8 @@ final class TimelineState {
     /// the timeline. Either end can be marked without the other.
     var markedIn: CMTime?
     var markedOut: CMTime?
-    /// Whether media from the library is being dragged, for the editor to
-    /// give the timeline room to take it.
+    /// Whether media dragged from the library has been taken out of it, for
+    /// the editor to give the timeline room to take it.
     var isDraggingMedia = false
 
     /// How far the timeline zooms in and out.
