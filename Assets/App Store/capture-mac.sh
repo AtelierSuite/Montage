@@ -18,7 +18,9 @@ DERIVED_DATA=${DERIVED_DATA:-/tmp/montage-mac-screenshots-dd}
 LANGUAGES=($@)
 (( $# )) || LANGUAGES=(en ja)
 WORK=$(mktemp -d /tmp/montage-mac-screenshots.XXXXXX)
-trap 'rm -rf $WORK' EXIT
+pid="" samples=""
+# On the way out, however it goes: the app this started, and the samples.
+trap '[[ -n $pid ]] && kill $pid 2>/dev/null; [[ -n $samples ]] && rm -rf "$samples"; rm -rf $WORK' EXIT
 
 # Each shot: name, then the sample it opens, by language.
 typeset -A EN_PROJECTS=(01-aquarium "Aquarium Day" 02-farm "Farm Visit" 03-export "Aquarium Day")
@@ -84,7 +86,9 @@ for language in $LANGUAGES; do
     fi
     kill $pid 2>/dev/null || true
     wait $pid 2>/dev/null || true
+    pid=""
     echo "captured Mac/$language/$shot"
   done
   rm -r "$samples"
+  samples=""
 done
