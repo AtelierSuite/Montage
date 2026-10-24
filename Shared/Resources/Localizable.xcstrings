@@ -12,6 +12,17 @@
         }
       }
     },
+    "Action.DeleteBin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Bin"
+          }
+        }
+      }
+    },
     "Action.ImportMedia" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -19,6 +30,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import Media"
+          }
+        }
+      }
+    },
+    "Action.MoveToBin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to Bin"
+          }
+        }
+      }
+    },
+    "Action.NewBin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Bin"
           }
         }
       }
@@ -41,6 +74,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove from Library"
+          }
+        }
+      }
+    },
+    "Action.RemoveUnusedMedia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Unused Media"
+          }
+        }
+      }
+    },
+    "Action.RenameBin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename Bin"
           }
         }
       }
