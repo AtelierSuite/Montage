@@ -39,9 +39,9 @@ extension Clip {
     }
 
     /// Moves the clip's start to a time on the timeline, keeping its end,
-    /// taking more or less of its media: the media under every frame left
-    /// stays where it was. The caller keeps it within its media and at
-    /// least a frame long.
+    /// taking more or less of its media: the media under every frame left,
+    /// and its keyframes, stay where they were. The caller keeps it within
+    /// its media and at least a frame long.
     mutating func moveStart(to time: CMTime, isStill: Bool) {
         let delta = time - timelineStart
         let duration = sourceRange.duration - delta
@@ -49,7 +49,9 @@ extension Clip {
         let sourceStart = isStill ? sourceRange.start : sourceRange.start + delta
         sourceRange = CMTimeRange(start: sourceStart, duration: duration)
         timelineStart = time
-        if !isStill { shiftKeyframes(by: .zero - delta) }
+        // A still's keyframes stay put too, or the part of it after a split
+        // would start its animation over.
+        shiftKeyframes(by: .zero - delta)
     }
 
     /// Moves the clip's end to a time on the timeline, keeping its start.

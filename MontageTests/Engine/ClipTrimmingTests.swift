@@ -143,6 +143,18 @@ struct SplitTests {
         #expect(after.volume.value(at: after.localTime(s(5))) == 0.5)
     }
 
+    @Test func aStillsSecondHalfCarriesOnItsAnimation() {
+        var fixture = TimelineFixture()
+        var still = Clip(mediaID: fixture.image.id, sourceRange: range(0, 10))
+        still.opacity.setKeyframe(Keyframe(time: s(2), value: 0))
+        still.opacity.setKeyframe(Keyframe(time: s(8), value: 1))
+        fixture.project.tracks[0].insert(still)
+        fixture.project.splitClip(still.id, at: s(4))
+        let after = fixture.clips[1]
+        #expect(after.sourceRange == range(0, 6))
+        #expect(after.opacity.value(at: after.localTime(s(5))) == 0.5)
+    }
+
     @Test func doesntSplitAtAnEdge() {
         var fixture = TimelineFixture([(0, 0, 5)])
         #expect(fixture.project.splitClip(fixture.id(0), at: .zero) == nil)
