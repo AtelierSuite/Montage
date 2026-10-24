@@ -1,6 +1,50 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "AVIWriter.Error.InvalidSettings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This video can't be exported as AVI at this frame size, frame rate or audio format."
+          }
+        }
+      }
+    },
+    "AVIWriter.Error.NotWriting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The AVI file has already been finished or cancelled, so nothing more can be added to it."
+          }
+        }
+      }
+    },
+    "AVIWriter.Error.TooLarge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This video is too large to export as a single AVI file."
+          }
+        }
+      }
+    },
+    "AVIWriter.Error.UnsupportedMedia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some of the video or audio is in a format that can't be written into an AVI file."
+          }
+        }
+      }
+    },
     "ProjectPackage.Error.NewerFormat" : {
       "extractionState" : "manual",
       "localizations" : {
