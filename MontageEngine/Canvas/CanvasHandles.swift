@@ -20,8 +20,12 @@ extension ClipTransform {
     ///
     /// Call it on the transform as it was when the drag began, with the
     /// drag's starting point, so the change is the drag's as a whole.
+    /// `turn` is how far a rotate drag has turned all told, from a
+    /// `RotationTracker`, which can be more than half a turn; without it,
+    /// it's the short way from the start to the end.
     public mutating func drag(
-        _ handle: TransformHandle, from start: CGPoint, to end: CGPoint, renderSize: CGSize, at time: CMTime
+        _ handle: TransformHandle, from start: CGPoint, to end: CGPoint, renderSize: CGSize, at time: CMTime,
+        turn: Double? = nil
     ) {
         guard renderSize.width > 0, renderSize.height > 0 else { return }
         let position = position.value(at: time)
@@ -38,7 +42,7 @@ extension ClipTransform {
             let ratio = hypot(end.x - center.x, end.y - center.y) / startDistance
             scale.set(min(max(scale.value(at: time) * ratio, Self.scaleRange.lowerBound), Self.scaleRange.upperBound), at: time)
         case .rotate:
-            guard let turn = CanvasMath.turn(from: start, to: end, about: center) else { return }
+            guard let turn = turn ?? CanvasMath.turn(from: start, to: end, about: center) else { return }
             rotation.set(rotation.value(at: time) + turn, at: time)
         }
     }
@@ -166,10 +170,11 @@ extension Mask {
     /// on. As with `ClipTransform.drag`, animated values get a keyframe at
     /// the time and the rest change throughout; call it on the mask as it
     /// was when the drag began. `reach` is the one the handles are placed
-    /// with, in `MaskPlacement.point(of:reach:)`.
+    /// with, in `MaskPlacement.point(of:reach:)`, and `turn` a rotate
+    /// drag's turn all told, as for `ClipTransform.drag`.
     public mutating func drag(
         _ handle: MaskHandle, from start: CGPoint, to end: CGPoint, in layer: LayerPlacement, at time: CMTime,
-        reach: Double = 0
+        reach: Double = 0, turn: Double? = nil
     ) {
         let placement = MaskPlacement(self, in: layer, at: time)
         let picture = layer.pictureRect
@@ -189,7 +194,7 @@ extension Mask {
             if y != 0 { size.height = max(abs(local.y) * 2, 1) / picture.height }
             self.size.set(size, at: time)
         case .rotate:
-            guard let turn = CanvasMath.turn(from: startPoint, to: endPoint, about: placement.center) else { return }
+            guard let turn = turn ?? CanvasMath.turn(from: startPoint, to: endPoint, about: placement.center) else { return }
             rotation.set(rotation.value(at: time) + turn, at: time)
         case .feather:
             let beyond = abs(local.x) - placement.size.width / 2 - placement.pictureDistance(reach)
@@ -202,6 +207,28 @@ extension Mask {
             )
             self.path.set(path, at: time)
         }
+    }
+}
+
+/// How far a rotate drag has turned about a centre all told, followed
+/// step by step, so going round more than half a turn keeps counting
+/// rather than wrapping back.
+public struct RotationTracker: Equatable, Sendable {
+    /// Clockwise, in degrees (y running down).
+    public private(set) var degrees = 0.0
+    public let center: CGPoint
+    private var last: CGPoint
+
+    public init(from start: CGPoint, about center: CGPoint) {
+        self.center = center
+        last = start
+    }
+
+    /// Follows the pointer to a new point.
+    public mutating func move(to point: CGPoint) {
+        guard let turn = CanvasMath.turn(from: last, to: point, about: center) else { return }
+        degrees += turn
+        last = point
     }
 }
 

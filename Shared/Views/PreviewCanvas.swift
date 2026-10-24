@@ -63,6 +63,8 @@ struct PreviewCanvas: View {
         var time: CMTime
         /// Between the view and the frame, as the drag began.
         var mapping: PreviewMapping
+        /// How far a rotate drag has turned, followed as it goes.
+        var rotation: RotationTracker?
     }
 
     var body: some View {
@@ -288,24 +290,45 @@ struct PreviewCanvas: View {
     private func dragChanged(
         _ target: Drag.Target, clip: Clip, mapping: PreviewMapping, from start: CGPoint, to end: CGPoint
     ) {
+        let renderSize = editor.project.settings.renderSize
         if drag == nil {
-            drag = Drag(clipID: clip.id, target: target, time: clipTime(clip), mapping: mapping)
+            let time = clipTime(clip)
+            var rotation: RotationTracker?
+            switch target {
+            case .transform(.rotate):
+                let position = clip.transform.position.value(at: time)
+                rotation = RotationTracker(
+                    from: mapping.renderPoint(fromView: start),
+                    about: CGPoint(x: position.x * renderSize.width, y: position.y * renderSize.height)
+                )
+            case .mask(let effectID, .rotate, let layer):
+                if let mask = clip.effects.first(where: { $0.id == effectID })?.mask {
+                    rotation = RotationTracker(
+                        from: mapping.renderPoint(fromView: start), about: MaskPlacement(mask, in: layer, at: time).point(of: .move)
+                    )
+                }
+            default:
+                break
+            }
+            drag = Drag(clipID: clip.id, target: target, time: time, mapping: mapping, rotation: rotation)
             editor.beginGesture(Self.actionName(for: target))
         }
-        guard let drag else { return }
+        guard var drag else { return }
         let from = drag.mapping.renderPoint(fromView: start)
         let to = drag.mapping.renderPoint(fromView: end)
-        let renderSize = editor.project.settings.renderSize
+        drag.rotation?.move(to: to)
+        self.drag = drag
+        let turn = drag.rotation?.degrees
         editor.updateGesture { project in
             project.updateClip(drag.clipID) { clip in
                 switch drag.target {
                 case .transform(let handle):
-                    clip.transform.drag(handle, from: from, to: to, renderSize: renderSize, at: drag.time)
+                    clip.transform.drag(handle, from: from, to: to, renderSize: renderSize, at: drag.time, turn: turn)
                 case .mask(let effectID, let handle, let layer):
                     guard let index = clip.effects.firstIndex(where: { $0.id == effectID }) else { return }
                     clip.effects[index].mask?.drag(
                         handle, from: from, to: to, in: layer, at: drag.time,
-                        reach: Self.maskReach(handleReach, mapping: drag.mapping)
+                        reach: Self.maskReach(handleReach, mapping: drag.mapping), turn: turn
                     )
                 }
             }

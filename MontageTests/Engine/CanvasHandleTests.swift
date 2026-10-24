@@ -52,6 +52,23 @@ struct TransformHandleTests {
         #expect(CanvasMath.turn(from: .zero, to: CGPoint(x: 1, y: 0), about: .zero) == nil)
     }
 
+    @Test func keepsCountingPastHalfATurn() {
+        let center = CGPoint(x: 960, y: 540)
+        var tracker = RotationTracker(from: CGPoint(x: 1060, y: 540), about: center)
+        for point in [CGPoint(x: 960, y: 640), CGPoint(x: 860, y: 540), CGPoint(x: 960, y: 440)] {
+            tracker.move(to: point)
+        }
+        #expect(approximately(tracker.degrees, 270))
+        var transform = ClipTransform()
+        transform.drag(.rotate, from: CGPoint(x: 1060, y: 540), to: CGPoint(x: 960, y: 440), renderSize: renderSize,
+                       at: .zero, turn: tracker.degrees)
+        #expect(approximately(transform.rotation.value, 270))
+        // Without the tracker, it's the short way: a quarter turn back.
+        var shortWay = ClipTransform()
+        shortWay.drag(.rotate, from: CGPoint(x: 1060, y: 540), to: CGPoint(x: 960, y: 440), renderSize: renderSize, at: .zero)
+        #expect(approximately(shortWay.rotation.value, -90))
+    }
+
     @Test func dragOnAnAnimatedParameterAddsAKeyframe() {
         var transform = ClipTransform()
         transform.position = Animatable(.zero, keyframes: [Keyframe(time: .zero, value: CGPoint(x: 0.5, y: 0.5))])
