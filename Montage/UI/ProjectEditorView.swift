@@ -19,6 +19,8 @@ struct ProjectEditorView: View {
     @State private var isShowingLibrary = false
     @State private var isShowingInspector = false
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
+    @State private var isShowingExport = false
+    @State private var isShowingExports = false
     /// The document's location while it's being read from, for media in it.
     @State private var accessedURL: URL?
 
@@ -113,6 +115,18 @@ struct ProjectEditorView: View {
                     .presentationDetents([.medium, .large])
             }
             .toolbar { editorToolbar }
+            .sheet(isPresented: $isShowingExport) {
+                ExportSheet(editor: editor, title: projectTitle) { isShowingExports = true }
+            }
+            .sheet(isPresented: $isShowingExports) {
+                ExportsSheet(queue: ExportCenter.queue)
+                    .presentationDetents([.medium, .large])
+            }
+    }
+
+    /// The project's name, for the files exported from it.
+    private var projectTitle: String {
+        fileURL?.deletingPathExtension().lastPathComponent ?? String(localized: "Export.Untitled")
     }
 
     // MARK: - Toolbar
@@ -143,8 +157,12 @@ struct ProjectEditorView: View {
         Menu("Toolbar.More", systemImage: "ellipsis") {
             Section {
                 // Nothing to export until there's a timeline to render.
-                Button("Toolbar.Export", systemImage: "square.and.arrow.up") {}
-                    .disabled(true)
+                Button("Toolbar.Export", systemImage: "square.and.arrow.up") { isShowingExport = true }
+                    .disabled(!editor.canExport)
+                    .keyboardShortcut("e", modifiers: .command)
+                if !ExportCenter.queue.jobs.isEmpty {
+                    Button("Toolbar.Exports", systemImage: "list.bullet") { isShowingExports = true }
+                }
             }
         }
         .accessibilityIdentifier("more")
