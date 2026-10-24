@@ -117,6 +117,18 @@ struct LayerPlacementTests {
         #expect(project.layer(at: CGPoint(x: -10, y: 200), time: s(1)) == nil)
     }
 
+    @Test func picksAStillImageLayerByItsFittedPicture() {
+        var fixture = TimelineFixture()
+        fixture.project.settings.renderSize = renderSize
+        let still = Clip(mediaID: fixture.image.id, sourceRange: CMTimeRange(start: .zero, duration: s(5)))
+        fixture.project.tracks[0].insert(still)
+        let project = fixture.project
+        // A square picture, pillarboxed in the middle of the frame.
+        #expect(project.layer(at: CGPoint(x: 960, y: 540), time: s(1))?.clipID == still.id)
+        #expect(project.layer(at: CGPoint(x: 300, y: 540), time: s(1)) == nil)
+        #expect(project.layerPlacements(at: s(1)).first?.pictureRect == CGRect(x: 420, y: 0, width: 1080, height: 1080))
+    }
+
     @Test func skipsHiddenTracksAndFadedClips() {
         var fixture = TimelineFixture([(0, 0, 5)])
         fixture.project.settings.renderSize = renderSize
