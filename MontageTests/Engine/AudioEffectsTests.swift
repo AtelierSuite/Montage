@@ -189,6 +189,19 @@ struct AudioEffectsTests {
         #expect(audio.rms(\.left, 1.05, 1.5) > 0.05 * audio.rms(\.left, 0.1, 0.9))
     }
 
+    @Test func aDelayEchoesIntoEmptyTimeBeforeTheNextClip() async throws {
+        var delay = Delay()
+        delay.mix = Animatable(0.5)
+        let echoing = soundClip(duration: 1, effects: [.delay(delay)])
+        let later = soundClip(at: 3, duration: 1)
+        let built = try await build(project([echoing, later]))
+        // Clear of the tail, the next clip shares the track, which has empty
+        // time between the two for the echoes to ring into.
+        #expect(built.audioLayers.count == 1)
+        let audio = try await RenderedAudio.read(built)
+        #expect(audio.rms(\.left, 1.05, 1.5) > 0.05 * audio.rms(\.left, 0.1, 0.9))
+    }
+
     @Test func aClipInATailGoesOnATrackOfItsOwn() async throws {
         let echoing = soundClip(duration: 1.5, effects: [.delay(Delay())])
         let next = soundClip(at: 2, duration: 1)
