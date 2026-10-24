@@ -141,7 +141,7 @@ struct InPlaceTextView: NSViewRepresentable {
         view.delegate = context.coordinator
         context.coordinator.load(into: view)
         view.setSelectedRange(NSRange(location: view.string.utf16.count, length: 0))
-        DispatchQueue.main.async { view.window?.makeFirstResponder(view) }
+        context.coordinator.watchClicks(away: view)
         return view
     }
 
@@ -168,14 +168,32 @@ struct InPlaceTextView: NSViewRepresentable {
         InPlaceTextLayout.height(of: text, display: display, width: width)
     }
 
+    @MainActor
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: InPlaceTextView
         private(set) var display: TextDisplay?
         private var formattings: [TextRun.Formatting] = []
         private var hasEnded = false
+        private var clickMonitor: Any?
 
         init(_ parent: InPlaceTextView) {
             self.parent = parent
+        }
+
+        /// A click anywhere in the window but the words stops typing, even
+        /// on something that doesn't take the keyboard from them.
+        func watchClicks(away view: NSTextView) {
+            clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self, weak view] event in
+                // Local monitors are called on the main thread.
+                MainActor.assumeIsolated {
+                    guard let self, let view, event.window === view.window else { return }
+                    let point = view.convert(event.locationInWindow, from: nil)
+                    if !view.bounds.contains(point) {
+                        Task { @MainActor in self.end() }
+                    }
+                }
+                return event
+            }
         }
 
         func load(into view: NSTextView) {
@@ -233,16 +251,32 @@ struct InPlaceTextView: NSViewRepresentable {
         }
 
         func end() {
+            if let clickMonitor {
+                NSEvent.removeMonitor(clickMonitor)
+                self.clickMonitor = nil
+            }
             guard !hasEnded else { return }
             hasEnded = true
             parent.onEnd()
         }
     }
 
-    /// Undo and redo stop typing first, so they take back or put back the
-    /// whole of it, as the one step it is.
+    /// Takes the keyboard as soon as it's in a window. Undo and redo stop
+    /// typing first, so they take back or put back the whole of it, as the
+    /// one step it is.
     final class EditingTextView: NSTextView {
         var onEnd: (() -> Void)?
+        private var hasFocused = false
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard !hasFocused, let window else { return }
+            hasFocused = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                window.makeFirstResponder(self)
+            }
+        }
 
         @objc func undo(_ sender: Any?) {
             onEnd?()
