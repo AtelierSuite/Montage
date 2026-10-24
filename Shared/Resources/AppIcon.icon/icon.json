@@ -1,10 +1,14 @@
 {
+  "features" : [
+    "specular-location"
+  ],
   "fill" : {
-    "automatic-gradient" : "extended-srgb:0.65882,0.09412,0.17255,1.00000"
+    "automatic-gradient" : "srgb:0.65882,0.09412,0.17255,1.00000"
   },
   "groups" : [
     {
       "blend-mode" : "normal",
+      "blur-material" : 0.7,
       "layers" : [
         {
           "fill-specializations" : [
@@ -16,7 +20,7 @@
             {
               "appearance" : "dark",
               "value" : {
-                "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
+                "solid" : "srgb:1.00000,0.19041,0.30285,1.00000"
               }
             }
           ],
@@ -40,7 +44,7 @@
                 "scale" : 1.15,
                 "translation-in-points" : [
                   0,
-                  0
+                  27
                 ]
               }
             }
@@ -55,79 +59,24 @@
       "specular" : true,
       "translucency" : {
         "enabled" : true,
-        "value" : 0.5
+        "value" : 0.7
       }
     },
     {
       "blend-mode" : "normal",
+      "blur-material" : 0.5,
       "layers" : [
         {
           "fill-specializations" : [
             {
               "value" : {
-                "automatic-gradient" : "gray:1.00000,1.00000"
+                "automatic-gradient" : "gray:1.00000,0.50000"
               }
             },
             {
               "appearance" : "dark",
               "value" : {
-                "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            }
-          ],
-          "glass" : true,
-          "hidden" : false,
-          "image-name" : "Backrest.svg",
-          "name" : "Backrest",
-          "position-specializations" : [
-            {
-              "value" : {
-                "scale" : 1,
-                "translation-in-points" : [
-                  0,
-                  0
-                ]
-              }
-            },
-            {
-              "idiom" : "square",
-              "value" : {
-                "scale" : 1.15,
-                "translation-in-points" : [
-                  0,
-                  0
-                ]
-              }
-            }
-          ],
-          "opacity" : 0.55
-        }
-      ],
-      "name" : "Backrest",
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "specular" : true,
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.6
-      }
-    },
-    {
-      "blend-mode" : "normal",
-      "layers" : [
-        {
-          "fill-specializations" : [
-            {
-              "value" : {
-                "automatic-gradient" : "gray:1.00000,1.00000"
-              }
-            },
-            {
-              "appearance" : "dark",
-              "value" : {
-                "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
+                "solid" : "srgb:1.00000,0.19041,0.30285,1.00000"
               }
             }
           ],
@@ -135,6 +84,7 @@
           "hidden" : false,
           "image-name" : "Frame.svg",
           "name" : "Frame",
+          "opacity" : 0.9,
           "position-specializations" : [
             {
               "value" : {
@@ -155,8 +105,7 @@
                 ]
               }
             }
-          ],
-          "opacity" : 0.9
+          ]
         }
       ],
       "name" : "Frame",
@@ -168,6 +117,63 @@
       "translucency" : {
         "enabled" : true,
         "value" : 0.5
+      }
+    },
+    {
+      "blend-mode" : "normal",
+      "blur-material" : 0.6,
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "value" : {
+                "automatic-gradient" : "gray:1.00000,0.60000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:1.00000,0.19041,0.30285,1.00000"
+              }
+            }
+          ],
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "Backrest.svg",
+          "name" : "Backrest",
+          "opacity" : 1,
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 1.15,
+                "translation-in-points" : [
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "name" : "Backrest",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "specular" : "inside",
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.65
       }
     }
   ],

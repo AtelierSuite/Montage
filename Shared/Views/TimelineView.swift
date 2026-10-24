@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The timeline: a ruler over the project's tracks, each named in a header
-/// down the leading edge, with the playhead across them all.
+/// down the leading edge, with the playhead across them all. The corner
+/// above the headers shows where the playhead is.
 struct TimelineView: View {
     private let headerWidth = 88.0
     private let rulerHeight = 24.0
@@ -17,7 +18,11 @@ struct TimelineView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                Color.clear.frame(width: headerWidth)
+                Text(verbatim: "00:00:00:00")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 8)
+                    .frame(width: headerWidth, alignment: .leading)
                 ruler
             }
             .frame(height: rulerHeight)

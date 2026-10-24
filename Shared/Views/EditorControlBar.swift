@@ -1,14 +1,14 @@
 import SwiftUI
 
-/// The bar between the preview and the timeline: the playhead's timecode,
-/// the transport, and the tools that act on the selected clips.
+/// The bar between the preview and the timeline on the Mac: the transport,
+/// and the tools that act on the selected clips.
 struct EditorControlBar: View {
     var body: some View {
         HStack {
-            Text(verbatim: "00:00:00:00")
-                .font(.system(.callout, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // Balances the tools on the trailing side, so the transport sits
+            // in the middle.
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: 0)
 
             HStack(spacing: 20) {
                 control("Transport.GoToStart", systemImage: "backward.end.fill")
