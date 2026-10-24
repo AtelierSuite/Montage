@@ -166,7 +166,14 @@ struct TimelineView: View {
                     .padding(.horizontal, 6)
             }
             .clipped()
+            .overlay {
+                if editor.selectedClipID == clip.id {
+                    RoundedRectangle(cornerRadius: 5).strokeBorder(.primary, lineWidth: 2)
+                }
+            }
             .frame(width: max(2, clip.duration.seconds * pointsPerSecond))
+            // Picked for the inspector.
+            .onTapGesture { editor.selectedClipID = clip.id }
             .offset(x: clip.timelineStart.seconds * pointsPerSecond)
     }
 

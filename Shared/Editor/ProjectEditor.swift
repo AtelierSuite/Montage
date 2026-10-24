@@ -14,6 +14,8 @@ final class ProjectEditor {
     private(set) var project: Project {
         didSet { playbackController?.update(project: project, mediaResolver: mediaResolver) }
     }
+    /// The clip the inspector shows, picked on the timeline.
+    var selectedClipID: Clip.ID?
     /// Finds the media's files, wherever the project is kept.
     var mediaResolver: MediaResolver {
         didSet { playbackController?.update(mediaResolver: mediaResolver) }
