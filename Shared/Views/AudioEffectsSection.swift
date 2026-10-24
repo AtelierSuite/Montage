@@ -14,7 +14,7 @@ struct AudioEffectsSection: View {
     let clipID: Clip.ID
 
     var body: some View {
-        if let (track, clip) = editor.project.clip(id: clipID), hasSound(clip, on: track) {
+        if let (track, clip) = editor.project.clip(id: clipID), Self.hasSound(clip, on: track, in: editor.project) {
             Section {
                 AudioLevelMeter(clipID: clipID)
                 addMenu
@@ -39,9 +39,9 @@ struct AudioEffectsSection: View {
 
     /// Whether the clip plays any sound: an audio clip, or a video clip whose
     /// sound hasn't been split off, of media that has some.
-    private func hasSound(_ clip: Clip, on track: Track) -> Bool {
+    static func hasSound(_ clip: Clip, on track: Track, in project: Project) -> Bool {
         guard track.kind == .audio || !clip.isAudioDetached else { return false }
-        guard let item = editor.project.mediaItem(id: clip.mediaID) else { return false }
+        guard let item = project.mediaItem(id: clip.mediaID) else { return false }
         return item.kind != .image && (item.metadata.hasAudio || item.metadata.duration == .zero)
     }
 

@@ -5,7 +5,10 @@ struct InspectorView: View {
     @Environment(ProjectEditor.self) private var editor
 
     var body: some View {
-        if let clipID = editor.selectedClipID, editor.project.clip(id: clipID) != nil {
+        // Sound is all there is to inspect so far: a clip without any shows
+        // the empty state rather than an empty form.
+        if let clipID = editor.selectedClipID, let (track, clip) = editor.project.clip(id: clipID),
+           AudioEffectsSection.hasSound(clip, on: track, in: editor.project) {
             Form {
                 AudioEffectsSection(clipID: clipID)
             }
