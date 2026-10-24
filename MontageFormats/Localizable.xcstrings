@@ -45,6 +45,28 @@
         }
       }
     },
+    "CubeLUT.Error.Unreadable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The look-up table couldn’t be read."
+          }
+        }
+      }
+    },
+    "CubeLUT.Error.Unsupported" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only 3D look-up tables from 0 to 1 can be used."
+          }
+        }
+      }
+    },
     "ProjectPackage.Error.NewerFormat" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -2,7 +2,7 @@ import Synchronization
 
 /// The project as it is right now, readable from any thread.
 ///
-/// Rendering doesn't happen on the main actor: a custom compositor (#8) draws
+/// Rendering doesn't happen on the main actor: the video compositor draws
 /// frames on AVFoundation's queues and audio taps run on the audio thread. They
 /// read clip parameters from here, so an edit that only changes a parameter
 /// (an effect's value, a keyframe) shows on the next frame without the
@@ -27,6 +27,12 @@ public final class ProjectSnapshot: Sendable {
     /// parameters. Keep `body` short: writers wait while it runs.
     public func read<Result: Sendable>(_ body: (borrowing Project) -> Result) -> Result {
         current.withLock { body($0) }
+    }
+
+    /// Like `read`, but gives up rather than waits while an edit is being put
+    /// in, returning nil: for the audio thread, which mustn't wait on a lock.
+    public func readIfAvailable<Result: Sendable>(_ body: (borrowing Project) -> Result) -> Result? {
+        current.withLockIfAvailable { body($0) }
     }
 
     public func update(_ project: Project) {

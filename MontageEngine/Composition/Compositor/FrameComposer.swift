@@ -1,0 +1,138 @@
+import CoreGraphics
+import CoreImage
+import CoreMedia
+
+/// Puts one frame together from its layers' pictures, as Core Image
+/// recipes; nothing is drawn until the compositor renders the result.
+///
+/// Each layer's picture is turned upright and fitted into the frame, centred
+/// and keeping its shape, as AVFoundation's own compositor did; then its
+/// clip's effects change it, its clip's transform scales, turns and moves
+/// it, and its opacity fades it. The layers are laid over black bottom to
+/// top, each mixed with what's under it by its blend mode.
+///
+/// Transforms are worked out where the model describes them, with y running
+/// down from the top-left corner, and turned into Core Image's coordinates,
+/// where y runs up from the bottom-left, only to apply them.
+enum FrameComposer {
+    /// A layer's picture for one frame, and the clip parameters to draw it with.
+    struct Layer {
+        /// The source frame, as stored, before it's turned upright.
+        var image: CIImage
+        var layer: CompositorLayer
+        /// The clip's parameters as of the latest edit.
+        var clip: Clip
+    }
+
+    /// The frame at a time on the timeline. `renderSize` is the project's frame
+    /// size, which clip transforms and effects work in; `outputSize` the size
+    /// of the buffer it's drawn into, which may be smaller for a quick preview.
+    static func compose(_ layers: [Layer], at time: CMTime, renderSize: CGSize, outputSize: CGSize) -> CIImage {
+        let frame = CGRect(origin: .zero, size: outputSize)
+        var result = CIImage(color: .black).cropped(to: frame)
+        for layer in layers {
+            let clipTime = layer.layer.clip.localTime(time)
+            let opacity = min(max(layer.clip.opacity.value(at: clipTime), 0), 1)
+            guard opacity > 0 else { continue }
+            var picture = self.picture(layer, at: clipTime, renderSize: renderSize, outputSize: outputSize)
+            if opacity < 1 {
+                picture = picture.applyingFilter("CIColorMatrix", parameters: [
+                    "inputAVector": CIVector(x: 0, y: 0, z: 0, w: opacity),
+                ])
+            }
+            result = blend(picture, over: result, mode: layer.clip.blendMode).cropped(to: frame)
+        }
+        return result
+    }
+
+    /// One layer's picture, where it goes in a frame of `outputSize`, with
+    /// its effects applied.
+    static func picture(_ layer: Layer, at clipTime: CMTime, renderSize: CGSize, outputSize: CGSize) -> CIImage {
+        let fit = fitTransform(
+            naturalSize: layer.layer.naturalSize, preferredTransform: layer.layer.preferredTransform, renderSize: renderSize
+        )
+        var picture = layer.image.transformed(
+            by: coreImage(fit, fromHeight: layer.layer.naturalSize.height, toHeight: renderSize.height),
+            highQualityDownsample: true
+        )
+        // Effects see the picture fitted into the project's frame, before the
+        // clip's transform, and are kept to the picture's own bounds.
+        let bounds = picture.extent
+        let context = VideoEffectContext(renderSize: renderSize, clipTime: clipTime)
+        picture = layer.clip.effects.apply(to: picture, in: context).cropped(to: bounds)
+
+        let scaleToOutput = CGAffineTransform(
+            scaleX: outputSize.width / renderSize.width, y: outputSize.height / renderSize.height
+        )
+        let placement = clipTransform(layer.clip.transform, renderSize: renderSize, at: clipTime).concatenating(scaleToOutput)
+        return picture.transformed(
+            by: coreImage(placement, fromHeight: renderSize.height, toHeight: outputSize.height),
+            highQualityDownsample: true
+        )
+    }
+
+    /// A picture mixed with what's under it.
+    static func blend(_ picture: CIImage, over background: CIImage, mode: BlendMode) -> CIImage {
+        guard let name = filterName(for: mode) else { return picture.composited(over: background) }
+        return picture.applyingFilter(name, parameters: [kCIInputBackgroundImageKey: background])
+    }
+
+    /// The Core Image filter for a blend mode; nil for normal, which is a
+    /// plain source-over.
+    static func filterName(for mode: BlendMode) -> String? {
+        switch mode {
+        case .normal: nil
+        case .multiply: "CIMultiplyBlendMode"
+        case .screen: "CIScreenBlendMode"
+        case .overlay: "CIOverlayBlendMode"
+        case .softLight: "CISoftLightBlendMode"
+        case .hardLight: "CIHardLightBlendMode"
+        case .darken: "CIDarkenBlendMode"
+        case .lighten: "CILightenBlendMode"
+        case .colorDodge: "CIColorDodgeBlendMode"
+        case .colorBurn: "CIColorBurnBlendMode"
+        case .difference: "CIDifferenceBlendMode"
+        case .exclusion: "CIExclusionBlendMode"
+        case .add: "CIAdditionCompositing"
+        case .hue: "CIHueBlendMode"
+        case .saturation: "CISaturationBlendMode"
+        case .color: "CIColorBlendMode"
+        case .luminosity: "CILuminosityBlendMode"
+        }
+    }
+
+    // MARK: - Transforms
+
+    /// Turns a picture upright by its track's preferred transform, then fits
+    /// it into the render size and centres it.
+    static func fitTransform(naturalSize: CGSize, preferredTransform: CGAffineTransform, renderSize: CGSize) -> CGAffineTransform {
+        let upright = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
+        guard upright.width > 0, upright.height > 0 else { return preferredTransform }
+        let fit = min(renderSize.width / upright.width, renderSize.height / upright.height)
+        return preferredTransform
+            .concatenating(CGAffineTransform(translationX: -upright.midX, y: -upright.midY))
+            .concatenating(CGAffineTransform(scaleX: fit, y: fit))
+            .concatenating(CGAffineTransform(translationX: renderSize.width / 2, y: renderSize.height / 2))
+    }
+
+    /// Moves a fitted picture by its clip's transform at a time from the
+    /// clip's start: scaled and turned clockwise about its centre, the
+    /// middle of the frame, then moved to the clip's position.
+    static func clipTransform(_ transform: ClipTransform, renderSize: CGSize, at clipTime: CMTime) -> CGAffineTransform {
+        let scale = transform.scale.value(at: clipTime)
+        let position = transform.position.value(at: clipTime)
+        return CGAffineTransform(translationX: -renderSize.width / 2, y: -renderSize.height / 2)
+            .concatenating(CGAffineTransform(scaleX: scale, y: scale))
+            // Positive angles turn clockwise when y runs down.
+            .concatenating(CGAffineTransform(rotationAngle: transform.rotation.value(at: clipTime) * .pi / 180))
+            .concatenating(CGAffineTransform(translationX: position.x * renderSize.width, y: position.y * renderSize.height))
+    }
+
+    /// A transform between two spaces whose y runs down, as one between the
+    /// same spaces with y running up, for Core Image.
+    static func coreImage(_ transform: CGAffineTransform, fromHeight: CGFloat, toHeight: CGFloat) -> CGAffineTransform {
+        CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: fromHeight)
+            .concatenating(transform)
+            .concatenating(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: toHeight))
+    }
+}

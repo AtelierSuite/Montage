@@ -23,15 +23,19 @@ public struct Project: Equatable, Sendable {
     public var bins: [MediaBin]
     /// Video tracks first, bottom layer first, then audio tracks.
     public var tracks: [Track]
+    /// Points marked on the timeline, in time order.
+    public var markers: [Marker]
 
     public init(
-        settings: ProjectSettings = ProjectSettings(), media: [MediaItem] = [], bins: [MediaBin] = [], tracks: [Track] = []
+        settings: ProjectSettings = ProjectSettings(), media: [MediaItem] = [], bins: [MediaBin] = [], tracks: [Track] = [],
+        markers: [Marker] = []
     ) {
         formatVersion = Self.currentFormatVersion
         self.settings = settings
         self.media = media
         self.bins = bins
         self.tracks = tracks
+        self.markers = markers
     }
 
     /// How long the project runs: to the end of its last clip.
@@ -58,7 +62,7 @@ public struct Project: Equatable, Sendable {
 
 extension Project: Codable {
     private enum CodingKeys: String, CodingKey {
-        case formatVersion, settings, media, bins, tracks
+        case formatVersion, settings, media, bins, tracks, markers
     }
 
     // Everything but the version is optional to read, so a project saved
@@ -70,6 +74,7 @@ extension Project: Codable {
         media = try container.decodeIfPresent([MediaItem].self, forKey: .media) ?? []
         bins = try container.decodeIfPresent([MediaBin].self, forKey: .bins) ?? []
         tracks = try container.decodeIfPresent([Track].self, forKey: .tracks) ?? []
+        markers = try container.decodeIfPresent([Marker].self, forKey: .markers) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -79,6 +84,7 @@ extension Project: Codable {
         try container.encode(media, forKey: .media)
         try container.encode(bins, forKey: .bins)
         try container.encode(tracks, forKey: .tracks)
+        try container.encode(markers, forKey: .markers)
     }
 }
 
