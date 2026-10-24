@@ -97,13 +97,14 @@ struct PlaybackControllerTests {
         // Playing into the tail, then shuttling back: from the end at once.
         controller.seek(to: seconds(3.9))
         controller.play()
-        try await waitUntil { controller.player.currentTime() > seconds(4.6) }
+        try await waitUntil { controller.player.currentTime() > seconds(5.2) }
         #expect(controller.currentTime == seconds(4))
         controller.shuttle(at: -1)
-        // Left in the tail, the player would take more than half a second
-        // to get back to the end.
-        try await Task.sleep(for: .milliseconds(400))
-        #expect(controller.currentTime < seconds(4))
+        // Left in the tail, the player would take over 1.4 seconds to get
+        // back to 3.8; from the end, it takes 0.2 and a seek.
+        let start = ContinuousClock.now
+        try await waitUntil { controller.currentTime < seconds(3.8) }
+        #expect(ContinuousClock.now - start < .milliseconds(1300))
         controller.pause()
     }
 
