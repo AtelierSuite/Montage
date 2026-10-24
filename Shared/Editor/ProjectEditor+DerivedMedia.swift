@@ -21,7 +21,15 @@ extension ProjectEditor {
     func makeDerivedMedia() {
         guard let store = derivedMedia.store else { return }
         for kind in derivedMediaKinds {
-            let missing = kind.media(neededIn: project).filter { store.existingURL(for: $0, kind) == nil }
+            let missing = kind.media(neededIn: project).filter { item in
+                let key = Self.settledKey(kind, item)
+                guard !settledDerivedMedia.contains(key) else { return false }
+                guard store.existingURL(for: item, kind) == nil else {
+                    settledDerivedMedia.insert(key)
+                    return false
+                }
+                return true
+            }
             guard !missing.isEmpty else { continue }
             guard derivedMediaTasks[kind] == nil else {
                 pendingDerivedMedia.insert(kind)
@@ -39,16 +47,26 @@ extension ProjectEditor {
                 guard !Task.isCancelled else { return }
                 guard let url = resolver.url(for: item) else { continue }
                 let made = await derivedMedia.make(kind, for: item, from: url)
+                guard !Task.isCancelled, let self else { return }
+                // Made, or failed and not to be tried again from this file.
+                settledDerivedMedia.insert(Self.settledKey(kind, item))
                 // Each copy plays as soon as it's there.
-                if made != nil, !Task.isCancelled, let self {
-                    playbackController?.update(mediaResolver: playbackResolver)
-                }
+                if made != nil { playbackController?.update(mediaResolver: playbackResolver) }
             }
             guard let self, derivedMediaTasks[kind]?.id == id else { return }
             derivedMediaTasks[kind] = nil
             if pendingDerivedMedia.remove(kind) != nil { makeDerivedMedia() }
         }
         derivedMediaTasks[kind] = (id, task)
+    }
+
+    private static func settledKey(_ kind: DerivedMedia, _ item: MediaItem) -> String {
+        "\(kind.rawValue)/\(kind.fileName(for: item))"
+    }
+
+    /// Forgets what's known of an item's copies, so they're looked for again.
+    func forgetDerivedMedia(for mediaID: MediaItem.ID) {
+        settledDerivedMedia = settledDerivedMedia.filter { !$0.contains(mediaID.uuidString) }
     }
 
     /// Stops making copies, of one kind or every kind, such as when the

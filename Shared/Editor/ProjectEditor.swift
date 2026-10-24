@@ -18,7 +18,8 @@ final class ProjectEditor {
         didSet {
             playbackController?.update(project: project, mediaResolver: playbackResolver)
             if project.media != oldValue.media { checkMedia() }
-            makeDerivedMedia()
+            // Not on every step of a drag: once it ends.
+            if gesture == nil { makeDerivedMedia() }
         }
     }
     /// Finds the media's files, wherever the project is kept.
@@ -77,6 +78,9 @@ final class ProjectEditor {
     /// doesn't wait behind a proxy, and the kinds asked for again meanwhile.
     @ObservationIgnored var derivedMediaTasks: [DerivedMedia: (id: UUID, task: Task<Void, Never>)] = [:]
     @ObservationIgnored var pendingDerivedMedia: Set<DerivedMedia> = []
+    /// The copies known to be there, or known not to be made, by kind and
+    /// file name, so edits don't look for them on disk again.
+    @ObservationIgnored var settledDerivedMedia: Set<String> = []
 
     /// The gesture under way: the project as it was when it began, and the
     /// name of the undo step it makes.
@@ -144,6 +148,7 @@ final class ProjectEditor {
     func endGesture() {
         guard let gesture else { return }
         self.gesture = nil
+        defer { makeDerivedMedia() }
         guard project != gesture.baseline else { return }
         apply(project, undoName: gesture.actionName, from: gesture.baseline)
     }
