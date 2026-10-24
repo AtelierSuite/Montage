@@ -30,9 +30,11 @@ struct InPlaceTextEditor: View {
         let points = mapping.scale * layerScale
         let text = clip.textContent
         let display = TextDisplay(style: text.style, at: editor.clipTime(in: clip), points: points)
-        let width = max(text.style.wrapWidth * mapping.renderSize.width, layer.pictureRect.width) * points
-        let measured = InPlaceTextView.height(of: text, display: display, width: width)
-        let height = max(layer.pictureRect.height * points, measured)
+        // As wide as the words, wrapped where the renderer wraps them, and
+        // centred where the layer is, as the renderer draws them: lines
+        // aligned to one side line up with the drawn ones.
+        let size = InPlaceTextLayout.size(of: text, display: display, wrapWidth: text.style.wrapWidth * mapping.renderSize.width * points)
+        let width = size.width, height = size.height
 
         InPlaceTextView(text: text, display: display) { [id = clip.id] string, formattings in
             editor.editText(of: id, string, formattings: formattings)
@@ -196,10 +198,6 @@ struct InPlaceTextView: NSViewRepresentable {
     }
 
     /// How tall the words are laid out at a width, at least a line.
-    static func height(of text: TextContent, display: TextDisplay, width: Double) -> Double {
-        InPlaceTextLayout.height(of: text, display: display, width: width)
-    }
-
     @MainActor
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: InPlaceTextView
@@ -417,10 +415,6 @@ struct InPlaceTextView: UIViewRepresentable {
         Task { @MainActor in coordinator.end() }
     }
 
-    static func height(of text: TextContent, display: TextDisplay, width: Double) -> Double {
-        InPlaceTextLayout.height(of: text, display: display, width: width)
-    }
-
     @MainActor
     final class Coordinator: NSObject, UITextViewDelegate {
         var parent: InPlaceTextView
@@ -544,11 +538,21 @@ struct InPlaceTextView: UIViewRepresentable {
 
 /// Measuring the words being typed.
 enum InPlaceTextLayout {
-    static func height(of text: TextContent, display: TextDisplay, width: Double) -> Double {
+    /// Room past the words' own width, so the text view doesn't wrap a line
+    /// the renderer keeps whole.
+    private static let slack = 4.0
+
+    /// The size of the words laid out no wider than `wrapWidth`, in the
+    /// view's points: at least a letter wide and a line tall, so there's
+    /// somewhere to type with no words.
+    static func size(of text: TextContent, display: TextDisplay, wrapWidth: Double) -> CGSize {
         let tagged = text.tagged()
         let styled = display.styled(tagged.string.length > 0 ? tagged.string : NSAttributedString(string: " "),
                                     formattings: tagged.formattings)
-        return max(height(of: styled, width: width), display.fontSize * 1.2)
+        let rect = styled.boundingRect(with: CGSize(width: max(1, wrapWidth), height: .greatestFiniteMagnitude),
+                                       options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+        let width = min(max(ceil(rect.width) + slack, display.fontSize * 0.6), max(1, wrapWidth) + slack)
+        return CGSize(width: width, height: max(ceil(rect.height), display.fontSize * 1.2))
     }
 
     static func height(of string: NSAttributedString, width: Double) -> Double {
