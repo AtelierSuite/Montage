@@ -202,8 +202,9 @@ public enum ProjectPackage {
 }
 
 extension Project {
-    /// The paths of the media kept in the project's package.
-    var packageMediaPaths: Set<String> {
+    /// The paths of the media kept in the project's package: the paths a
+    /// new import's file mustn't take.
+    public var packageMediaPaths: Set<String> {
         Set(media.compactMap { item in
             if case .package(let path) = item.location { path } else { nil }
         })
