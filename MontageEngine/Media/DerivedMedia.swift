@@ -145,7 +145,9 @@ public actor DerivedMediaCache {
             }
         }
         inFlight[key] = task
-        let made = await task.value
+        // Cancelled, such as when the project closes, the copy stops being
+        // made rather than running on to the end.
+        let made = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         inFlight[key] = nil
         return made
     }
@@ -228,13 +230,19 @@ public enum DerivedMediaGenerator {
         // starts as late in the copy.
         writer.startSession(atSourceTime: .zero)
         var started = false
-        while let buffer = output.copyNextSampleBuffer() {
-            try Task.checkCancellation()
-            started = true
-            while !input.isReadyForMoreMediaData {
-                try await Task.sleep(for: .milliseconds(5))
+        do {
+            while let buffer = output.copyNextSampleBuffer() {
+                try Task.checkCancellation()
+                started = true
+                while !input.isReadyForMoreMediaData {
+                    try await Task.sleep(for: .milliseconds(5))
+                }
+                guard input.append(buffer) else { throw Failure.failed(writer.error) }
             }
-            guard input.append(buffer) else { throw Failure.failed(writer.error) }
+        } catch {
+            reader.cancelReading()
+            writer.cancelWriting()
+            throw error
         }
         guard reader.status == .completed, started else {
             writer.cancelWriting()
@@ -261,7 +269,13 @@ public enum DerivedMediaGenerator {
         guard let session = AVAssetExportSession(asset: composition, presetName: DerivedMedia.proxyPreset) else {
             throw Failure.failed(nil)
         }
-        try await session.export(to: destination, as: .mov)
+        nonisolated(unsafe) let exporting = session
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try await session.export(to: destination, as: .mov)
+        } onCancel: {
+            exporting.cancelExport()
+        }
     }
 }
 

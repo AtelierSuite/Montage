@@ -174,6 +174,7 @@ final class ProjectEditor {
     /// Stops playback for good, when the project closes.
     func close() {
         playbackController?.invalidate()
+        stopMakingDerivedMedia()
     }
 
     /// Puts in a changed project, undone back to `previous`: the project as

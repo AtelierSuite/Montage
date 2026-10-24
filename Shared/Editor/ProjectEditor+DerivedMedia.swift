@@ -45,4 +45,12 @@ extension ProjectEditor {
             }
         }
     }
+
+    /// Stops making copies, such as when the project closes, rather than
+    /// letting them run on. The next edit starts them again.
+    func stopMakingDerivedMedia() {
+        derivedMediaTask?.cancel()
+        derivedMediaTask = nil
+        needsDerivedMedia = false
+    }
 }
