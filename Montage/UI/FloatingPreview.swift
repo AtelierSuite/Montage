@@ -103,8 +103,7 @@ struct FloatingPreview: View {
                     .position(x: center.x + (isExpanded ? 0 : drag.width), y: center.y + drag.height)
                     .gesture(isExpanded ? nil : dragging(size: size, in: room))
                 if isExpanded && showsLargeControls {
-                    largeControls
-                        .padding(room.insets)
+                    largeControls(insets: room.insets)
                 }
             }
             .gesture(isExpanded ? closing : nil)
@@ -137,7 +136,7 @@ struct FloatingPreview: View {
                         .contentShape(.rect)
                         .onTapGesture { setStashed(false) }
                 } else if !isExpanded && !isMoving {
-                    PlaybackOverlay(playback: playback, isShown: $showsControls) {
+                    PlaybackOverlay(playback: playback, isShown: $showsControls, size: .compact) {
                         HStack {
                             PlaybackOverlayButton("Preview.Expand", systemImage: "arrow.up.left.and.arrow.down.right") {
                                 setExpanded(true)
@@ -161,8 +160,8 @@ struct FloatingPreview: View {
 
     /// The full-screen controls, over the whole screen rather than only the
     /// picture, as in the full-screen player.
-    private var largeControls: some View {
-        PlaybackOverlay(playback: playback, isShown: $showsControls, isLarge: true) {
+    private func largeControls(insets: EdgeInsets) -> some View {
+        PlaybackOverlay(playback: playback, isShown: $showsControls, size: .large, contentInsets: insets) {
             HStack {
                 PlaybackOverlayButton("Fullscreen.Close", systemImage: "xmark", isLarge: true) {
                     setExpanded(false)

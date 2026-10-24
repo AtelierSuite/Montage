@@ -28,13 +28,20 @@ struct FullscreenPlayerView: View {
                 }
                 .foregroundStyle(.white.opacity(0.7))
             }
-            PlaybackOverlay(playback: playback, isShown: $showsControls, isLarge: true) {
-                HStack {
-                    PlaybackOverlayButton("Fullscreen.Close", systemImage: "xmark", isLarge: true) { dismiss() }
-                    Spacer()
+            // Over the whole screen, so play and pause sit in the middle of the
+            // picture, with the rest kept in the safe area.
+            GeometryReader { safeArea in
+                PlaybackOverlay(
+                    playback: playback, isShown: $showsControls, size: .large, contentInsets: safeArea.safeAreaInsets
+                ) {
+                    HStack {
+                        PlaybackOverlayButton("Fullscreen.Close", systemImage: "xmark", isLarge: true) { dismiss() }
+                        Spacer()
+                    }
+                } bottom: {
+                    PlaybackScrubber(playback: playback)
                 }
-            } bottom: {
-                PlaybackScrubber(playback: playback)
+                .ignoresSafeArea()
             }
         }
         .statusBarHidden(!showsControls)

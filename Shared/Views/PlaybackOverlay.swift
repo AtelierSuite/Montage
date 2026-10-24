@@ -3,17 +3,39 @@ import SwiftUI
 
 /// Playback controls laid over the picture, the way the system's video
 /// player has them: over a light shade of black so they read on any
-/// picture, in clear glass, playback in the middle and anything else in the
-/// corners or along the bottom.
+/// picture, in clear glass, play and pause in the middle, and anything else
+/// in the corners or along the bottom. Moving through the project is the
+/// timeline's, or the scrubber's, so there's nothing to skip with.
 ///
 /// Tapping the picture shows and hides them at once. Starting playback hides
 /// them straight away, out of the picture's way; pausing brings them back.
 /// While playing, they go again a moment after they're brought up.
 struct PlaybackOverlay<Corners: View, Bottom: View>: View {
+    /// How big the controls are, for how big the picture is.
+    enum Size {
+        /// A small window floating over the editor.
+        case compact
+        /// The editor's preview.
+        case regular
+        /// The whole screen.
+        case large
+
+        var playButton: Double {
+            switch self {
+            case .compact: 44
+            case .regular: 60
+            case .large: 76
+            }
+        }
+    }
+
     let playback: PlaybackController
     @Binding var isShown: Bool
-    /// Bigger controls, for a picture that fills the screen.
-    var isLarge = false
+    var size = Size.regular
+    /// How far in from the overlay's edges the corners and the bottom sit,
+    /// such as to keep them in the safe area while the overlay, and the play
+    /// button in its middle, cover the whole picture.
+    var contentInsets = EdgeInsets()
     /// Laid across the top: a row with whatever goes in the corners.
     @ViewBuilder var corners: Corners
     @ViewBuilder var bottom: Bottom
@@ -34,8 +56,9 @@ struct PlaybackOverlay<Corners: View, Bottom: View>: View {
                     Spacer(minLength: 0)
                     bottom
                 }
-                .padding(isLarge ? 16 : 6)
-                transport
+                .padding(size == .large ? 16 : 6)
+                .padding(contentInsets)
+                playButton
             }
         }
         .onChange(of: playback.isPlaying) { _, isPlaying in
@@ -44,38 +67,23 @@ struct PlaybackOverlay<Corners: View, Bottom: View>: View {
         .onDisappear { hideTask?.cancel() }
     }
 
-    private var transport: some View {
-        HStack(spacing: isLarge ? 28 : 12) {
-            button("Transport.GoToStart", systemImage: "backward.end.fill", size: isLarge ? 52 : 34) {
-                playback.goToStart()
-            }
-            button(
-                playback.isPlaying ? "Transport.Pause" : "Transport.Play",
-                systemImage: playback.isPlaying ? "pause.fill" : "play.fill", size: isLarge ? 72 : 46
-            ) {
-                playback.togglePlayPause()
-            }
-            button("Transport.GoToEnd", systemImage: "forward.end.fill", size: isLarge ? 52 : 34) {
-                playback.goToEnd()
-            }
-        }
-        .disabled(!playback.hasContent || playback.playbackError != nil)
-    }
-
-    private func button(
-        _ title: LocalizedStringKey, systemImage: String, size: Double, action: @escaping () -> Void
-    ) -> some View {
-        Button(title, systemImage: systemImage) {
-            action()
+    private var playButton: some View {
+        let diameter = size.playButton
+        return Button(
+            playback.isPlaying ? "Transport.Pause" : "Transport.Play",
+            systemImage: playback.isPlaying ? "pause.fill" : "play.fill"
+        ) {
+            playback.togglePlayPause()
             scheduleHide()
         }
         .labelStyle(.iconOnly)
-        .font(.system(size: size * 0.4))
+        .font(.system(size: diameter * 0.4))
         .foregroundStyle(.white)
-        .frame(width: size, height: size)
+        .frame(width: diameter, height: diameter)
         .contentShape(.circle)
         .glassEffect(.clear.interactive(), in: .circle)
         .buttonStyle(.plain)
+        .disabled(!playback.hasContent || playback.playbackError != nil)
     }
 
     /// Shows or hides the controls at once, without fading.
@@ -100,8 +108,14 @@ struct PlaybackOverlay<Corners: View, Bottom: View>: View {
 }
 
 extension PlaybackOverlay where Bottom == EmptyView {
-    init(playback: PlaybackController, isShown: Binding<Bool>, isLarge: Bool = false, @ViewBuilder corners: () -> Corners) {
-        self.init(playback: playback, isShown: isShown, isLarge: isLarge, corners: corners, bottom: { EmptyView() })
+    init(
+        playback: PlaybackController, isShown: Binding<Bool>, size: Size = .regular,
+        contentInsets: EdgeInsets = EdgeInsets(), @ViewBuilder corners: () -> Corners
+    ) {
+        self.init(
+            playback: playback, isShown: isShown, size: size, contentInsets: contentInsets,
+            corners: corners, bottom: { EmptyView() }
+        )
     }
 }
 
