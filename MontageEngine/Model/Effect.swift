@@ -7,11 +7,15 @@ public struct Effect: Identifiable, Equatable, Sendable, Codable {
     /// Turned off, the effect stays on the clip but is skipped.
     public var isEnabled: Bool
     public var kind: Kind
+    /// Limits a video effect to part of the picture; nil applies it to all
+    /// of it.
+    public var mask: Mask?
 
-    public init(id: UUID = UUID(), isEnabled: Bool = true, _ kind: Kind) {
+    public init(id: UUID = UUID(), isEnabled: Bool = true, _ kind: Kind, mask: Mask? = nil) {
         self.id = id
         self.isEnabled = isEnabled
         self.kind = kind
+        self.mask = mask
     }
 
     public enum Kind: Equatable, Sendable {
