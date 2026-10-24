@@ -38,7 +38,9 @@ private struct Still: View {
                 }
             }
             .allowsHitTesting(false)
-            .accessibilityHidden(true)
+            // Named once the still is in, for the screenshot test to wait on.
+            .accessibilityElement()
+            .accessibilityIdentifier(image == nil ? "" : "screenshotStill")
             .onAppear {
                 let seconds = UserDefaults.standard.double(forKey: "ScreenshotTime")
                 if seconds > 0 { playback.seek(to: CMTime(seconds: seconds, preferredTimescale: 600)) }
@@ -63,8 +65,15 @@ private struct Still: View {
         generator.videoComposition = built.videoComposition
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = .zero
-        if let frame = try? await generator.image(at: playback.currentTime).image {
-            image = frame
+        // A simulator busy starting up now and then fails a render, so it's
+        // given a few goes.
+        for _ in 0..<10 {
+            if let frame = try? await generator.image(at: playback.currentTime).image {
+                image = frame
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(500))
+            if Task.isCancelled { return }
         }
     }
 }
