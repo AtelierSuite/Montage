@@ -35,7 +35,10 @@ public enum CubeLUT {
             case "TITLE":
                 title = rest.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
             case "LUT_3D_SIZE":
-                guard let size = Int(rest), (2...256).contains(size) else { throw CubeLUTError.unreadable }
+                guard let size = Int(rest), size >= 2 else { throw CubeLUTError.unreadable }
+                // Core Image takes cubes of up to 128 points a side, and
+                // would leave the picture as it is with a larger one.
+                guard size <= 128 else { throw CubeLUTError.unsupported }
                 dimension = size
                 values.reserveCapacity(size * size * size * 4)
             case "LUT_1D_SIZE":

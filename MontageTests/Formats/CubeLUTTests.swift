@@ -43,5 +43,7 @@ struct CubeLUTTests {
         // Cut short.
         #expect(throws: CubeLUTError.self) { try CubeLUT.read(swap.components(separatedBy: "\n").dropLast().joined(separator: "\n"), name: "") }
         #expect(throws: CubeLUTError.self) { try CubeLUT.read("Not a table", name: "") }
+        // Larger than Core Image can apply.
+        #expect(throws: CubeLUTError.unsupported) { try CubeLUT.read("LUT_3D_SIZE 129\n0 0 0", name: "") }
     }
 }
