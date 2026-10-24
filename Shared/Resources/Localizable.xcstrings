@@ -111,6 +111,17 @@
         }
       }
     },
+    "Edit.AddMarker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Marker"
+          }
+        }
+      }
+    },
     "Edit.Delete" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -129,6 +140,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Detach Audio"
+          }
+        }
+      }
+    },
+    "Edit.RippleDelete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ripple Delete"
+          }
+        }
+      }
+    },
+    "Edit.SelectAll" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select All"
           }
         }
       }
@@ -1409,6 +1442,39 @@
         }
       }
     },
+    "Timeline.Options" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timeline Options"
+          }
+        }
+      }
+    },
+    "Timeline.SelectMultiple" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Multiple"
+          }
+        }
+      }
+    },
+    "Timeline.Snapping" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snapping"
+          }
+        }
+      }
+    },
     "Timeline.Track.Audio" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1427,6 +1493,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Video"
+          }
+        }
+      }
+    },
+    "Timeline.TrimStyle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trimming"
+          }
+        }
+      }
+    },
+    "Timeline.TrimStyle.Ripple" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ripple"
+          }
+        }
+      }
+    },
+    "Timeline.TrimStyle.Roll" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Roll"
+          }
+        }
+      }
+    },
+    "Timeline.TrimStyle.Trim" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trim"
+          }
+        }
+      }
+    },
+    "Timeline.ZoomIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom In"
+          }
+        }
+      }
+    },
+    "Timeline.ZoomOut" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom Out"
           }
         }
       }
