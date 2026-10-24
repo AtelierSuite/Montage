@@ -82,9 +82,9 @@ struct PreviewArea: View {
                                 }
                             }
                         }
-                        .canvas(PreviewCanvas(catchesTaps: false) { location in
-                            if !tapPicture(at: location) { showsControls.toggle() }
-                        }, onTapPicture: tapPicture(at:))
+                        .canvas(onTapPicture: tapPicture(at:)) { tap in
+                            PreviewCanvas(catchesTaps: false, onTapPicture: tap)
+                        }
                     }
                 }
         } else {
