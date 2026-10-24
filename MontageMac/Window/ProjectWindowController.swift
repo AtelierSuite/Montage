@@ -4,7 +4,8 @@ import SwiftUI
 /// A project's window: the library in the sidebar, the editor beside it,
 /// and the inspector on the other side.
 @MainActor
-final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
+final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate,
+    NSMenuItemValidation, NSToolbarItemValidation {
     private let splitViewController = NSSplitViewController()
 
     private static let exportItem = NSToolbarItem.Identifier("Export")
@@ -78,6 +79,25 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         }
     }
 
+    // MARK: - Exporting
+
+    /// File > Export, and the toolbar's Export button.
+    @objc func exportMovie(_ sender: Any?) {
+        guard let window, editor.canExport else { return }
+        let title = (document as? NSDocument)?.displayName ?? String(localized: "Toolbar.Export")
+        ExportSavePanel.begin(for: window, editor: editor, title: title)
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(exportMovie(_:)) { return editor.canExport }
+        return true
+    }
+
+    func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
+        if item.action == #selector(exportMovie(_:)) { return editor.canExport }
+        return true
+    }
+
     // MARK: - Toolbar
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -99,9 +119,9 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
             item.label = String(localized: "Toolbar.Export")
             item.toolTip = item.label
             item.image = NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: item.label)
-            // Nothing to export until there's a timeline to render.
-            item.autovalidates = false
-            item.isEnabled = false
+            // Enabled once there's a timeline to render.
+            item.target = self
+            item.action = #selector(exportMovie(_:))
             return item
         default:
             return NSToolbarItem(itemIdentifier: itemIdentifier)

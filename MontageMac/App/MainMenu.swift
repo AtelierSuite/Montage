@@ -62,6 +62,7 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(item(String(localized: "Mac.Menu.Import"), #selector(ProjectWindowController.importMedia(_:)),
                           "i", [.command, .shift]))
+        menu.addItem(item(String(localized: "Mac.Menu.Export"), #selector(ProjectWindowController.exportMovie(_:)), "e"))
         return menu
     }
 
@@ -99,6 +100,9 @@ enum MainMenu {
         let menu = NSMenu(title: String(localized: "Mac.Menu.Window"))
         menu.addItem(item(String(localized: "Mac.Menu.Minimize"), #selector(NSWindow.performMiniaturize(_:)), "m"))
         menu.addItem(item(String(localized: "Mac.Menu.Zoom"), #selector(NSWindow.performZoom(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item(String(localized: "Mac.Menu.Exports"), #selector(AppDelegate.showExports(_:)),
+                          "e", [.command, .option]))
         menu.addItem(.separator())
         menu.addItem(item(String(localized: "Mac.Menu.BringAllToFront"),
                           #selector(NSApplication.arrangeInFront(_:))))

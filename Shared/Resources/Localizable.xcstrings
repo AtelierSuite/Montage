@@ -67,6 +67,17 @@
         }
       }
     },
+    "Export.Action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export"
+          }
+        }
+      }
+    },
     "Export.Codec" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -221,6 +232,17 @@
         }
       }
     },
+    "Export.Progress.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exports"
+          }
+        }
+      }
+    },
     "Export.Quality" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -371,6 +393,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saving…"
+          }
+        }
+      }
+    },
+    "Export.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export"
           }
         }
       }
@@ -668,6 +701,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter Full Screen"
+          }
+        }
+      }
+    },
+    "Mac.Menu.Export" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export…"
+          }
+        }
+      }
+    },
+    "Mac.Menu.Exports" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exports"
           }
         }
       }

@@ -29,6 +29,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { false }
+
+    // MARK: - Exports
+
+    /// Window > Exports.
+    @objc func showExports(_ sender: Any?) {
+        ExportsWindowController.shared.showWindow(sender)
+    }
 }
 
 /// The app's document controller, made first so it is the shared one.
