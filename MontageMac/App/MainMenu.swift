@@ -9,6 +9,7 @@ enum MainMenu {
         menu.addItem(submenu(appMenu()))
         menu.addItem(submenu(fileMenu()))
         menu.addItem(submenu(editMenu()))
+        menu.addItem(submenu(viewMenu()))
         let window = windowMenu()
         menu.addItem(submenu(window))
         NSApp.windowsMenu = window
@@ -71,6 +72,23 @@ enum MainMenu {
         menu.addItem(item(String(localized: "Mac.Menu.Paste"), #selector(NSText.paste(_:)), "v"))
         menu.addItem(item(String(localized: "Mac.Menu.Delete"), #selector(NSText.delete(_:))))
         menu.addItem(item(String(localized: "Mac.Menu.SelectAll"), #selector(NSText.selectAll(_:)), "a"))
+        return menu
+    }
+
+    private static func viewMenu() -> NSMenu {
+        let menu = NSMenu(title: String(localized: "Mac.Menu.View"))
+        menu.addItem(item(String(localized: "Mac.Menu.ShowLibrary"), #selector(NSSplitViewController.toggleSidebar(_:)),
+                          "s", [.command, .control]))
+        menu.addItem(item(String(localized: "Mac.Menu.ShowInspector"), #selector(NSSplitViewController.toggleInspector(_:)),
+                          "i", [.command, .option]))
+        menu.addItem(.separator())
+        menu.addItem(item(String(localized: "Mac.Menu.ShowToolbar"), #selector(NSWindow.toggleToolbarShown(_:)),
+                          "t", [.command, .option]))
+        menu.addItem(item(String(localized: "Mac.Menu.CustomizeToolbar"),
+                          #selector(NSWindow.runToolbarCustomizationPalette(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item(String(localized: "Mac.Menu.EnterFullScreen"), #selector(NSWindow.toggleFullScreen(_:)),
+                          "f", [.command, .control]))
         return menu
     }
 

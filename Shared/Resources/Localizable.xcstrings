@@ -177,6 +177,17 @@
         }
       }
     },
+    "Mac.Menu.CustomizeToolbar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Customize Toolbar…"
+          }
+        }
+      }
+    },
     "Mac.Menu.Cut" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -217,6 +228,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Edit"
+          }
+        }
+      }
+    },
+    "Mac.Menu.EnterFullScreen" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter Full Screen"
           }
         }
       }
@@ -419,6 +441,39 @@
         }
       }
     },
+    "Mac.Menu.ShowInspector" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Inspector"
+          }
+        }
+      }
+    },
+    "Mac.Menu.ShowLibrary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Library"
+          }
+        }
+      }
+    },
+    "Mac.Menu.ShowToolbar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Toolbar"
+          }
+        }
+      }
+    },
     "Mac.Menu.Undo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -426,6 +481,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Undo"
+          }
+        }
+      }
+    },
+    "Mac.Menu.View" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View"
           }
         }
       }
