@@ -113,6 +113,9 @@ extension Clip: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(content, forKey: .content)
+        // Builds from before content types read only this, so media clips
+        // still open in them.
+        try container.encodeIfPresent(content.mediaID, forKey: .mediaID)
         try container.encode(sourceRange, forKey: .sourceRange)
         try container.encode(timelineStart, forKey: .timelineStart)
         try container.encode(volume, forKey: .volume)

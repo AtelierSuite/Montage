@@ -29,6 +29,15 @@ struct LayerContentTests {
         #expect(clip.mediaID == media)
     }
 
+    @Test func mediaClipsStillNameTheirMediaForOlderBuilds() throws {
+        let media = UUID()
+        let data = try JSONEncoder().encode(Clip(mediaID: media, sourceRange: range(0, 2)))
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(object["mediaID"] as? String == media.uuidString)
+        let text = try JSONEncoder().encode(Clip(content: .text(TextContent("A")), sourceRange: range(0, 2)))
+        #expect((try JSONSerialization.jsonObject(with: text) as? [String: Any])?["mediaID"] == nil)
+    }
+
     @Test func clipsOfStillsSavedAsMediaOpenAsImages() throws {
         let image = MediaItem(name: "Still.png", kind: .image, location: .package(path: "Media/Still.png"), metadata: MediaMetadata())
         let video = MediaItem(name: "Clip.mov", kind: .video, location: .package(path: "Media/Clip.mov"), metadata: MediaMetadata(duration: s(10)))
