@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import CoreVideo
+import Synchronization
 import VideoToolbox
 
 /// Writes a render source to an MP4: H.264 or HEVC at the settings' bit
@@ -37,6 +38,7 @@ struct MP4Export {
             audioProvider = render.reader.outputProvider(for: output)
         }
         let hasVideo = videoProvider != nil
+        let stopper = Stopper(reader: render.reader, writer: writer)
 
         do {
             try render.reader.start()
@@ -53,7 +55,6 @@ struct MP4Export {
             // one output back until the other is read. On the shared threads,
             // enough exports at once would leave no thread to read the other,
             // and every one of them would wait for good.
-            let stopper = Stopper(reader: render.reader, writer: writer)
             try await withTaskCancellationHandler {
                 try await withThrowingTaskGroup { group in
                     if let videoProvider, let videoReceiver {
@@ -94,8 +95,7 @@ struct MP4Export {
             await writer.finishWriting()
             guard writer.status == .completed else { throw ExportError.writeFailed(writer.error) }
         } catch {
-            render.reader.cancelReading()
-            if writer.status == .writing { writer.cancelWriting() }
+            stopper.stop()
             if error is CancellationError || Task.isCancelled { throw CancellationError() }
             if writer.status == .failed { throw ExportError.writeFailed(writer.error) }
             if render.reader.status == .failed { throw ExportError.readFailed(render.reader.error) }
@@ -103,11 +103,14 @@ struct MP4Export {
         }
     }
 
-    /// Stops reading and writing from whichever task notices first.
+    /// Stops reading and writing from whichever task notices first, once:
+    /// both tasks, cancellation and the export itself can all stop it, and
+    /// the reader crashes when it's cancelled twice at once.
     private final class Stopper: @unchecked Sendable {
         // AVAssetReader and AVAssetWriter can be cancelled from any thread.
         private let reader: AVAssetReader
         private let writer: AVAssetWriter
+        private let hasStopped = Mutex(false)
 
         init(reader: AVAssetReader, writer: AVAssetWriter) {
             self.reader = reader
@@ -115,8 +118,13 @@ struct MP4Export {
         }
 
         func stop() {
+            let isFirst = hasStopped.withLock { hasStopped in
+                defer { hasStopped = true }
+                return !hasStopped
+            }
+            guard isFirst else { return }
             reader.cancelReading()
-            writer.cancelWriting()
+            if writer.status == .writing { writer.cancelWriting() }
         }
 
         func stoppingOnFailure(_ body: () async throws -> Void) async throws {
