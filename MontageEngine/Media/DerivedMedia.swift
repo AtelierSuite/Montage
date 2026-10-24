@@ -35,20 +35,21 @@ public enum DerivedMedia: String, CaseIterable, Sendable {
     }
 
     /// The media in a project that's played through this kind of copy:
-    /// mono media under a clip with a pan effect, or large video on a video
-    /// track.
+    /// mono media under a clip with a pan effect turned on, on a track that
+    /// isn't muted, or large video on a video track that isn't hidden.
     public func media(neededIn project: Project) -> [MediaItem] {
         var needed = Set<MediaItem.ID>()
         for track in project.tracks {
             for clip in track.clips {
                 switch self {
                 case .stereoAudio:
-                    let isHeard = track.kind == .audio || !clip.isAudioDetached
-                    if isHeard, clip.effects.contains(where: { if case .pan = $0.kind { true } else { false } }) {
-                        needed.insert(clip.mediaID)
+                    let isHeard = !track.isMuted && (track.kind == .audio || !clip.isAudioDetached)
+                    let isPanned = clip.effects.contains { effect in
+                        if case .pan = effect.kind { effect.isEnabled } else { false }
                     }
+                    if isHeard, isPanned { needed.insert(clip.mediaID) }
                 case .proxy:
-                    if track.kind == .video { needed.insert(clip.mediaID) }
+                    if track.kind == .video, !track.isHidden { needed.insert(clip.mediaID) }
                 }
             }
         }

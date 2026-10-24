@@ -80,6 +80,12 @@ struct StereoAudioTests {
         #expect(DerivedMedia.stereoAudio.applies(to: fixture.item))
         #expect(DerivedMedia.stereoAudio.media(neededIn: fixture.project(pan: -1)).map(\.id) == [fixture.item.id])
         #expect(DerivedMedia.stereoAudio.media(neededIn: fixture.project(pan: nil)).isEmpty)
+        var off = fixture.project(pan: -1)
+        off.tracks[0].update(off.tracks[0].clips[0].id) { $0.effects[0].isEnabled = false }
+        #expect(DerivedMedia.stereoAudio.media(neededIn: off).isEmpty)
+        var muted = fixture.project(pan: -1)
+        muted.tracks[0].isMuted = true
+        #expect(DerivedMedia.stereoAudio.media(neededIn: muted).isEmpty)
 
         var stereo = fixture.item
         stereo.metadata.audioChannelCount = 2

@@ -44,6 +44,9 @@ struct ProxyPolicyTests {
         #expect(DerivedMedia.proxy.media(neededIn: onVideo).map(\.id) == [large.id])
         let onAudio = Project(media: [large], tracks: [Track(kind: .audio, clips: [clip])])
         #expect(DerivedMedia.proxy.media(neededIn: onAudio).isEmpty)
+        var hidden = onVideo
+        hidden.tracks[0].isHidden = true
+        #expect(DerivedMedia.proxy.media(neededIn: hidden).isEmpty)
         #expect(DerivedMedia.proxy.media(neededIn: Project(media: [large])).isEmpty)
     }
 }
