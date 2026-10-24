@@ -3,7 +3,8 @@ import MontageEngine
 import SwiftUI
 
 /// The inspector for a clip: its video effects in the order they apply,
-/// each with its parameters at the playhead, and a menu to add more.
+/// each with its parameters at the playhead, and a menu to add more, then
+/// its sound and audio effects.
 struct ClipInspector: View {
     @Environment(ProjectEditor.self) private var editor
     let track: Track
@@ -36,6 +37,7 @@ struct ClipInspector: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            AudioEffectsSection(clipID: clip.id)
         }
         .formStyle(.grouped)
     }

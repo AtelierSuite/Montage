@@ -128,7 +128,10 @@ public final class PlaybackController {
 
     /// Whether a change could change the composition. Conservative: anything
     /// but how clips' pictures look (their transform, opacity, blend mode and
-    /// effects), which the compositor reads from the snapshot, rebuilds.
+    /// effects), which the compositor reads from the snapshot, rebuilds. The
+    /// audio taps read the snapshot too, and only need building again when a
+    /// clip's audio effects change shape: one is added, removed or moved, or
+    /// its tail gets longer or shorter.
     nonisolated static func needsRebuild(from old: Project, to new: Project) -> Bool {
         func structure(_ project: Project) -> Project {
             var project = project
@@ -144,7 +147,7 @@ public final class PlaybackController {
             }
             return project
         }
-        return old != new && structure(old) != structure(new)
+        return old != new && (structure(old) != structure(new) || old.audioEffectLayouts != new.audioEffectLayouts)
     }
 
     private func scheduleRebuild(after delay: Duration) {
@@ -155,7 +158,9 @@ public final class PlaybackController {
             if delay > .zero {
                 do { try await Task.sleep(for: delay) } catch { return }
             }
-            guard let builder = self.map({ CompositionBuilder(project: $0.project, mediaResolver: $0.mediaResolver, snapshot: $0.snapshot) }) else { return }
+            guard let builder = self.map({
+                CompositionBuilder(project: $0.project, mediaResolver: $0.mediaResolver, snapshot: $0.snapshot)
+            }) else { return }
             // Builds off the main actor; only cancelling throws.
             guard let built = try? await builder.build(), !Task.isCancelled else { return }
             self?.install(built)

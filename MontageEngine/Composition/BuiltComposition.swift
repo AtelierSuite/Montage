@@ -19,7 +19,8 @@ public struct BuiltComposition: @unchecked Sendable {
     /// How the video tracks are laid into the frame. Nil when nothing in the
     /// composition has a picture.
     public let videoComposition: AVVideoComposition?
-    /// The clips' volumes. Nil when nothing in the composition makes a sound.
+    /// The clips' volumes, and the taps that run their audio effects. Nil
+    /// when nothing in the composition makes a sound.
     public let audioMix: AVAudioMix?
     /// How long the composition runs: to the end of the last clip placed, gaps
     /// included. Shorter than the project when clips at the end were left out.
@@ -30,10 +31,13 @@ public struct BuiltComposition: @unchecked Sendable {
     public let audioLayers: [CompositionLayer]
     /// Clips that were left out, and why.
     public let skippedClips: [SkippedClip]
+    /// How loud each clip's sound is as it plays, after its effects.
+    public let audioLevels: AudioLevels
 
     init(
         project: Project, composition: AVComposition, videoComposition: AVVideoComposition?, audioMix: AVAudioMix?,
-        duration: CMTime, videoLayers: [CompositionLayer], audioLayers: [CompositionLayer], skippedClips: [SkippedClip]
+        duration: CMTime, videoLayers: [CompositionLayer], audioLayers: [CompositionLayer], skippedClips: [SkippedClip],
+        audioLevels: AudioLevels = AudioLevels()
     ) {
         self.project = project
         self.composition = composition
@@ -43,6 +47,7 @@ public struct BuiltComposition: @unchecked Sendable {
         self.videoLayers = videoLayers
         self.audioLayers = audioLayers
         self.skippedClips = skippedClips
+        self.audioLevels = audioLevels
     }
 
     /// Whether there's nothing to play: no clip made it into the composition.
