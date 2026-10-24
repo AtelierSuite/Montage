@@ -166,4 +166,29 @@ struct StereoAudioTests {
         #expect(audio.rms(\.left, 0, 0.45) < 1e-4)
         #expect(audio.rms(\.left, 0.6, 2.4) > 0.1)
     }
+
+    @Test func afterAReverbMonoMediaIsPannedAsStereo() async throws {
+        let fixture = try MonoFixture()
+        defer { fixture.remove() }
+        var reverb = Reverb()
+        reverb.mix = Animatable(0.5)
+        var pan = Pan()
+        pan.position = Animatable(-1)
+        var project = fixture.project(pan: nil)
+        project.tracks[0].update(project.tracks[0].clips[0].id) { $0.effects = [Effect(.reverb(reverb)), Effect(.pan(pan))] }
+        let cache = DerivedMediaCache(store: fixture.store)
+        #expect(await cache.makeAll(.stereoAudio, neededIn: project, resolver: fixture.resolver))
+        let panned = try await RenderedAudio.read(try await fixture.build(project, findingCopies: true))
+        var unpanned = project
+        unpanned.tracks[0].update(unpanned.tracks[0].clips[0].id) { $0.effects.removeLast() }
+        let reverberant = try await RenderedAudio.read(try await fixture.build(unpanned, findingCopies: true))
+
+        // Panned fully left as a stereo picture, both sides play from the
+        // left as they are: as one sound, they'd be averaged and scaled.
+        #expect(panned.rms(\.right, 0.1, 1.9) < 1e-4)
+        var summed = RenderedAudio()
+        summed.left = zip(reverberant.left, reverberant.right).map { $0 + $1 }
+        let expected = summed.rms(\.left, 0.1, 1.9)
+        #expect(abs(panned.rms(\.left, 0.1, 1.9) - expected) < 0.02 * expected)
+    }
 }

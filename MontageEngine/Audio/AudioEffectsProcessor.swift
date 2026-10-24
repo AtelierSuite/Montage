@@ -281,14 +281,22 @@ final class AudioEffectsProcessor: AudioTapProcessor, @unchecked Sendable {
     }
 
     private func run(_ section: Section, over buffers: UnsafeMutableAudioBufferListPointer, frameCount: Int) {
+        // Mono media's sound stays the same on both sides through gain and
+        // the equalizer, which treat both alike, but not once it's panned,
+        // or through a delay or reverb, which make a stereo sound of it.
+        var isMono = section.isMono
         for slot in section.slots where slot.isEnabled {
             switch slot.kind {
             case .gain:
                 applyGain(slot, to: buffers, frameCount: frameCount)
             case .pan:
-                applyPan(slot, to: buffers, frameCount: frameCount, isMono: section.isMono)
-            case .equalizer, .delay, .reverb:
+                applyPan(slot, to: buffers, frameCount: frameCount, isMono: isMono)
+                isMono = false
+            case .equalizer:
                 slot.unit?.render(buffers, frameCount: frameCount)
+            case .delay, .reverb:
+                slot.unit?.render(buffers, frameCount: frameCount)
+                isMono = false
             }
         }
     }
