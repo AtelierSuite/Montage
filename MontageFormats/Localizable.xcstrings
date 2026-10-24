@@ -1,0 +1,28 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "ProjectPackage.Error.NewerFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This project was saved by a newer version of Montage. Update Montage to open it."
+          }
+        }
+      }
+    },
+    "ProjectPackage.Error.Unreadable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file isn't a Montage project, or it's damaged."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
