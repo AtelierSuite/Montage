@@ -54,7 +54,9 @@ struct FCPXMLExporter {
         let connected = videoTracks.dropFirst().enumerated().map { ($0.element, $0.offset + 1) }
             + audioTracks.enumerated().map { ($0.element, -($0.offset + 1)) }
         for (track, lane) in connected {
-            for clip in track.clips {
+            // A connected clip can't be a gap, so shapes, which go out as
+            // gaps, are left out instead.
+            for clip in track.clips where clip.content.shape == nil {
                 let range = conformed(clip.timelineRange)
                 guard range.duration > .zero,
                       let index = spine.firstIndex(where: { $0.range.containsTime(range.start) }) else { continue }
@@ -117,10 +119,14 @@ struct FCPXMLExporter {
         }
     }
 
-    /// A clip, as an asset clip or, for a still image, a video element.
-    /// Text and shapes, which have no media, go out as gaps, and are listed
-    /// by `ProjectInterchange.clipsLeftOutOfFCPXML` for the export to report.
+    /// A clip, as an asset clip, a video element for a still image, or a
+    /// title for text. Shapes, which have no media, go out as gaps, and are
+    /// listed by `ProjectInterchange.clipsLeftOutOfFCPXML` for the export to
+    /// report.
     private func clipElement(_ clip: Clip, range: CMTimeRange, lane: Int?, resources: inout Resources) -> MarkupElement {
+        if case .text(let text) = clip.content {
+            return titleElement(clip, text: text, range: range, lane: lane, resources: &resources)
+        }
         guard let item = project.mediaItem(id: clip.mediaID) else {
             return MarkupElement("gap", [("offset", InterchangeTime.string(range.start)),
                                          ("duration", InterchangeTime.string(range.duration))])
@@ -175,6 +181,30 @@ struct FCPXMLExporter {
         children += filters.filter { $0.name != "filter-audio" } + filters.filter { $0.name == "filter-audio" }
 
         return MarkupElement(isImage ? "video" : "asset-clip", attributes, children: children)
+    }
+
+    /// A text clip as an instance of Final Cut's Basic Title, with its words,
+    /// their formatting, its transform, opacity and video effects.
+    private func titleElement(_ clip: Clip, text: TextContent, range: CMTimeRange, lane: Int?, resources: inout Resources) -> MarkupElement {
+        let effect = resources.add(effect: FCPXMLTitles.basicTitleName, uid: FCPXMLTitles.basicTitleUID)
+        let words = FCPXMLTitles.textElements(for: text) { resources.nextTextStyleID() }
+        let name = text.string.split(whereSeparator: \.isNewline).first.map(String.init) ?? FCPXMLTitles.basicTitleName
+        let attributes: [(String, String?)] = [
+            ("ref", effect), ("offset", InterchangeTime.string(range.start)), ("name", name), ("start", "0s"),
+            ("duration", InterchangeTime.string(range.duration)), ("lane", lane.map(String.init)),
+        ]
+        // A title's local time starts at zero, as its keyframes do.
+        let local: (CMTime) -> CMTime = { $0 }
+        var children = text.runs.isEmpty ? [] : [words.text]
+        children += words.definitions
+        if let transform = transformElement(clip.transform, local: local) { children.append(transform) }
+        if clip.opacity.isAnimated || clip.opacity.value != 1 {
+            children.append(MarkupElement("adjust-blend", [("amount", Self.decimal(clip.opacity.value))],
+                                          children: param("amount", clip.opacity, local: local) { Self.decimal($0) }))
+        }
+        children.append(MarkupElement(Self.anchorMarker))
+        children += clip.effects.filter(\.kind.isVideo).compactMap { filterElement(for: $0, local: local, resources: &resources) }
+        return MarkupElement("title", attributes, children: children)
     }
 
     /// Where connected clips go among a clip's children; taken out once
@@ -296,8 +326,16 @@ struct FCPXMLExporter {
         private var assets: [MediaItem.ID: String] = [:]
         private var effects: [String: String] = [:]
         private var formats: [String: String] = [:]
+        private var textStyleCount = 0
 
         private mutating func nextID() -> String { "r\(elements.count + 1)" }
+
+        /// A new ID for a title's text style, which the whole document's
+        /// titles share.
+        mutating func nextTextStyleID() -> String {
+            textStyleCount += 1
+            return "ts\(textStyleCount)"
+        }
 
         mutating func add(format attributes: [(String, String?)]) -> String {
             let key = attributes.map { "\($0.0)=\($0.1 ?? "")" }.joined(separator: ",")

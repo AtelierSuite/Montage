@@ -113,9 +113,11 @@ public enum ProjectInterchange {
         FCPXMLExporter(project: project, name: name, mediaResolver: mediaResolver).document()
     }
 
-    /// The clips FCPXML can't carry yet, which go out as gaps: text and
-    /// shapes, which have no title or generator of Final Cut's to map to.
+    /// The clips FCPXML can't carry yet, which go out as gaps: shapes, which
+    /// have no generator of Final Cut's to map to. Text goes out as titles.
     public static func clipsLeftOutOfFCPXML(in project: Project) -> [Clip.ID] {
-        project.tracks.flatMap(\.clips).filter(\.content.isGenerated).map(\.id)
+        project.tracks.flatMap(\.clips).filter {
+            if case .shape = $0.content { true } else { false }
+        }.map(\.id)
     }
 }
