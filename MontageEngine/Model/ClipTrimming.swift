@@ -36,6 +36,7 @@ extension Clip {
         transform.position = transform.position.shifted(by: offset)
         transform.scale = transform.scale.shifted(by: offset)
         transform.rotation = transform.rotation.shifted(by: offset)
+        content = content.shifted(by: offset)
     }
 
     /// Moves the clip's start to a time on the timeline, keeping its end,
@@ -84,16 +85,16 @@ extension Project {
         return nil
     }
 
-    /// Whether a clip's media is a still, which can be made as long as it's
-    /// wanted.
+    /// Whether a clip has no time of its own (a still image, text or a
+    /// shape), so it can be made as long as it's wanted.
     func isStill(_ clip: Clip) -> Bool {
-        mediaItem(id: clip.mediaID)?.kind == .image
+        !clip.content.hasSourceTime || mediaItem(id: clip.mediaID)?.kind == .image
     }
 
     /// How long a clip's media runs, which it can't be trimmed past. Nil for
     /// a still, or media that isn't in the project, which don't hold it back.
     func mediaDuration(of clip: Clip) -> CMTime? {
-        guard let item = mediaItem(id: clip.mediaID), item.kind != .image else { return nil }
+        guard !isStill(clip), let item = mediaItem(id: clip.mediaID) else { return nil }
         let duration = item.metadata.duration
         return duration.isNumeric && duration > .zero ? duration : nil
     }
