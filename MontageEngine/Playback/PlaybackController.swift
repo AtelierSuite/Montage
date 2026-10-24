@@ -32,6 +32,9 @@ public final class PlaybackController {
     public private(set) var currentTime = CMTime.zero
     /// Whether playback is running, or is to run once a seek or rebuild is done.
     public private(set) var isPlaying = false
+    /// How fast playback runs while it does: 1 forwards, faster when
+    /// shuttled, and below zero backwards.
+    public private(set) var rate: Float = 1
     /// Whether the playhead is being dragged.
     public private(set) var isScrubbing = false
     /// Why the player couldn't play the composition, if it couldn't. Cleared
@@ -176,7 +179,7 @@ public final class PlaybackController {
         seekInFlight = nil
         pendingSeek = (min(time, duration), .zero)
         startNextSeek()
-        if isPlaying { player.play() }
+        if isPlaying { player.rate = rate }
     }
 
     // MARK: - Transport
@@ -188,7 +191,23 @@ public final class PlaybackController {
             seek(to: .zero)
         }
         isPlaying = true
+        rate = 1
         player.play()
+    }
+
+    /// Plays at a rate, as J, K and L shuttle: 2 is twice as fast, -1 plays
+    /// backwards, and 0 pauses. Forwards from the end starts again from the
+    /// start; backwards stops at the start.
+    public func shuttle(at rate: Float) {
+        guard rate != 0 else { return pause() }
+        guard hasContent, playbackError == nil else { return }
+        if rate > 0, let composition, currentTime >= min(duration, composition.duration) {
+            seek(to: .zero)
+        }
+        guard rate > 0 || currentTime > .zero else { return }
+        isPlaying = true
+        self.rate = rate
+        player.rate = rate
     }
 
     public func pause() {
@@ -311,6 +330,8 @@ public final class PlaybackController {
         // going; the playhead already shows the target.
         guard pendingSeek == nil, seekInFlight == nil, !isScrubbing else { return }
         currentTime = clamped(time)
+        // Played backwards to the start, the player stops without saying so.
+        if isPlaying, rate < 0, currentTime <= .zero { pause() }
     }
 
     private func observeEnd(of item: AVPlayerItem) {

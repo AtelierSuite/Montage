@@ -28,13 +28,21 @@ struct EditorControlBar: View {
             .disabled(!playback.hasContent)
 
             HStack(spacing: 16) {
-                control("Edit.Split", systemImage: "scissors") {}
-                control("Edit.DetachAudio", systemImage: "waveform") {}
-                control("Edit.Delete", systemImage: "trash") {}
+                control("Edit.Split", systemImage: "scissors") { editor.splitAtPlayhead() }
+                    .disabled(!editor.canSplit)
+                control("Edit.DetachAudio", systemImage: "waveform") { editor.detachAudio() }
+                    .disabled(!editor.canDetachAudio)
+                control("Edit.Delete", systemImage: "trash") { editor.deleteSelection() }
+                    .disabled(!editor.canDelete)
+                TimelineOptionsMenu {
+                    Label("Timeline.Options", systemImage: "slider.horizontal.below.rectangle")
+                        .labelStyle(.iconOnly)
+                }
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help(Text("Timeline.Options"))
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
-            // Nothing to act on until clips can be selected.
-            .disabled(true)
         }
         .padding(.horizontal)
         .padding(.vertical, 10)

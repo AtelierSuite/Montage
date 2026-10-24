@@ -122,6 +122,32 @@ struct PlaybackControllerTests {
         try await waitUntil { controller.player.currentTime() == seconds(2) }
     }
 
+    @Test func shuttlingPlaysFasterOrBackwards() async throws {
+        let controller = PlaybackController(project: project(), mediaResolver: resolver, rebuildDelay: .milliseconds(10))
+        defer { controller.invalidate() }
+        try await waitUntil { controller.composition != nil }
+
+        controller.shuttle(at: 2)
+        #expect(controller.isPlaying)
+        #expect(controller.rate == 2)
+        try await waitUntil { controller.currentTime > seconds(0.5) }
+        controller.shuttle(at: 0)
+        #expect(!controller.isPlaying)
+
+        // Backwards from the start there's nowhere to go.
+        controller.goToStart()
+        controller.shuttle(at: -1)
+        #expect(!controller.isPlaying)
+        controller.seek(to: seconds(1))
+        try await waitUntil { controller.player.currentTime() == seconds(1) }
+        controller.shuttle(at: -1)
+        #expect(controller.isPlaying)
+        try await waitUntil { controller.currentTime < seconds(0.8) }
+        controller.play()
+        #expect(controller.rate == 1)
+        controller.pause()
+    }
+
     @Test func aRebuildKeepsThePlayheadWhereItWas() async throws {
         let controller = PlaybackController(project: project(), mediaResolver: resolver, rebuildDelay: .milliseconds(10))
         defer { controller.invalidate() }
