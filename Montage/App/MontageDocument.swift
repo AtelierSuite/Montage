@@ -12,15 +12,20 @@ struct MontageDocument: FileDocument {
     /// package is. A reference, so every copy SwiftUI makes of the document
     /// shares it: the copy that's written sees what the editor imported.
     let media: PackageMediaStore
+    /// Thumbnails and waveforms, kept in the package's cache folder; shared
+    /// by every copy the same way.
+    let cache: PackageCache
 
     init() {
         project = Project()
         media = PackageMediaStore()
+        cache = PackageCache()
     }
 
     init(configuration: ReadConfiguration) throws {
         project = try ProjectPackage.read(configuration.file)
         media = PackageMediaStore()
+        cache = PackageCache()
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {

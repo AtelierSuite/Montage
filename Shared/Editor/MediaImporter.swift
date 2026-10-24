@@ -37,7 +37,20 @@ final class MediaImporter {
         case file(URL)
         /// An item from the photo library, copied out as a file.
         case photo(PhotosPickerItem)
+        /// A file the user chose, left where it is and found again through a
+        /// bookmark, on the Mac.
+        case reference(URL)
     }
+
+    #if os(macOS)
+    /// The preference to leave imported files where they are, found again
+    /// through bookmarks, rather than copying them into the project.
+    nonisolated static let referencesFilesInPlaceKey = "Import.ReferencesFilesInPlace"
+
+    nonisolated static var referencesFilesInPlace: Bool {
+        UserDefaults.standard.bool(forKey: referencesFilesInPlaceKey)
+    }
+    #endif
 
     /// The kinds of file offered for import.
     static let importableTypes: [UTType] = [.movie, .audio, .image]
@@ -57,7 +70,15 @@ final class MediaImporter {
         self.editor = editor
     }
 
+    /// Imports files the user chose: copied into the project, or on the Mac,
+    /// left where they are if that's what's preferred.
     func importFiles(_ urls: [URL]) {
+        #if os(macOS)
+        if Self.referencesFilesInPlace {
+            enqueue(urls.map(Source.reference))
+            return
+        }
+        #endif
         enqueue(urls.map(Source.file))
     }
 
@@ -115,6 +136,14 @@ final class MediaImporter {
                 throw error
             }
 
+        case .reference(let url):
+            let isAccessing = url.startAccessingSecurityScopedResource()
+            defer { if isAccessing { url.stopAccessingSecurityScopedResource() } }
+            let probed = try await MediaProbe.probe(url)
+            let bookmark = try MediaBookmarks.bookmark(for: url)
+            return MediaItem(name: url.lastPathComponent, kind: probed.kind, location: .bookmark(bookmark),
+                             metadata: probed.metadata)
+
         case .photo(let item):
             guard let file = try await item.loadTransferable(type: ReceivedMedia.self) else {
                 throw CocoaError(.fileReadNoSuchFile)
@@ -130,7 +159,7 @@ final class MediaImporter {
 
     /// Copies a chosen file into staging. The read is coordinated, so a file
     /// in cloud storage that isn't on the device yet is downloaded first.
-    private nonisolated static func stageCoordinated(
+    nonisolated static func stageCoordinated(
         _ url: URL, store: PackageMediaStore, takenPaths: Set<String>
     ) throws -> String {
         let isAccessing = url.startAccessingSecurityScopedResource()
@@ -148,7 +177,7 @@ final class MediaImporter {
         MediaItem(name: name, kind: probed.kind, location: .package(path: path), metadata: probed.metadata)
     }
 
-    private static func message(for error: Error) -> String {
+    static func message(for error: Error) -> String {
         let error = error as NSError
         return [error.localizedDescription, error.localizedRecoverySuggestion]
             .compactMap { $0 }.joined(separator: " ")
@@ -158,7 +187,7 @@ final class MediaImporter {
 extension MediaImporter.Source {
     var displayName: String? {
         switch self {
-        case .file(let url): url.lastPathComponent
+        case .file(let url), .reference(let url): url.lastPathComponent
         case .photo: nil
         }
     }

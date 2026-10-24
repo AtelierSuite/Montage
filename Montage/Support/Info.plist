@@ -76,6 +76,16 @@
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Montage Media Reference</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.tsubuzaki.Montage.media-reference</string>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
 				<string>com.apple.package</string>
 				<string>public.composite-content</string>
 			</array>

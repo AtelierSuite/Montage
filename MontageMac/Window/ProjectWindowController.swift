@@ -73,10 +73,26 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.prompt = String(localized: "Library.Import")
+        panel.accessoryView = Self.referenceOption()
+        panel.isAccessoryViewDisclosed = true
         panel.beginSheetModal(for: window) { [importer] response in
             guard response == .OK else { return }
             MainActor.assumeIsolated { importer.importFiles(panel.urls) }
         }
+    }
+
+    /// The open panel's choice to leave files where they are, kept for next
+    /// time, and for files dragged in from the Finder.
+    private static func referenceOption() -> NSView {
+        let checkbox = NSButton(checkboxWithTitle: String(localized: "Mac.Import.ReferenceInPlace"), target: nil, action: nil)
+        checkbox.bind(.value, to: NSUserDefaultsController.shared,
+                      withKeyPath: "values.\(MediaImporter.referencesFilesInPlaceKey)", options: nil)
+        checkbox.toolTip = String(localized: "Mac.Import.ReferenceInPlace.Help")
+        checkbox.sizeToFit()
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: checkbox.frame.width + 40, height: checkbox.frame.height + 20))
+        checkbox.setFrameOrigin(NSPoint(x: 20, y: 10))
+        container.addSubview(checkbox)
+        return container
     }
 
     // MARK: - Exporting
