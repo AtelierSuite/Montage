@@ -60,4 +60,30 @@ struct InterpolationTests {
         #expect(json.contains("\"easeIn\""))
         #expect(try JSONDecoder().decode([Keyframe<Double>].self, from: data) == keyframes)
     }
+
+    @Test func morphsPathsWithAsManyPoints() {
+        let square = MaskPath([
+            .init(CGPoint(x: 0, y: 0)), .init(CGPoint(x: 1, y: 0)),
+            .init(CGPoint(x: 1, y: 1)), .init(CGPoint(x: 0, y: 1), inHandle: CGPoint(x: 0, y: 0.2)),
+        ])
+        let halfway = MaskPath.interpolate(from: .diamond, to: square, fraction: 0.5)
+        #expect(halfway.vertices.map(\.point) == [
+            CGPoint(x: 0.25, y: 0), CGPoint(x: 1, y: 0.25), CGPoint(x: 0.75, y: 1), CGPoint(x: 0, y: 0.75),
+        ])
+        #expect(halfway.vertices[3].inHandle == CGPoint(x: 0, y: 0.1))
+    }
+
+    @Test func holdsPathsWithDifferentNumbersOfPoints() {
+        let triangle = MaskPath([.init(CGPoint(x: 0.5, y: 0)), .init(CGPoint(x: 1, y: 1)), .init(CGPoint(x: 0, y: 1))])
+        #expect(MaskPath.interpolate(from: .diamond, to: triangle, fraction: 0.9) == .diamond)
+        #expect(MaskPath.interpolate(from: .diamond, to: triangle, fraction: 1) == triangle)
+    }
+
+    @Test func readsAMaskWithOnlyItsShape() throws {
+        let mask = try JSONDecoder().decode(Mask.self, from: Data(#"{"shape": "ellipse"}"#.utf8))
+        #expect(mask == Mask(.ellipse))
+        var keyframed = Mask(.path, feather: 0.1, isInverted: true)
+        keyframed.center.setKeyframe(Keyframe(time: .zero, value: CGPoint(x: 0.2, y: 0.3)))
+        #expect(try JSONDecoder().decode(Mask.self, from: JSONEncoder().encode(keyframed)) == keyframed)
+    }
 }
