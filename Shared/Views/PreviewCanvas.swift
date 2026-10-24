@@ -322,13 +322,14 @@ struct PreviewCanvas: View {
         self.drag = drag
         let turn = drag.rotation?.degrees
         editor.updateGesture { project in
-            project.updateClip(drag.clipID) { clip in
-                switch drag.target {
-                case .transform(let handle):
+            switch drag.target {
+            case .transform(let handle):
+                project.updateClip(drag.clipID) { clip in
                     clip.transform.drag(handle, from: from, to: to, renderSize: renderSize, at: drag.time, turn: turn)
-                case .mask(let effectID, let handle, let layer):
-                    guard let index = clip.effects.firstIndex(where: { $0.id == effectID }) else { return }
-                    clip.effects[index].mask?.drag(
+                }
+            case .mask(let effectID, let handle, let layer):
+                project.updateEffect(effectID, ofClip: drag.clipID) { effect in
+                    effect.mask?.drag(
                         handle, from: from, to: to, in: layer, at: drag.time,
                         reach: Self.maskReach(handleReach, mapping: drag.mapping), turn: turn
                     )
