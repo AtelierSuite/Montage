@@ -16,18 +16,36 @@ extension UTType {
 ///     └── Cache/          thumbnails, waveforms and proxies, made again when missing
 public enum ProjectPackage {
     static let projectFileName = "project.json"
+    static let formatVersionKey = "formatVersion"
 
-    /// Reads the project out of a package.
+    /// Reads the project out of a package, bringing it up to the current
+    /// format if it was saved by an earlier version.
     public static func read(_ package: FileWrapper) throws -> Project {
         guard package.isDirectory else { throw ProjectPackageError.notAPackage }
         guard let data = package.fileWrappers?[projectFileName]?.regularFileContents else {
             throw ProjectPackageError.missingProject
         }
-        let project = try JSONDecoder().decode(Project.self, from: data)
-        guard project.formatVersion <= Project.currentFormatVersion else {
-            throw ProjectPackageError.newerFormat
+        return try decodeProject(from: data)
+    }
+
+    /// Decodes `project.json`. The version is read first: a project from a
+    /// later version is refused rather than misread, and one from an earlier
+    /// version goes through `migrations` before it's decoded.
+    static func decodeProject(
+        from data: Data, currentVersion: Int = Project.currentFormatVersion,
+        migrations: [ProjectMigration] = ProjectMigration.all
+    ) throws -> Project {
+        guard var object = (try? JSONSerialization.jsonObject(with: data)) as? ProjectMigration.JSONObject,
+              let version = object[formatVersionKey] as? Int, version >= 1 else {
+            throw ProjectPackageError.missingProject
         }
-        return project
+        guard version <= currentVersion else { throw ProjectPackageError.newerFormat }
+        guard version < currentVersion else {
+            return try JSONDecoder().decode(Project.self, from: data)
+        }
+        try ProjectMigration.migrate(&object, from: version, to: currentVersion, using: migrations)
+        let migrated = try JSONSerialization.data(withJSONObject: object)
+        return try JSONDecoder().decode(Project.self, from: migrated)
     }
 
     /// Writes the project into a package. Given the package as it is on disk,
@@ -55,10 +73,12 @@ public enum ProjectPackageError: LocalizedError {
     case missingProject
     /// Saved by a later version of Montage, in a format this one can't read.
     case newerFormat
+    /// Saved in an earlier format with no way to bring it up to date.
+    case missingMigration(from: Int)
 
     public var errorDescription: String? {
         switch self {
-        case .notAPackage, .missingProject:
+        case .notAPackage, .missingProject, .missingMigration:
             String(localized: "ProjectPackage.Error.Unreadable", bundle: #bundle)
         case .newerFormat:
             String(localized: "ProjectPackage.Error.NewerFormat", bundle: #bundle)
