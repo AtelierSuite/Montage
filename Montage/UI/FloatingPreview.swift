@@ -109,7 +109,7 @@ struct FloatingPreview: View {
             Rectangle()
                 .fill(.ultraThinMaterial)
             Image(systemName: corner.isLeading ? "chevron.compact.right" : "chevron.compact.left")
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: tabWidth)
         }
