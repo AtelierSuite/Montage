@@ -101,13 +101,14 @@ struct AudioEffectsSection: View {
                 body(&clip.effects[index])
             }
         }
-        if isFinal {
-            editor.perform(String(localized: "Action.ChangeEffect"), apply)
-        } else {
-            var project = editor.project
-            apply(&project)
-            editor.playback.update(project: project, mediaResolver: editor.mediaResolver)
+        let actionName = String(localized: "Action.ChangeEffect")
+        if editor.gestureBaseline == nil, isFinal {
+            editor.perform(actionName, apply)
+            return
         }
+        if editor.gestureBaseline == nil { editor.beginGesture(actionName) }
+        editor.updateGesture(apply)
+        if isFinal { editor.endGesture() }
     }
 
     private func update(_ project: inout Project, _ body: (inout Clip) -> Void) {
