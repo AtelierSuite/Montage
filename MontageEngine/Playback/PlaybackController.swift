@@ -41,6 +41,14 @@ public final class PlaybackController {
     /// when the next one is swapped in.
     public private(set) var playbackError: (any Error)?
 
+    /// Whether large video plays from its proxy where one has been made.
+    /// Changing it builds the composition again.
+    public var usesProxies = false {
+        didSet {
+            if usesProxies != oldValue { scheduleRebuild(after: .zero) }
+        }
+    }
+
     /// How long the timeline runs.
     public var duration: CMTime { project.duration }
     /// The project's frame grid.
@@ -158,9 +166,10 @@ public final class PlaybackController {
             if delay > .zero {
                 do { try await Task.sleep(for: delay) } catch { return }
             }
-            guard let builder = self.map({
+            guard var builder = self.map({
                 CompositionBuilder(project: $0.project, mediaResolver: $0.mediaResolver, snapshot: $0.snapshot)
             }) else { return }
+            builder.usesProxies = self?.usesProxies ?? false
             // Builds off the main actor; only cancelling throws.
             guard let built = try? await builder.build(), !Task.isCancelled else { return }
             self?.install(built)

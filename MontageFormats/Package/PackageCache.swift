@@ -12,7 +12,8 @@ import UniformTypeIdentifiers
 ///     ├── Thumbnails/<media ID>/220x124.jpg          the library's pictures
 ///     ├── Thumbnails/<media ID>/h60/2000.jpg         timeline frames, by height, then milliseconds
 ///     ├── Waveforms/<media ID>.peaks                 `WaveformPeaks.encoded()`
-///     └── Stereo/<media ID>.m4a                      mono media's sound on both channels
+///     ├── Stereo/<media ID>.m4a                      mono media's sound on both channels
+///     └── Proxies/<media ID>.mov                     large video, smaller, for preview
 ///
 /// Files are written straight into the package on disk as they're made,
 /// between saves, and `ProjectPackage` keeps the folder whenever it writes
@@ -105,6 +106,7 @@ public final class PackageCache: MediaCacheStore, DerivedMediaStore, Sendable {
     public func url(for mediaID: MediaItem.ID, _ kind: DerivedMedia) -> URL? {
         let (folder, pathExtension) = switch kind {
         case .stereoAudio: ("Stereo", "m4a")
+        case .proxy: ("Proxies", "mov")
         }
         return cacheDirectory?.appending(path: folder, directoryHint: .isDirectory)
             .appending(path: "\(mediaID.uuidString).\(pathExtension)", directoryHint: .notDirectory)

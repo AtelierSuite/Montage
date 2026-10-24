@@ -68,6 +68,8 @@ struct PackageCacheTests {
         let stereo = try #require(cache.url(for: id, .stereoAudio))
         #expect(stereo.standardizedFileURL == folder.appending(path: "Stereo/\(id).m4a").standardizedFileURL)
         #expect(cache.existingURL(for: id, .stereoAudio) == nil)
+        let proxy = try #require(cache.url(for: id, .proxy))
+        #expect(proxy.standardizedFileURL == folder.appending(path: "Proxies/\(id).mov").standardizedFileURL)
 
         try FileManager.default.createDirectory(at: stereo.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("m4a".utf8).write(to: stereo)

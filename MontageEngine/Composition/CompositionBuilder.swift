@@ -38,6 +38,9 @@ public struct CompositionBuilder: Sendable {
     /// The most video layers that show at once; clips past it are left out
     /// as `.tooManyLayers`, top layers first.
     public var maximumVideoLayers = VideoLayerLimit.standard
+    /// Whether large video plays from its proxy, where one has been made, as
+    /// preview may choose to. Export always uses the originals.
+    public var usesProxies = false
 
     public init(project: Project, mediaResolver: MediaResolver, snapshot: ProjectSnapshot? = nil) {
         self.project = project
@@ -66,7 +69,7 @@ public struct CompositionBuilder: Sendable {
     @concurrent
     public func build() async throws -> BuiltComposition {
         let composition = AVMutableComposition()
-        var media = MediaLoader(resolver: mediaResolver)
+        var media = MediaLoader(resolver: mediaResolver, usesProxies: usesProxies)
         var skipped: [SkippedClip] = []
         var pictures: [LayerWriter] = []
         var sounds: [LayerWriter] = []
@@ -374,27 +377,29 @@ private struct LoadFailure: Error {
 /// Opens each media item's file once per build, however many clips use it.
 private struct MediaLoader {
     let resolver: MediaResolver
+    let usesProxies: Bool
     private var loaded: [MediaItem.ID: Result<LoadedMedia, LoadFailure>] = [:]
 
-    init(resolver: MediaResolver) {
+    init(resolver: MediaResolver, usesProxies: Bool) {
         self.resolver = resolver
+        self.usesProxies = usesProxies
     }
 
     mutating func load(_ item: MediaItem) async -> Result<LoadedMedia, LoadFailure> {
         if let result = loaded[item.id] { return result }
-        let result = await Self.open(item, resolver: resolver)
+        let result = await Self.open(item, resolver: resolver, usesProxies: usesProxies)
         loaded[item.id] = result
         return result
     }
 
-    private static func open(_ item: MediaItem, resolver: MediaResolver) async -> Result<LoadedMedia, LoadFailure> {
+    private static func open(_ item: MediaItem, resolver: MediaResolver, usesProxies: Bool) async -> Result<LoadedMedia, LoadFailure> {
         guard let url = resolver.url(for: item), (try? url.checkResourceIsReachable()) == true else {
             return .failure(LoadFailure(reason: .fileNotFound))
         }
         // Precise timing, so cuts land on the frames the timeline shows.
         let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
         do {
-            let video = try await asset.loadTracks(withMediaType: .video).first
+            var video = try await asset.loadTracks(withMediaType: .video).first
             // Phones add extra audio tracks, such as spatial audio, that are
             // turned off; the main one is the first that's on.
             let audioTracks = try await asset.loadTracks(withMediaType: .audio)
@@ -411,6 +416,13 @@ private struct MediaLoader {
                let stereo = await derivedTrack(.stereoAudio, of: item, mediaType: .audio, resolver: resolver) {
                 assets.append(stereo.asset)
                 audio = stereo.track
+            }
+            // Large video's picture plays from its proxy, if asked to and
+            // there is one; its sound is still the original's.
+            if usesProxies, video != nil, DerivedMedia.proxy.applies(to: item),
+               let proxy = await derivedTrack(.proxy, of: item, mediaType: .video, resolver: resolver) {
+                assets.append(proxy.asset)
+                video = proxy.track
             }
             return .success(LoadedMedia(assets: assets, video: try await source(video), audio: try await source(audio)))
         } catch {

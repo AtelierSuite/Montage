@@ -9,17 +9,34 @@ public enum DerivedMedia: String, CaseIterable, Sendable {
     /// panned: a composition track's tap gets as many channels as its media
     /// has, and can't hand back more.
     case stereoAudio
+    /// A smaller copy of a large video's picture, for preview to decode
+    /// more easily. Export always uses the original.
+    case proxy
 
     /// Whether an item gets this kind of copy made of it.
     public func applies(to item: MediaItem) -> Bool {
         switch self {
         case .stereoAudio:
             item.kind != .image && item.metadata.audioChannelCount == 1
+        case .proxy:
+            item.kind == .video && Self.needsProxy(item.metadata.presentationSize)
         }
     }
 
+    /// The largest picture, on its longer and shorter sides, played as it is.
+    /// Anything bigger, such as 4K, gets a proxy.
+    public static let largestWithoutProxy = CGSize(width: 1920, height: 1080)
+    /// The size proxies are made to fit in.
+    public static let proxyPreset = AVAssetExportPreset960x540
+
+    static func needsProxy(_ size: CGSize) -> Bool {
+        let long = max(size.width, size.height), short = min(size.width, size.height)
+        return long > largestWithoutProxy.width || short > largestWithoutProxy.height
+    }
+
     /// The media in a project that's played through this kind of copy:
-    /// mono media under a clip with a pan effect.
+    /// mono media under a clip with a pan effect, or large video on a video
+    /// track.
     public func media(neededIn project: Project) -> [MediaItem] {
         var needed = Set<MediaItem.ID>()
         for track in project.tracks {
@@ -30,6 +47,8 @@ public enum DerivedMedia: String, CaseIterable, Sendable {
                     if isHeard, clip.effects.contains(where: { if case .pan = $0.kind { true } else { false } }) {
                         needed.insert(clip.mediaID)
                     }
+                case .proxy:
+                    if track.kind == .video { needed.insert(clip.mediaID) }
                 }
             }
         }
@@ -120,6 +139,7 @@ public enum DerivedMediaGenerator {
         defer { try? FileManager.default.removeItem(at: partial) }
         switch kind {
         case .stereoAudio: try await makeStereoAudio(from: source, to: partial)
+        case .proxy: try await makeProxy(from: source, to: partial)
         }
         _ = try? FileManager.default.removeItem(at: destination)
         try FileManager.default.moveItem(at: partial, to: destination)
@@ -181,6 +201,17 @@ public enum DerivedMediaGenerator {
         input.markAsFinished()
         await writer.finishWriting()
         guard writer.status == .completed else { throw Failure.failed(writer.error) }
+    }
+
+    /// The media at a smaller size, as a `.mov` that fits in
+    /// `DerivedMedia.proxyPreset`. Only its picture is played.
+    static func makeProxy(from source: URL, to destination: URL) async throws {
+        let asset = AVURLAsset(url: source, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+        guard !(try await asset.loadTracks(withMediaType: .video)).isEmpty else { throw Failure.noTrack }
+        guard let session = AVAssetExportSession(asset: asset, presetName: DerivedMedia.proxyPreset) else {
+            throw Failure.failed(nil)
+        }
+        try await session.export(to: destination, as: .mov)
     }
 }
 
