@@ -93,6 +93,9 @@ struct ProxyTests {
         let (proxyRange, originalRange) = (try await track.load(.timeRange), try await original.load(.timeRange))
         #expect(abs(proxyRange.start.seconds - originalRange.start.seconds) < 0.05)
         #expect(abs(proxyRange.duration.seconds - originalRange.duration.seconds) < 0.05)
+        // Only the picture is copied.
+        #expect(try await AVURLAsset(url: proxy).loadTracks(withMediaType: .audio).isEmpty)
+        #expect(try await track.load(.preferredTransform) == (try await original.load(.preferredTransform)))
     }
 
     @Test func previewPlaysTheProxyAndExportTheOriginal() async throws {

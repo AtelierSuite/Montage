@@ -204,12 +204,20 @@ public enum DerivedMediaGenerator {
         guard writer.status == .completed else { throw Failure.failed(writer.error) }
     }
 
-    /// The media at a smaller size, as a `.mov` that fits in
-    /// `DerivedMedia.proxyPreset`. Only its picture is played.
+    /// The media's picture at a smaller size, as a `.mov` that fits in
+    /// `DerivedMedia.proxyPreset`. Only its picture is played, so only its
+    /// video track is copied, turned and timed as it is in the original.
     static func makeProxy(from source: URL, to destination: URL) async throws {
         let asset = AVURLAsset(url: source, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
-        guard !(try await asset.loadTracks(withMediaType: .video)).isEmpty else { throw Failure.noTrack }
-        guard let session = AVAssetExportSession(asset: asset, presetName: DerivedMedia.proxyPreset) else {
+        guard let video = try await asset.loadTracks(withMediaType: .video).first else { throw Failure.noTrack }
+        let (timeRange, transform, _) = try await video.load(.timeRange, .preferredTransform, .formatDescriptions)
+        let composition = AVMutableComposition()
+        guard let track = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            throw Failure.failed(nil)
+        }
+        try track.insertTimeRange(timeRange, of: video, at: timeRange.start)
+        track.preferredTransform = transform
+        guard let session = AVAssetExportSession(asset: composition, presetName: DerivedMedia.proxyPreset) else {
             throw Failure.failed(nil)
         }
         try await session.export(to: destination, as: .mov)
