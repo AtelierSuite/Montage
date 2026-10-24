@@ -5,6 +5,7 @@ import SwiftUI
 /// The mask an effect is limited to: its shape, or none for the whole
 /// picture, and where it sits, how big, how turned and how soft it is.
 struct MaskControls: View {
+    @Environment(ProjectEditor.self) private var editor
     let editing: EffectEditing
 
     var body: some View {
@@ -16,6 +17,7 @@ struct MaskControls: View {
             Text("Inspector.Mask.Path").tag(Mask.Shape?.some(.path))
         }
         if mask != nil {
+            Toggle("Inspector.Mask.EditInPreview", systemImage: "hand.point.up.left", isOn: editsInPreview)
             let center = editing.parameter(\.maskOrDefault.center)
             let size = editing.parameter(\.maskOrDefault.size)
             ParameterSlider("Inspector.Mask.X", center, in: 0...1, format: ParameterFormat.percent,
@@ -34,6 +36,18 @@ struct MaskControls: View {
         }
     }
 
+    /// Whether the preview has handles for this mask, in place of the
+    /// clip's own.
+    private var editsInPreview: Binding<Bool> {
+        let timeline = editor.timeline
+        let effectID = editing.effect.id
+        return Binding {
+            timeline.editedMaskEffectID == effectID
+        } set: { isOn in
+            timeline.editedMaskEffectID = isOn ? effectID : nil
+        }
+    }
+
     /// The mask's shape; choosing one for an effect without a mask gives it
     /// a new one, and choosing none takes it away.
     private var shape: Binding<Mask.Shape?> {
@@ -47,6 +61,8 @@ struct MaskControls: View {
                 }
                 if effect.mask == nil {
                     effect.mask = Mask(shape)
+                    // A new mask is edited where it's seen.
+                    editor.timeline.editedMaskEffectID = effect.id
                 } else {
                     effect.mask?.shape = shape
                 }

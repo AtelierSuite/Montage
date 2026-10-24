@@ -42,6 +42,12 @@ extension Project {
         return clip.id
     }
 
+    /// Changes a clip in place, on whichever track holds it.
+    public mutating func updateClip(_ id: Clip.ID, _ change: (inout Clip) -> Void) {
+        guard let index = tracks.firstIndex(where: { $0.clip(id: id) != nil }) else { return }
+        tracks[index].update(id, change)
+    }
+
     /// The first track of a kind, made if there's none. Video tracks come
     /// before audio tracks, so a new video track goes after the last video
     /// track and a new audio track at the end.

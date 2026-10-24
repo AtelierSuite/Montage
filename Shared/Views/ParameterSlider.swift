@@ -142,5 +142,15 @@ struct KeyframeButton<Value: Interpolatable>: View {
         .buttonStyle(.borderless)
         .disabled(!editing.canKeyframe)
         .help(Text(isOnKeyframe ? "Inspector.Keyframe.Remove" : "Inspector.Keyframe.Add"))
+        .contextMenu {
+            // On a keyframe, how this parameter travels on from it.
+            if let interpolation = editing.parameter.interpolation(at: editing.time) {
+                EasingPicker(interpolation: interpolation, showsCurve: false) { interpolation, _ in
+                    var parameter = editing.parameter
+                    parameter.setInterpolation(interpolation, at: editing.time)
+                    editing.change(parameter, false)
+                }
+            }
+        }
     }
 }

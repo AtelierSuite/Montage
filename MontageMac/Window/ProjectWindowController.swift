@@ -117,6 +117,8 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     @objc func splitClips(_ sender: Any?) { editor.splitAtPlayhead() }
     @objc func detachAudio(_ sender: Any?) { editor.detachAudio() }
     @objc func addMarker(_ sender: Any?) { editor.addMarkerAtPlayhead() }
+    @objc func goToPreviousKeyframe(_ sender: Any?) { editor.goToPreviousKeyframe() }
+    @objc func goToNextKeyframe(_ sender: Any?) { editor.goToNextKeyframe() }
     @objc func toggleSnapping(_ sender: Any?) { editor.timeline.isSnapping.toggle() }
     @objc func zoomInTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1.5) }
     @objc func zoomOutTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1 / 1.5) }
@@ -129,6 +131,8 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         case #selector(splitClips(_:)): return editor.canSplit
         case #selector(detachAudio(_:)): return editor.canDetachAudio
         case #selector(addMarker(_:)): return editor.playback.hasContent
+        case #selector(goToPreviousKeyframe(_:)): return editor.previousKeyframeTime != nil
+        case #selector(goToNextKeyframe(_:)): return editor.nextKeyframeTime != nil
         case #selector(toggleSnapping(_:)):
             menuItem.state = editor.timeline.isSnapping ? .on : .off
             return true

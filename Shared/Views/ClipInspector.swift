@@ -17,7 +17,9 @@ struct ClipInspector: View {
                 Text(verbatim: editor.project.mediaItem(id: clip.mediaID)?.name ?? "")
                     .font(.headline)
             }
+            KeyframeControls(clip: clip)
             if track.kind == .video {
+                LayerControls(clip: clip)
                 ForEach(effects) { effect in
                     EffectSection(
                         editing: EffectEditing(editor: editor, clip: clip, effect: effect),

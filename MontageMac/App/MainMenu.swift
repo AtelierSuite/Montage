@@ -84,6 +84,10 @@ enum MainMenu {
                           "s", [.command, .control, .shift]))
         menu.addItem(item(String(localized: "Edit.RippleDelete"), #selector(ProjectWindowController.rippleDelete(_:))))
         menu.addItem(item(String(localized: "Edit.AddMarker"), #selector(ProjectWindowController.addMarker(_:))))
+        menu.addItem(item(String(localized: "Inspector.Keyframes.Previous"),
+                          #selector(ProjectWindowController.goToPreviousKeyframe(_:)), "[", [.option]))
+        menu.addItem(item(String(localized: "Inspector.Keyframes.Next"),
+                          #selector(ProjectWindowController.goToNextKeyframe(_:)), "]", [.option]))
         menu.addItem(item(String(localized: "Timeline.Snapping"), #selector(ProjectWindowController.toggleSnapping(_:))))
         return menu
     }
