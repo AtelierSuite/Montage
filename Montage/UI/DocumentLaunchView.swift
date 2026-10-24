@@ -101,14 +101,20 @@ struct SpotlightBackground: View {
                 .scaleEffect(x: opening, y: 1, anchor: .top)
                 .opacity(isRevealed ? 1 : 0.3)
 
-                // The light pooling on the browser.
-                Ellipse()
-                    .fill(RadialGradient(
-                        colors: [DocumentLaunch.rgb(0xFF5068, 0.36), DocumentLaunch.rgb(0xA8182C, 0.15), .clear],
-                        center: .center, startRadius: 0, endRadius: size.width * 0.75
+                // The light pooling on the browser, fading out to nothing at
+                // its edges so it blends into the dark around it.
+                Rectangle()
+                    .fill(EllipticalGradient(
+                        stops: [
+                            .init(color: DocumentLaunch.rgb(0xFF5068, 0.26), location: 0),
+                            .init(color: DocumentLaunch.rgb(0xD02A42, 0.16), location: 0.35),
+                            .init(color: DocumentLaunch.rgb(0xA8182C, 0.07), location: 0.7),
+                            .init(color: DocumentLaunch.rgb(0xA8182C, 0), location: 1),
+                        ],
+                        center: .center
                     ))
-                    .frame(width: size.width * 1.5, height: size.height * 0.45)
-                    .position(x: size.width / 2, y: size.height * 0.72)
+                    .frame(width: size.width * 1.8, height: size.height * 0.8)
+                    .position(x: size.width / 2, y: size.height * 0.74)
                     .scaleEffect(x: opening, y: 1)
                     .opacity(isRevealed ? 1 : 0)
 
