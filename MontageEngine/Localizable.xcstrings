@@ -15,6 +15,12 @@
             "state" : "translated",
             "value" : "ビデオをエンコードできませんでした。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法编码视频。"
+          }
         }
       }
     },
@@ -31,6 +37,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "このフォーマットでは書き出せません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法以此格式导出。"
           }
         }
       }
@@ -49,6 +61,12 @@
             "state" : "translated",
             "value" : "プロジェクトに書き出すものがありません。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "项目中没有可导出的内容。"
+          }
         }
       }
     },
@@ -65,6 +83,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "プロジェクトのメディアを読み込めませんでした。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取项目的媒体。"
           }
         }
       }
@@ -83,6 +107,12 @@
             "state" : "translated",
             "value" : "ビデオを書き込めませんでした。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法写入视频。"
+          }
         }
       }
     },
@@ -100,6 +130,12 @@
             "state" : "translated",
             "value" : "「%@」は読み込めません。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法导入“%@”。"
+          }
         }
       }
     },
@@ -116,6 +152,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Montageでは、このデバイスで再生できるムービー、オーディオ、イメージ（MOV、MP4、M4A、MP3、JPEG、PNG、HEICファイルなど）を読み込めます。AVIファイルと保護されたメディアは読み込めません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montage 可导入此设备能够播放的影片、音频和图像，例如 MOV、MP4、M4A、MP3、JPEG、PNG 和 HEIC 文件。无法导入 AVI 文件和受保护的媒体。"
           }
         }
       }

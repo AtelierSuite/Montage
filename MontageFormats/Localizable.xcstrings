@@ -15,6 +15,12 @@
             "state" : "translated",
             "value" : "このフレームサイズ、フレームレート、またはオーディオフォーマットでは、このビデオをAVIとして書き出せません。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法以此画面尺寸、帧速率或音频格式将此视频导出为 AVI。"
+          }
         }
       }
     },
@@ -31,6 +37,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AVIファイルはすでに完了またはキャンセルされているため、これ以上追加できません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AVI 文件已完成或已取消，无法再向其中添加内容。"
           }
         }
       }
@@ -49,6 +61,12 @@
             "state" : "translated",
             "value" : "このビデオは大きすぎるため、1つのAVIファイルとして書き出せません。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此视频太大，无法导出为单个 AVI 文件。"
+          }
         }
       }
     },
@@ -65,6 +83,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ビデオまたはオーディオの一部が、AVIファイルに書き込めないフォーマットです。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分视频或音频的格式无法写入 AVI 文件。"
           }
         }
       }
@@ -83,6 +107,12 @@
             "state" : "translated",
             "value" : "ルックアップテーブルを読み込めませんでした。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取查找表。"
+          }
         }
       }
     },
@@ -99,6 +129,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用できるのは、0から1の範囲の3Dルックアップテーブルのみです。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅可使用范围为 0 到 1 的 3D 查找表。"
           }
         }
       }
@@ -117,6 +153,12 @@
             "state" : "translated",
             "value" : "このファイルには読み込めるプロジェクトのタイムラインがありません。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此文件中没有可导入的项目时间线。"
+          }
         }
       }
     },
@@ -133,6 +175,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "プロジェクトファイルを読み込めませんでした。ファイルが破損しているか、書き込みが完了していない可能性があります。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取项目文件。文件可能已损坏，或尚未写入完成。"
           }
         }
       }
@@ -151,6 +199,12 @@
             "state" : "translated",
             "value" : "このファイルはMontageで読み込めるプロジェクトではありません。Montageでは、Final Cut ProまたはLumaFusionのFCPXMLと、Premiere ProのFinal Cut Pro 7 XMLを読み込めます。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此文件不是 Montage 可导入的项目。Montage 可导入来自 Final Cut Pro 或 LumaFusion 的 FCPXML，以及来自 Premiere Pro 的 Final Cut Pro 7 XML。"
+          }
         }
       }
     },
@@ -164,6 +218,12 @@
           }
         },
         "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Cut Pro XML"
+          }
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Final Cut Pro XML"
@@ -185,6 +245,12 @@
             "state" : "translated",
             "value" : "Final Cut Pro 7 XML"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Cut Pro 7 XML"
+          }
         }
       }
     },
@@ -201,6 +267,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "オーディションで選択されたクリップのみが読み込まれ、ほかの%lld個の候補は読み込まれませんでした。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅导入了试演中选定的片段，其他 %lld 个备选未导入。"
           }
         }
       }
@@ -219,6 +291,12 @@
             "state" : "translated",
             "value" : "キャプションが除外されました。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一个字幕被略去。"
+          }
         }
       }
     },
@@ -235,6 +313,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "クリップがオフになっていたため、除外されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片段已关闭，因此被略去。"
           }
         }
       }
@@ -253,6 +337,12 @@
             "state" : "translated",
             "value" : "ジェネレータ「%@」が除外されました。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成器“%@”被略去。"
+          }
         }
       }
     },
@@ -269,6 +359,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "マーカーが除外されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一个标记被略去。"
           }
         }
       }
@@ -287,6 +383,12 @@
             "state" : "translated",
             "value" : "マーカー「%@」が除外されました。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标记“%@”被略去。"
+          }
         }
       }
     },
@@ -303,6 +405,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@にファイルが見つかりませんでした。このファイルから作成したクリップを再生するには、再リンクしてください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 找不到文件。请重新链接，以播放由它制作的片段。"
           }
         }
       }
@@ -321,6 +429,12 @@
             "state" : "translated",
             "value" : "クリップがほかのクリップと重なっていたため、専用のトラックに移動されました。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片段与另一个片段重叠，因此被移到了单独的轨道。"
+          }
         }
       }
     },
@@ -337,6 +451,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "クリップは、同じ設定を持つ複合クリップまたはマルチカムクリップの中にあったため、クリップ自身の設定が保持されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片段位于复合片段或多机位片段中，而它们也有相同的设置，因此保留了片段自己的设置。"
           }
         }
       }
@@ -355,6 +475,12 @@
             "state" : "translated",
             "value" : "最初のタイムラインのみが読み込まれました。ファイルにはほかに%lld個のタイムラインがあります。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅导入了第一条时间线；文件中还有 %lld 条。"
+          }
         }
       }
     },
@@ -371,6 +497,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "「%@」に相当するものがMontageにないため、除外されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montage 中没有与“%@”对应的功能，因此被略去。"
           }
         }
       }
@@ -389,6 +521,12 @@
             "state" : "translated",
             "value" : "クリップの速度変更が除外されたため、通常の速度で再生されます。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片段的速度变化被略去，因此会以正常速度播放。"
+          }
         }
       }
     },
@@ -405,6 +543,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "タイトルが除外されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一个标题被略去。"
           }
         }
       }
@@ -423,6 +567,12 @@
             "state" : "translated",
             "value" : "タイトル「%@」が除外されました。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标题“%@”被略去。"
+          }
         }
       }
     },
@@ -439,6 +589,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "トランジション「%@」は、その中間点でのカットに置き換えられました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转场“%@”被替换为在其中点处的直接切换。"
           }
         }
       }
@@ -457,6 +613,12 @@
             "state" : "translated",
             "value" : "「%@」の横方向と縦方向の値が異なっていたため、横方向の値が両方に使用されました。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”的横向和纵向值不同，因此两者都使用了横向值。"
+          }
         }
       }
     },
@@ -473,6 +635,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "「%@」に相当するものがMontageにありません。クリップ上にオフの状態で保持されます。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montage 中没有与“%@”对应的效果。它会以关闭状态保留在片段上。"
           }
         }
       }
@@ -491,6 +659,12 @@
             "state" : "translated",
             "value" : "このプロジェクトは新しいバージョンのMontageで保存されました。開くにはMontageをアップデートしてください。"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目由更新版本的 Montage 存储。请更新 Montage 以打开它。"
+          }
         }
       }
     },
@@ -507,6 +681,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "このファイルはMontageプロジェクトではないか、破損しています。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此文件不是 Montage 项目，或已损坏。"
           }
         }
       }
