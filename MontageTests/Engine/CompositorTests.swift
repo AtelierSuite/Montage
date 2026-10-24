@@ -27,7 +27,7 @@ struct CompositorTests {
         return clip
     }
 
-    private func frame(_ clips: [Clip], media: [MediaItem]? = nil, at time: CMTime? = nil) async throws -> Pixels {
+    private func frame(_ clips: [Clip], media: [MediaItem]? = nil, at time: CMTime? = nil) async throws -> FramePixels {
         let project = Project(media: media ?? [landscape, portrait], tracks: clips.map { Track(kind: .video, clips: [$0]) })
         let built = try await CompositionBuilder(project: project, mediaResolver: resolver).build()
         #expect(built.skippedClips.isEmpty, "\(built.skippedClips)")
@@ -39,9 +39,22 @@ struct CompositorTests {
         let generator = AVAssetImageGenerator(asset: AVURLAsset(url: Samples.url("IMG_3311.mp4")))
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = .zero
-        let source = Pixels(try await generator.image(at: seconds(3)).image)
+        let source = FramePixels(try await generator.image(at: seconds(3)).image)
         for point in points + [CGPoint(x: 100, y: 100), CGPoint(x: 1800, y: 1000)] {
             #expect(composed.isClose(composed[point], source[point], within: 0.03), "\(point)")
+        }
+    }
+
+    @Test func aClipsEffectsAreDrawnIntoTheFrame() async throws {
+        let plain = try await frame([clip(landscape)])
+        var darker = ColorCorrection()
+        darker.exposure = Animatable(-2)
+        let corrected = try await frame([clip(landscape) { $0.effects = [Effect(.colorCorrection(darker))] }])
+        let turnedOff = try await frame([clip(landscape) { $0.effects = [Effect(isEnabled: false, .colorCorrection(darker))] }])
+        for point in points {
+            // Two stops down is about a quarter of the light, well under half.
+            #expect(corrected.brightness(at: point) < plain.brightness(at: point) * 0.5, "\(point)")
+            #expect(turnedOff.isClose(turnedOff[point], plain[point], within: 0.03), "\(point)")
         }
     }
 
@@ -121,7 +134,7 @@ struct CompositorTests {
         generator.appliesPreferredTrackTransform = true
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = .zero
-        let upright = Pixels(try await generator.image(at: seconds(3)).image)
+        let upright = FramePixels(try await generator.image(at: seconds(3)).image)
         #expect(upright.width == 1080 && upright.height == 1920)
         // Pillarboxed between x 656 and 1264, scaled by 1080 / 1920.
         #expect(composed.brightness(at: CGPoint(x: 300, y: 540)) < 0.02)
@@ -178,7 +191,7 @@ struct CompositorTests {
         let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = .zero
-        let exported = Pixels(try await generator.image(at: time).image)
+        let exported = FramePixels(try await generator.image(at: time).image)
         let previewed = try await render(built, at: time)
         for point in points {
             #expect(exported.isClose(exported[point], previewed[point], within: 0.06), "\(point)")
@@ -201,12 +214,12 @@ struct CompositorTests {
 
     // MARK: - Helpers
 
-    private func render(_ built: BuiltComposition, at time: CMTime) async throws -> Pixels {
+    private func render(_ built: BuiltComposition, at time: CMTime) async throws -> FramePixels {
         let generator = AVAssetImageGenerator(asset: built.composition)
         generator.videoComposition = built.videoComposition
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = .zero
-        let image = Pixels(try await generator.image(at: time).image)
+        let image = FramePixels(try await generator.image(at: time).image)
         #expect(image.width == 1920 && image.height == 1080)
         return image
     }
@@ -234,7 +247,7 @@ private func range(_ start: Double, _ duration: Double) -> CMTimeRange {
 
 /// An image's pixels as colours from 0 to 1, read in the image's own colour
 /// space so they're the values the compositor wrote.
-private struct Pixels {
+private struct FramePixels {
     let width: Int
     let height: Int
     private let bytes: [UInt8]
@@ -281,6 +294,6 @@ private struct Pixels {
 }
 
 // Described briefly, so a failed expectation doesn't print every pixel.
-extension Pixels: CustomStringConvertible {
+extension FramePixels: CustomStringConvertible {
     var description: String { "\(width)×\(height) pixels" }
 }

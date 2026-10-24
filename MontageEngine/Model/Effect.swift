@@ -7,11 +7,15 @@ public struct Effect: Identifiable, Equatable, Sendable, Codable {
     /// Turned off, the effect stays on the clip but is skipped.
     public var isEnabled: Bool
     public var kind: Kind
+    /// Limits a video effect to part of the picture; nil applies it to all
+    /// of it.
+    public var mask: Mask?
 
-    public init(id: UUID = UUID(), isEnabled: Bool = true, _ kind: Kind) {
+    public init(id: UUID = UUID(), isEnabled: Bool = true, _ kind: Kind, mask: Mask? = nil) {
         self.id = id
         self.isEnabled = isEnabled
         self.kind = kind
+        self.mask = mask
     }
 
     public enum Kind: Equatable, Sendable {
@@ -97,35 +101,8 @@ extension Effect.Kind: Codable {
 }
 
 // MARK: - Video effects
-
-/// Exposure, contrast and colour. Neutral values leave the picture as it is.
-public struct ColorCorrection: Equatable, Sendable, Codable {
-    /// In stops: -1 halves the light, 1 doubles it.
-    public var exposure = Animatable(0.0)
-    /// 1 is unchanged.
-    public var contrast = Animatable(1.0)
-    /// 1 is unchanged, 0 is greyscale.
-    public var saturation = Animatable(1.0)
-    /// White balance, in kelvin; 6500 is unchanged.
-    public var temperature = Animatable(6500.0)
-    /// Green to magenta; 0 is unchanged.
-    public var tint = Animatable(0.0)
-
-    public init() {}
-}
-
-/// Hides part of the picture, such as a face or a number plate.
-public struct Mosaic: Equatable, Sendable, Codable {
-    public enum Style: String, Equatable, Sendable, Codable {
-        case pixelate, blur, checkerboard
-    }
-
-    public var style: Style = .pixelate
-    /// How coarse the mosaic is, as a fraction of the frame's width.
-    public var scale = Animatable(0.03)
-
-    public init() {}
-}
+//
+// `ColorCorrection` and `Mosaic` are in files of their own.
 
 // MARK: - Audio effects
 
