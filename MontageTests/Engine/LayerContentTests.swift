@@ -89,6 +89,57 @@ struct LayerContentTests {
         #expect(text.runs == [TextRun("One two three")])
     }
 
+    // MARK: - Typing in place
+
+    private static let bold = TextRun.Formatting(weight: .bold)
+    private static let red = TextRun.Formatting(color: RGBAColor(red: 1, green: 0, blue: 0))
+
+    /// Types over a range as a text view does: in the formatting of the
+    /// character before it, or after it at the start.
+    private func type(_ string: String, over range: NSRange, in text: NSMutableAttributedString) {
+        let at = range.location > 0 ? range.location - 1 : range.location
+        let attributes = text.length > 0 ? text.attributes(at: min(at, text.length - 1), effectiveRange: nil) : [:]
+        text.replaceCharacters(in: range, with: NSAttributedString(string: string, attributes: attributes))
+    }
+
+    @Test func taggedWordsComeBackAsTheyWere() {
+        let text = TextContent(runs: [TextRun("Big "), TextRun("bold", formatting: Self.bold), TextRun(" red", formatting: Self.red),
+                                      TextRun(" end")])
+        let tagged = text.tagged()
+        #expect(tagged.formattings.count == 3)
+        var copy = text
+        copy.setWords(from: tagged.string, formattings: tagged.formattings)
+        #expect(copy == text)
+        // Empty text still has a formatting to type in.
+        #expect(TextContent().tagged().formattings == [TextRun.Formatting()])
+    }
+
+    @Test func typingInPlacesApartKeepsTheWordsBetween() {
+        var text = TextContent(runs: [TextRun("Big "), TextRun("bold", formatting: Self.bold), TextRun(" text")])
+        let tagged = text.tagged()
+        let string = NSMutableAttributedString(attributedString: tagged.string)
+        // Typed over the first word, then after the last.
+        type("Huge", over: NSRange(location: 0, length: 3), in: string)
+        type("!", over: NSRange(location: string.length, length: 0), in: string)
+        text.setWords(from: string, formattings: tagged.formattings)
+        #expect(text.runs == [TextRun("Huge "), TextRun("bold", formatting: Self.bold), TextRun(" text!")])
+        // Typed at the end of the bold word, it's bold too.
+        let more = NSMutableAttributedString(attributedString: text.tagged().string)
+        type("er", over: NSRange(location: 9, length: 0), in: more)
+        text.setWords(from: more, formattings: text.tagged().formattings)
+        #expect(text.runs == [TextRun("Huge "), TextRun("bolder", formatting: Self.bold), TextRun(" text!")])
+    }
+
+    @Test func untaggedWordsTakeTheFormattingBeforeThem() {
+        var text = TextContent(runs: [TextRun("Hi", formatting: Self.red)])
+        let tagged = text.tagged()
+        let string = NSMutableAttributedString(attributedString: tagged.string)
+        string.append(NSAttributedString(string: " there"))
+        string.insert(NSAttributedString(string: "Oh "), at: 0)
+        text.setWords(from: string, formattings: tagged.formattings)
+        #expect(text.runs == [TextRun("Oh Hi there", formatting: Self.red)])
+    }
+
     // MARK: - Trimming
 
     private func project(_ content: ClipContent) -> Project {
