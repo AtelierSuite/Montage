@@ -192,6 +192,27 @@ struct LayerContentTests {
         #expect(clip.transform.position == Animatable(CGPoint(x: 0.4, y: 0.5)))
     }
 
+    @Test func splittingKeepsWhatKenBurnsPutsBackInPlace() throws {
+        var clip = Clip(content: .image(UUID()), sourceRange: range(0, 6), timelineStart: s(2))
+        // Keyframes set by hand before the pan and zoom went on.
+        clip.transform.scale = Animatable(1.0, keyframes: [Keyframe(time: .zero, value: 1), Keyframe(time: s(4), value: 2)])
+        clip.applyKenBurns()
+        var project = Project(tracks: [Track(kind: .video, clips: [clip])])
+        let split = project.splitClip(clip.id, at: s(5))
+        let after = try #require(split)
+        var second = try #require(project.clip(id: after)?.clip)
+        #expect(second.hasKenBurns)
+        second.removeKenBurns()
+        // Three seconds into the original clip, the hand-set scale was 1.75;
+        // the second part starts there and reaches 2 a second later.
+        #expect(abs(second.transform.scale.value(at: .zero) - 1.75) < 0.0001)
+        #expect(abs(second.transform.scale.value(at: s(1)) - 2) < 0.0001)
+        // The first part's keyframes don't move.
+        var first = try #require(project.clip(id: clip.id)?.clip)
+        first.removeKenBurns()
+        #expect(first.transform.scale.keyframes.map(\.time) == [.zero, s(4)])
+    }
+
     @Test func textAndShapeKeyframesShowAndRetime() {
         var text = TextContent("Grow")
         text.style.fontSize = Animatable(50, keyframes: [Keyframe(time: .zero, value: 50), Keyframe(time: s(2), value: 80)])
