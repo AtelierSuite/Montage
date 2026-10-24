@@ -71,4 +71,28 @@ struct MediaRelinkerTests {
         #expect(byID[still.id]?.isConfirmed == true)
         #expect(byID[nowhere.id] == nil)
     }
+
+    @Test(.enabled(if: Samples.isAvailable))
+    func givesAFileToTheItemItSurelyIsBeforeOneThatOnlySharesItsName() async throws {
+        let folder = URL.temporaryDirectory.appending(path: "MediaRelinkerTests \(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        // Two clips of the same name, from two cards.
+        let first = folder.appending(path: "A/Clip.mp4"), second = folder.appending(path: "B/Clip.mp4")
+        for (sample, url) in [("IMG_3311.mp4", first), ("IMG_3312.mp4", second)] {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: Samples.url(sample), to: url)
+        }
+        let landscape = try await MediaProbe.probe(Samples.url("IMG_3311.mp4"))
+        // Neither file is this one's media, so it's listed first to have the
+        // first pick.
+        let unsure = Self.item("Clip.mp4", .video, Self.footage)
+        let sure = Self.item("Clip.mp4", .video, landscape.metadata)
+
+        let matches = await MediaRelinker.match([unsure, sure], among: [first, second])
+        let byID = Dictionary(uniqueKeysWithValues: matches.map { ($0.mediaID, $0) })
+        #expect(byID[sure.id]?.url == first)
+        #expect(byID[sure.id]?.isConfirmed == true)
+        #expect(byID[unsure.id]?.url == second)
+        #expect(byID[unsure.id]?.isConfirmed == false)
+    }
 }

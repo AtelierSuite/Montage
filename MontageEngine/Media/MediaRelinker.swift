@@ -91,30 +91,36 @@ public enum MediaRelinker {
     /// The best file among `files` for each item, if any has a name that
     /// could be its: the first whose media matches in every way, else the
     /// first that can be read at all, with how it differs. Each file is
-    /// given to one item at most.
+    /// given to one item at most, and to an item it's surely the media of
+    /// before any it only shares a name with.
     @concurrent
     public static func match(_ items: [MediaItem], among files: [URL]) async -> [Match] {
-        var matches: [Match] = []
-        var taken = Set<URL>()
-        for item in items {
-            var best: Match?
-            for url in candidates(for: item, among: files) where !taken.contains(url) {
-                guard !Task.isCancelled else { return matches }
-                guard let probed = try? await MediaProbe.probe(url) else { continue }
-                let match = Match(mediaID: item.id, url: url, probed: probed,
-                                  differences: differences(between: item, and: probed))
-                if match.isConfirmed {
-                    best = match
-                    break
-                }
-                if best == nil { best = match }
+        // Each item's candidates, read once however many items they're named for.
+        var probes: [URL: ProbedMedia] = [:]
+        var checked: [[Match]] = []
+        reading: for item in items {
+            var matches: [Match] = []
+            for url in candidates(for: item, among: files) {
+                guard !Task.isCancelled else { break reading }
+                if probes[url] == nil { probes[url] = try? await MediaProbe.probe(url) }
+                guard let probed = probes[url] else { continue }
+                matches.append(Match(mediaID: item.id, url: url, probed: probed,
+                                     differences: differences(between: item, and: probed)))
             }
-            if let best {
-                matches.append(best)
-                taken.insert(best.url)
+            checked.append(matches)
+        }
+
+        var best = [Match?](repeating: nil, count: checked.count)
+        var taken = Set<URL>()
+        for confirmedOnly in [true, false] {
+            for (index, matches) in checked.enumerated() where best[index] == nil {
+                guard let match = matches.first(where: { !taken.contains($0.url) && (!confirmedOnly || $0.isConfirmed) })
+                else { continue }
+                best[index] = match
+                taken.insert(match.url)
             }
         }
-        return matches
+        return best.compactMap { $0 }
     }
 
     /// Checks one file the user picked for an item, whatever its name.
