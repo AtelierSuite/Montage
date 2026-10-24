@@ -56,6 +56,17 @@
         }
       }
     },
+    "Action.MoveClip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Clip"
+          }
+        }
+      }
+    },
     "Action.RemoveFromLibrary" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -85,6 +96,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Split Clip"
+          }
+        }
+      }
+    },
+    "Action.TrimClip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trim Clip"
           }
         }
       }
