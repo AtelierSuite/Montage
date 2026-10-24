@@ -120,6 +120,7 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     @objc func toggleSnapping(_ sender: Any?) { editor.timeline.isSnapping.toggle() }
     @objc func zoomInTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1.5) }
     @objc func zoomOutTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1 / 1.5) }
+    @objc func toggleProxies(_ sender: Any?) { editor.usesProxies.toggle() }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
@@ -131,6 +132,9 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         case #selector(addMarker(_:)): return editor.playback.hasContent
         case #selector(toggleSnapping(_:)):
             menuItem.state = editor.timeline.isSnapping ? .on : .off
+            return true
+        case #selector(toggleProxies(_:)):
+            menuItem.state = editor.usesProxies ? .on : .off
             return true
         default: return true
         }

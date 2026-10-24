@@ -98,6 +98,8 @@ enum MainMenu {
         menu.addItem(item(String(localized: "Timeline.ZoomIn"), #selector(ProjectWindowController.zoomInTimeline(_:)), "="))
         menu.addItem(item(String(localized: "Timeline.ZoomOut"), #selector(ProjectWindowController.zoomOutTimeline(_:)), "-"))
         menu.addItem(.separator())
+        menu.addItem(item(String(localized: "Preview.UseProxies"), #selector(ProjectWindowController.toggleProxies(_:))))
+        menu.addItem(.separator())
         menu.addItem(item(String(localized: "Mac.Menu.ShowToolbar"), #selector(NSWindow.toggleToolbarShown(_:)),
                           "t", [.command, .option]))
         menu.addItem(item(String(localized: "Mac.Menu.CustomizeToolbar"),
