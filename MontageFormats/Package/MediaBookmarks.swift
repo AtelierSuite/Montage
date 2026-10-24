@@ -35,12 +35,14 @@ public final class MediaBookmarks: Sendable {
         }
     }
 
+    // Resolved without mounting, so a project whose media is on a drive
+    // that isn't connected opens straight away, with that media missing.
     #if os(macOS)
     private static let creationOptions: URL.BookmarkCreationOptions = [.withSecurityScope, .securityScopeAllowOnlyReadAccess]
-    private static let resolutionOptions: URL.BookmarkResolutionOptions = [.withSecurityScope, .withoutUI]
+    private static let resolutionOptions: URL.BookmarkResolutionOptions = [.withSecurityScope, .withoutUI, .withoutMounting]
     #else
     private static let creationOptions: URL.BookmarkCreationOptions = []
-    private static let resolutionOptions: URL.BookmarkResolutionOptions = [.withoutUI]
+    private static let resolutionOptions: URL.BookmarkResolutionOptions = [.withoutUI, .withoutMounting]
     #endif
 
     /// A bookmark to a file the user chose, to keep in the project. The
