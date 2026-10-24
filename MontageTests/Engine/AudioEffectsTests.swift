@@ -66,6 +66,14 @@ struct RenderedAudio {
     /// Reads an asset's sound, through an audio mix if there is one, the way
     /// export does.
     static func read(_ asset: AVAsset, audioMix: AVAudioMix? = nil) async throws -> RenderedAudio {
+        // Reading blocks; on a queue of its own, so tests reading at once
+        // don't hold every shared thread.
+        try await withTaskExecutorPreference(DispatchQueue(label: "MontageTests.RenderedAudio")) {
+            try await readBlocking(asset, audioMix: audioMix)
+        }
+    }
+
+    private static func readBlocking(_ asset: AVAsset, audioMix: AVAudioMix?) async throws -> RenderedAudio {
         let tracks = try await asset.loadTracks(withMediaType: .audio)
         let reader = try AVAssetReader(asset: asset)
         let output = AVAssetReaderAudioMixOutput(audioTracks: tracks, audioSettings: [
