@@ -5,7 +5,7 @@ import SwiftUI
 struct MontageApp: App {
     var body: some Scene {
         DocumentGroup(newDocument: MontageDocument()) { configuration in
-            ProjectEditorView(document: configuration.$document)
+            ProjectEditorView(document: configuration.$document, fileURL: configuration.fileURL)
         }
 
         DocumentGroupLaunchScene {

@@ -8,16 +8,24 @@ struct MontageDocument: FileDocument {
     static let readableContentTypes: [UTType] = [.montageProject]
 
     var project: Project
+    /// The media imported into the project but not saved yet, and where the
+    /// package is. A reference, so every copy SwiftUI makes of the document
+    /// shares it: the copy that's written sees what the editor imported.
+    let media: PackageMediaStore
 
     init() {
         project = Project()
+        media = PackageMediaStore()
     }
 
     init(configuration: ReadConfiguration) throws {
         project = try ProjectPackage.read(configuration.file)
+        media = PackageMediaStore()
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        try ProjectPackage.fileWrapper(for: project, existing: configuration.existingFile)
+        // Staged media goes into the package by reference to its staged
+        // file, so saving a long video doesn't read it into memory.
+        try ProjectPackage.fileWrapper(for: project, existing: configuration.existingFile, media: media)
     }
 }

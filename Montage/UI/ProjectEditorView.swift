@@ -7,6 +7,9 @@ import SwiftUI
 /// column on the other side.
 struct ProjectEditorView: View {
     @Binding var document: MontageDocument
+    /// Where the document is: set once it's first saved, and changed when
+    /// it's renamed or moved.
+    var fileURL: URL?
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.undoManager) private var undoManager
@@ -15,10 +18,15 @@ struct ProjectEditorView: View {
     @State private var isShowingLibrary = false
     @State private var isShowingInspector = false
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
+    /// The document's location while it's being read from, for media in it.
+    @State private var accessedURL: URL?
 
-    init(document: Binding<MontageDocument>) {
+    init(document: Binding<MontageDocument>, fileURL: URL?) {
         _document = document
-        _editor = State(initialValue: ProjectEditor(project: document.wrappedValue.project))
+        self.fileURL = fileURL
+        let media = document.wrappedValue.media
+        media.packageURL = fileURL
+        _editor = State(initialValue: ProjectEditor(project: document.wrappedValue.project, mediaResolver: media.resolver))
     }
 
     var body: some View {
@@ -34,6 +42,21 @@ struct ProjectEditorView: View {
             // Reverting, or another device's changes arriving, replace the
             // document from outside the editor.
             .onChange(of: document.project) { _, project in editor.replace(with: project) }
+            // Media is found in the package wherever it's moved to.
+            .onChange(of: fileURL, initial: true) { _, fileURL in locateMedia(at: fileURL) }
+            .onChange(of: ObjectIdentifier(document.media)) { _, _ in locateMedia(at: fileURL) }
+            .onDisappear { locateMedia(at: nil) }
+    }
+
+    /// Tells the document's media where the package is, keeping access to a
+    /// package from another app's storage for as long as it's open here.
+    private func locateMedia(at url: URL?) {
+        if accessedURL != url {
+            accessedURL?.stopAccessingSecurityScopedResource()
+            accessedURL = url?.startAccessingSecurityScopedResource() == true ? url : nil
+        }
+        document.media.packageURL = url
+        editor.mediaResolver = document.media.resolver
     }
 
     private func attach(to undoManager: UndoManager?) {
