@@ -38,6 +38,7 @@ struct ProjectEditorView: View {
             .environment(importer)
             .onAppear {
                 attach(to: undoManager)
+                locateMedia(at: fileURL)
                 // Every edit goes back into the document, which marks it
                 // as changed so it's saved.
                 editor.onChange = { [$document] project in $document.wrappedValue.project = project }
@@ -47,9 +48,13 @@ struct ProjectEditorView: View {
             // document from outside the editor.
             .onChange(of: document.project) { _, project in editor.replace(with: project) }
             // Media is found in the package wherever it's moved to.
-            .onChange(of: fileURL, initial: true) { _, fileURL in locateMedia(at: fileURL) }
+            .onChange(of: fileURL) { _, fileURL in locateMedia(at: fileURL) }
             .onChange(of: ObjectIdentifier(document.media)) { _, _ in locateMedia(at: fileURL) }
-            .onDisappear { locateMedia(at: nil) }
+            .onDisappear {
+                // Only the access is given up: the package is still where it is.
+                accessedURL?.stopAccessingSecurityScopedResource()
+                accessedURL = nil
+            }
     }
 
     /// Tells the document's media where the package is, keeping access to a
