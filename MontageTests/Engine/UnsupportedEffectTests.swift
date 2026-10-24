@@ -31,4 +31,14 @@ struct UnsupportedEffectTests {
         let context = VideoEffectContext(renderSize: CGSize(width: 4, height: 4), clipTime: .zero)
         #expect(on.apply(to: image, in: context) === image)
     }
+
+    @Test func neverRunsInAnAudioTap() {
+        let sound = Effect(.unsupported(UnsupportedEffect(format: "xmeml", identifier: "x", name: "X", isVideo: false)))
+        var clip = Clip(mediaID: UUID(), sourceRange: CMTimeRange(start: .zero, duration: CMTime(value: 1, timescale: 1)))
+        clip.effects = [sound]
+        #expect(!clip.hasAudioEffects)
+        #expect(clip.audioEffectLayout.units.isEmpty)
+        clip.effects.append(Effect(.gain(Gain())))
+        #expect(clip.audioEffectLayout.units.map(\.effectID) == [clip.effects[1].id])
+    }
 }
