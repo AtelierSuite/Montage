@@ -23,7 +23,7 @@ struct ExportsSheet: View {
                 }
         }
         .fileExporter(
-            isPresented: $isShowingExporter, item: saving.map { ExportedFile(url: $0.url) },
+            isPresented: $isShowingExporter, document: saving.map { ExportedFile(url: $0.url) },
             contentTypes: [saving?.job.settings.format.contentType ?? .mpeg4Movie],
             defaultFilename: saving?.job.fileName
         ) { result in
@@ -56,12 +56,25 @@ struct ExportsSheet: View {
     }
 }
 
-/// A rendered export, handed to the Files exporter.
-struct ExportedFile: Transferable {
+/// A rendered export, handed to the Files exporter as a document. Its file
+/// wrapper reads the movie lazily, so saving it doesn't load it into memory.
+/// (Handing it over as a `Transferable` file crashes the exporter, which
+/// throws while naming its own file wrapper for it.)
+struct ExportedFile: FileDocument {
+    static let readableContentTypes: [UTType] = [.mpeg4Movie, .avi]
+
     let url: URL
 
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: .mpeg4Movie) { SentTransferredFile($0.url) }
-        FileRepresentation(exportedContentType: .avi) { SentTransferredFile($0.url) }
+    init(url: URL) {
+        self.url = url
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        // Only ever written out.
+        throw CocoaError(.fileReadUnsupportedScheme)
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        try FileWrapper(url: url)
     }
 }
