@@ -157,6 +157,20 @@ struct LayerContentTests {
         #expect(fixture.project.tracks[2].clip(id: id) != nil)
     }
 
+    @Test func shapesTurnedIntoLinesAndBackStayVisible() {
+        var shape = ShapeContent.defaults(for: .rectangle)
+        shape.changeKind(to: .line)
+        #expect(shape.size.value == CGSize(width: 600, height: 0))
+        #expect(shape.stroke.isEnabled)
+        shape.changeKind(to: .star)
+        #expect(shape.size.value.height > 0)
+        #expect(shape.fill.style == .solid)
+        // Between kinds that aren't lines, the look stays.
+        shape.fill.style = .radialGradient
+        shape.changeKind(to: .ellipse)
+        #expect(shape.fill.style == .radialGradient)
+    }
+
     @Test func kenBurnsZoomsAcrossTheWholeClip() {
         var clip = Clip(content: .image(UUID()), sourceRange: range(0, 6))
         clip.applyKenBurns(zoom: 1.2)

@@ -12,7 +12,11 @@ struct ShapeInspector: View {
         let shape = editing.clip.shapeContent
         let size = editing.parameter(\.shapeContent.size)
         Section("Inspector.Shape") {
-            Picker("Inspector.Shape.Kind", selection: editing.binding(\.shapeContent.kind)) {
+            Picker("Inspector.Shape.Kind", selection: Binding {
+                shape.kind
+            } set: { kind in
+                editing.change { $0.shapeContent.changeKind(to: kind) }
+            }) {
                 ForEach(ShapeContent.Kind.allCases, id: \.self) { kind in
                     Label(kind.title, systemImage: kind.symbol).tag(kind)
                 }

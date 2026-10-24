@@ -53,6 +53,21 @@ public struct ShapeContent: Equatable, Sendable, Codable {
         }
     }
 
+    /// Makes the shape another kind. A line is only stroked and has no
+    /// height, so to or from a line the size's height, the fill and the
+    /// stroke start again from the new kind's, keeping the width.
+    public mutating func changeKind(to newKind: Kind) {
+        guard newKind != kind else { return }
+        if kind == .line || newKind == .line {
+            let defaults = ShapeContent.defaults(for: newKind)
+            let width = size.value(at: .zero).width
+            size = Animatable(CGSize(width: width, height: defaults.size.value.height))
+            fill = defaults.fill
+            stroke = defaults.stroke
+        }
+        kind = newKind
+    }
+
     func shifted(by offset: CMTime) -> ShapeContent {
         var shape = self
         shape.size = size.shifted(by: offset)
