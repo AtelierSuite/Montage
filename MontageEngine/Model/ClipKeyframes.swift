@@ -79,10 +79,11 @@ extension Clip {
 
     /// Where the keyframes at a time can be moved to: from a frame after the
     /// keyframe time before them, or the clip's start, to a frame before
-    /// the one after them, or the clip's end.
+    /// the one after them, or the clip's last frame: one at the very end
+    /// would never be seen.
     public func keyframeRetimeRange(from time: CMTime, frameDuration: CMTime) -> ClosedRange<CMTime> {
         let lower = keyframeTime(before: time).map { $0 + frameDuration } ?? .zero
-        let upper = keyframeTime(after: time).map { $0 - frameDuration } ?? duration
+        let upper = keyframeTime(after: time).map { $0 - frameDuration } ?? max(duration - frameDuration, .zero)
         return upper >= lower ? lower...upper : time...time
     }
 

@@ -60,7 +60,7 @@ struct KeyframeEditingTests {
     @Test func retimingKeepsKeyframesWithinTheClip() {
         var clip = clip()
         clip.moveKeyframes(from: s(6), to: s(20), frameDuration: frame)
-        #expect(clip.keyframeTimes.last == s(10))
+        #expect(clip.keyframeTimes.last == s(10) - frame)
         clip.moveKeyframes(from: s(1), to: s(-2), frameDuration: frame)
         #expect(clip.keyframeTimes.first == .zero)
     }
