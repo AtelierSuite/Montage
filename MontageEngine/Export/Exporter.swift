@@ -89,9 +89,14 @@ public struct Exporter: Sendable {
                 try await MP4Export(source: source, settings: settings, url: url, progress: progress).run()
             case .avi:
                 guard let aviSinkFactory else { throw ExportError.formatUnavailable(.avi) }
-                try await AVIEncodingPipeline(
+                let pipeline = AVIEncodingPipeline(
                     source: source, settings: settings, url: url, makeSink: aviSinkFactory, progress: progress
-                ).run()
+                )
+                // Reading blocks while the reader decodes and renders; on a
+                // queue of its own, so it doesn't hold the shared threads.
+                try await withTaskExecutorPreference(DispatchQueue(label: "Montage.Export.AVI")) {
+                    try await pipeline.run()
+                }
             }
             try Task.checkCancellation()
         } catch {

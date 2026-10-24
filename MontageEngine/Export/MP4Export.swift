@@ -47,11 +47,17 @@ struct MP4Export {
             // back while it waits for the other to interleave them. So when
             // either stops early, or the export is cancelled, the reader and
             // writer are stopped too, or the other would wait for good.
+            //
+            // Each reads on a queue of its own: reading blocks its thread
+            // until the reader has the next sample, and the reader can hold
+            // one output back until the other is read. On the shared threads,
+            // enough exports at once would leave no thread to read the other,
+            // and every one of them would wait for good.
             let stopper = Stopper(reader: render.reader, writer: writer)
             try await withTaskCancellationHandler {
                 try await withThrowingTaskGroup { group in
                     if let videoProvider, let videoReceiver {
-                        group.addTask { try await stopper.stoppingOnFailure {
+                        group.addTask(executorPreference: DispatchQueue(label: "Montage.Export.Video")) { try await stopper.stoppingOnFailure {
                             let scaler = try FrameScaler(size: outputSize)
                             while let sample = try await videoProvider.next() {
                                 try Task.checkCancellation()
@@ -67,7 +73,7 @@ struct MP4Export {
                         } }
                     }
                     if let audioProvider, let audioReceiver {
-                        group.addTask { try await stopper.stoppingOnFailure {
+                        group.addTask(executorPreference: DispatchQueue(label: "Montage.Export.Audio")) { try await stopper.stoppingOnFailure {
                             while let sample = try await audioProvider.next() {
                                 try Task.checkCancellation()
                                 let time = sample.presentationTimeStamp
