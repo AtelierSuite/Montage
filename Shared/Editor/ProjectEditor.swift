@@ -53,6 +53,8 @@ final class ProjectEditor {
             guard usesProxies != oldValue else { return }
             UserDefaults.standard.set(usesProxies, forKey: Self.usesProxiesKey)
             playbackController?.usesProxies = usesProxies
+            // Turned off, proxies stop being made.
+            if !usesProxies { stopMakingDerivedMedia(.proxy) }
             makeDerivedMedia()
         }
     }
@@ -71,9 +73,10 @@ final class ProjectEditor {
     /// Makes the copies of media the composition plays in their place, into
     /// the same cache.
     @ObservationIgnored let derivedMedia: DerivedMediaCache
-    /// The copies being made, and whether more were asked for meanwhile.
-    @ObservationIgnored var derivedMediaTask: Task<Void, Never>?
-    @ObservationIgnored var needsDerivedMedia = false
+    /// The copies being made, a task for each kind so a quick stereo copy
+    /// doesn't wait behind a proxy, and the kinds asked for again meanwhile.
+    @ObservationIgnored var derivedMediaTasks: [DerivedMedia: (id: UUID, task: Task<Void, Never>)] = [:]
+    @ObservationIgnored var pendingDerivedMedia: Set<DerivedMedia> = []
 
     /// The gesture under way: the project as it was when it began, and the
     /// name of the undo step it makes.
