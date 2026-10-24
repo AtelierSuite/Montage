@@ -151,7 +151,16 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     @objc func zoomInTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1.5) }
     @objc func zoomOutTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1 / 1.5) }
 
+    /// What the menus can't do while words are typed in the preview: the
+    /// keys would edit the timeline or move the playhead from under them.
+    private static let unavailableWhileTyping: Set<Selector> = [
+        #selector(splitClips(_:)), #selector(detachAudio(_:)), #selector(rippleDelete(_:)), #selector(delete(_:)),
+        #selector(addMarker(_:)), #selector(goToPreviousKeyframe(_:)), #selector(goToNextKeyframe(_:)),
+    ]
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if editor.timeline.editedTextClipID != nil, let action = menuItem.action,
+           Self.unavailableWhileTyping.contains(action) { return false }
         switch menuItem.action {
         case #selector(exportMovie(_:)), #selector(exportFCPXML(_:)): return editor.canExport
         case #selector(importProject(_:)): return !projectImport.isImporting
