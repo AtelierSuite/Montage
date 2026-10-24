@@ -219,6 +219,9 @@ public final class PlaybackController {
             seek(to: .zero)
         }
         guard rate > 0 || currentTime > .zero else { return }
+        // Backwards from a tail ringing on past the end, from the end, or
+        // the playhead would sit there until the player got back to it.
+        if rate < 0 { returnFromTail() }
         isPlaying = true
         self.rate = rate
         player.rate = rate

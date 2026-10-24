@@ -93,6 +93,18 @@ struct PlaybackControllerTests {
         #expect(controller.duration == seconds(4))
         controller.seek(to: seconds(5))
         #expect(controller.currentTime == seconds(4))
+
+        // Playing into the tail, then shuttling back: from the end at once.
+        controller.seek(to: seconds(3.9))
+        controller.play()
+        try await waitUntil { controller.player.currentTime() > seconds(4.6) }
+        #expect(controller.currentTime == seconds(4))
+        controller.shuttle(at: -1)
+        // Left in the tail, the player would take more than half a second
+        // to get back to the end.
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(controller.currentTime < seconds(4))
+        controller.pause()
     }
 
     @Test func steppingMovesAFrameAtATime() async throws {
