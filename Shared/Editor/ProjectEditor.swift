@@ -30,6 +30,9 @@ final class ProjectEditor {
     }
     @ObservationIgnored private var playbackController: PlaybackController?
 
+    /// The library's thumbnails, kept while the project is open.
+    @ObservationIgnored let thumbnails = ThumbnailCache()
+
     /// Where undo steps go: the document's undo manager.
     @ObservationIgnored weak var undoManager: UndoManager?
     /// Called after every change, with the project as it now is.
