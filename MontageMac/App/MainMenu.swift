@@ -62,6 +62,7 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem(item(String(localized: "Mac.Menu.Import"), #selector(ProjectWindowController.importMedia(_:)),
                           "i", [.command, .shift]))
+        menu.addItem(item(String(localized: "Mac.Menu.ImportProject"), #selector(ProjectWindowController.importProject(_:))))
         menu.addItem(item(String(localized: "Mac.Menu.Export"), #selector(ProjectWindowController.exportMovie(_:)), "e"))
         return menu
     }

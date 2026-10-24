@@ -23,6 +23,17 @@
         }
       }
     },
+    "Action.ImportProject" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Project"
+          }
+        }
+      }
+    },
     "Action.RemoveFromLibrary" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -595,6 +606,197 @@
         }
       }
     },
+    "ImportReport.AllClear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything in the project came across."
+          }
+        }
+      }
+    },
+    "ImportReport.Done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "ImportReport.MissingMediaNote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Their clips are on the timeline, but play nothing until the files are relinked."
+          }
+        }
+      }
+    },
+    "ImportReport.Section.Changed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changed"
+          }
+        }
+      }
+    },
+    "ImportReport.Section.MissingMedia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missing Media"
+          }
+        }
+      }
+    },
+    "ImportReport.Section.NotImported" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Left Out"
+          }
+        }
+      }
+    },
+    "ImportReport.Section.UnsupportedEffect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effects Kept Turned Off"
+          }
+        }
+      }
+    },
+    "ImportReport.Source" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imported from %@."
+          }
+        }
+      }
+    },
+    "ImportReport.Summary.Changed %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld thing was changed to fit"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld things were changed to fit"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ImportReport.Summary.MissingMedia %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file wasn’t found"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files weren’t found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ImportReport.Summary.NotImported %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld thing was left out"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld things were left out"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ImportReport.Summary.UnsupportedEffect %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld effect couldn’t be imported"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld effects couldn’t be imported"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ImportReport.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Report"
+          }
+        }
+      }
+    },
     "Inspector.Empty.Message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -991,6 +1193,17 @@
         }
       }
     },
+    "Mac.Menu.ImportProject" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Project…"
+          }
+        }
+      }
+    },
     "Mac.Menu.Minimize" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1321,6 +1534,83 @@
         }
       }
     },
+    "ProjectImport.Action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import"
+          }
+        }
+      }
+    },
+    "ProjectImport.Cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "ProjectImport.Failed.OK" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "ProjectImport.Failed.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Project Couldn’t Be Imported"
+          }
+        }
+      }
+    },
+    "ProjectImport.Importing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importing Project…"
+          }
+        }
+      }
+    },
+    "ProjectImport.Replace.Message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The imported project takes the place of this one’s library and timeline. You can undo it."
+          }
+        }
+      }
+    },
+    "ProjectImport.Replace.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace This Project?"
+          }
+        }
+      }
+    },
     "Timeline.Empty" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1372,6 +1662,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Exports"
+          }
+        }
+      }
+    },
+    "Toolbar.ImportProject" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Project…"
           }
         }
       }

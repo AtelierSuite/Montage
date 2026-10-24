@@ -10,8 +10,11 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
 
     private static let exportItem = NSToolbarItem.Identifier("Export")
 
-    private let editor: ProjectEditor
+    let editor: ProjectEditor
     private let importer: MediaImporter
+    /// Brings in projects from other editors, with their media staged
+    /// where the library's imports are.
+    private(set) lazy var projectImport = ProjectImport(editor: editor) { [importer] in importer.store }
 
     init(editor: ProjectEditor, importer: MediaImporter) {
         self.editor = editor
@@ -89,7 +92,10 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(exportMovie(_:)) { return editor.canExport }
+        if menuItem.action == #selector(exportMovie(_:)) {
+            return editor.canExport
+        }
+        if menuItem.action == #selector(importProject(_:)) { return !projectImport.isImporting }
         return true
     }
 
