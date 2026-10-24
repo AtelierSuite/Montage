@@ -174,6 +174,21 @@ struct FCPXMLExportTests {
         #expect(volumes.contains("6dB"))
     }
 
+    @Test func connectsClipsToAStillInItsOwnTime() throws {
+        var project = sampleProject()
+        let tree = project.media[3], opening = project.media[0]
+        // A still trimmed from its start, as an import's cut at a transition leaves it.
+        project.tracks = [
+            Track(kind: .video, clips: [Clip(mediaID: tree.id, sourceRange: CMTimeRange(start: seconds(2), duration: seconds(4)))]),
+            Track(kind: .video, clips: [Clip(mediaID: opening.id, sourceRange: CMTimeRange(start: .zero, duration: seconds(1)),
+                                             timelineStart: seconds(1))]),
+        ]
+        let spine = try #require(try MarkupElement.parse(export(project)).allDescendants.first { $0.name == "spine" })
+        #expect(spine.children[0].name == "video")
+        #expect(spine.children[0]["start"] == "0s")
+        #expect(spine.children[0].children.first { $0["lane"] == "1" }?["offset"] == "1s")
+    }
+
     @Test func putsCutsOnTheProjectsFrames() throws {
         var project = sampleProject()
         project.tracks = [Track(kind: .video, clips: [

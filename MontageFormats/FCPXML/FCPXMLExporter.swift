@@ -58,7 +58,7 @@ struct FCPXMLExporter {
                 let range = conformed(clip.timelineRange)
                 guard range.duration > .zero,
                       let index = spine.firstIndex(where: { $0.range.containsTime(range.start) }) else { continue }
-                let parentStart = spine[index].localStart(conform: conform)
+                let parentStart = localStart(of: spine[index])
                 let offset = parentStart + (range.start - spine[index].range.start)
                 var child = clipElement(clip, range: range, lane: lane, resources: &resources)
                 child.attributes.removeAll { $0.name == "offset" }
@@ -95,14 +95,14 @@ struct FCPXMLExporter {
             case .gap(let range), .clip(_, let range): range
             }
         }
+    }
 
-        /// The element's own local time at its start.
-        func localStart(conform: (CMTime) -> CMTime) -> CMTime {
-            switch self {
-            case .gap: .zero
-            case .clip(let clip, _): conform(clip.sourceRange.start)
-            }
-        }
+    /// A storyline element's own local time at its start, as its `start`
+    /// is written: a still image's, and a gap's, is zero.
+    private func localStart(of element: SpineElement) -> CMTime {
+        guard case .clip(let clip, _) = element, let item = project.mediaItem(id: clip.mediaID),
+              item.kind != .image else { return .zero }
+        return conform(clip.sourceRange.start)
     }
 
     private func element(for spineElement: SpineElement, lane: Int?, resources: inout Resources) -> MarkupElement {
