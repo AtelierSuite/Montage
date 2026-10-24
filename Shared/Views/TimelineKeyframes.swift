@@ -31,7 +31,8 @@ struct TimelineKeyframes: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             badges
-            if let clip = editor.selectedClip, let row = layout.rowIndex(of: editor.project.clip(id: clip.id)?.track.id ?? UUID()) {
+            if let clip = editor.selectedClip, let track = editor.project.clip(id: clip.id)?.track,
+               let row = layout.rowIndex(of: track.id) {
                 markers(for: clip, inRow: row)
             }
         }
