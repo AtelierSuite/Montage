@@ -8,8 +8,8 @@ import Testing
 private struct FolderStore: DerivedMediaStore {
     let folder: URL
 
-    func url(for mediaID: MediaItem.ID, _ kind: DerivedMedia) -> URL? {
-        folder.appending(path: "\(kind.rawValue)-\(mediaID.uuidString).\(kind == .proxy ? "mov" : "m4a")")
+    func url(for item: MediaItem, _ kind: DerivedMedia) -> URL? {
+        folder.appending(path: kind.fileName(for: item))
     }
 }
 
@@ -84,7 +84,7 @@ struct ProxyTests {
         defer { try? FileManager.default.removeItem(at: folder) }
         let cache = DerivedMediaCache(store: store)
         #expect(await cache.makeAll(.proxy, neededIn: project, resolver: resolver))
-        let proxy = try #require(store.existingURL(for: item.id, .proxy))
+        let proxy = try #require(store.existingURL(for: item, .proxy))
 
         let original = try #require(try await AVURLAsset(url: Samples.url("IMG_3311.mp4")).loadTracks(withMediaType: .video).first)
         let track = try #require(try await AVURLAsset(url: proxy).loadTracks(withMediaType: .video).first)
@@ -102,7 +102,7 @@ struct ProxyTests {
         defer { try? FileManager.default.removeItem(at: folder) }
         let cache = DerivedMediaCache(store: store)
         #expect(await cache.makeAll(.proxy, neededIn: project, resolver: resolver))
-        let proxy = store.url(for: item.id, .proxy)
+        let proxy = store.url(for: item, .proxy)
         let original = Samples.url("IMG_3311.mp4")
         let finding = resolver.findingDerivedMedia(in: store)
 
@@ -142,7 +142,7 @@ struct ProxyTests {
         try await waitUntil { controller.composition != nil }
         #expect(controller.composition.map { sources(of: $0, .video) } == [Samples.url("IMG_3311.mp4")])
         controller.usesProxies = true
-        let proxy = store.url(for: item.id, .proxy)
+        let proxy = store.url(for: item, .proxy)
         try await waitUntil { controller.composition.map { sources(of: $0, .video) } == [proxy] }
     }
 }

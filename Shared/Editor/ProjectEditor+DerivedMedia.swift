@@ -22,7 +22,7 @@ extension ProjectEditor {
         guard let store = derivedMedia.store else { return }
         let kinds = derivedMediaKinds
         let missing = kinds.contains { kind in
-            kind.media(neededIn: project).contains { store.existingURL(for: $0.id, kind) == nil }
+            kind.media(neededIn: project).contains { store.existingURL(for: $0, kind) == nil }
         }
         guard missing else { return }
         guard derivedMediaTask == nil else {

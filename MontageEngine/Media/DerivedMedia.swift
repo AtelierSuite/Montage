@@ -1,4 +1,5 @@
 @preconcurrency import AVFoundation
+import CryptoKit
 import Foundation
 
 /// Files made from a media item's own for the composition to play in its
@@ -21,6 +22,29 @@ public enum DerivedMedia: String, CaseIterable, Sendable {
         case .proxy:
             item.kind == .video && Self.needsProxy(item.metadata.presentationSize)
         }
+    }
+
+    /// The name of an item's copy: its ID, then a digest of where its file is
+    /// and what it's like, so a copy made from another file, as before a
+    /// relink or after one is undone, isn't taken for this one's.
+    public func fileName(for item: MediaItem) -> String {
+        "\(item.id.uuidString)-\(Self.sourceKey(of: item)).\(pathExtension)"
+    }
+
+    public var pathExtension: String {
+        switch self {
+        case .stereoAudio: "m4a"
+        case .proxy: "mov"
+        }
+    }
+
+    /// A short digest of an item's location and metadata.
+    public static func sourceKey(of item: MediaItem) -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let data = (try? encoder.encode(item.location)) ?? Data()
+        let metadata = (try? encoder.encode(item.metadata)) ?? Data()
+        return SHA256.hash(data: data + metadata).prefix(8).map { String(format: "%02x", $0) }.joined()
     }
 
     /// The largest picture, on its longer and shorter sides, played as it is.
@@ -60,15 +84,15 @@ public enum DerivedMedia: String, CaseIterable, Sendable {
 /// Where copies made from media are kept, such as the project package's
 /// cache.
 public protocol DerivedMediaStore: Sendable {
-    /// Where an item's copy goes, whether or not it's been made. Nil when
-    /// there's nowhere to keep it.
-    func url(for mediaID: MediaItem.ID, _ kind: DerivedMedia) -> URL?
+    /// Where an item's copy goes, whether or not it's been made, named by
+    /// `DerivedMedia.fileName(for:)`. Nil when there's nowhere to keep it.
+    func url(for item: MediaItem, _ kind: DerivedMedia) -> URL?
 }
 
 extension DerivedMediaStore {
-    /// The item's copy, if it's been made.
-    public func existingURL(for mediaID: MediaItem.ID, _ kind: DerivedMedia) -> URL? {
-        guard let url = url(for: mediaID, kind), FileManager.default.fileExists(atPath: url.path) else { return nil }
+    /// The item's copy, if one's been made from its file as it is now.
+    public func existingURL(for item: MediaItem, _ kind: DerivedMedia) -> URL? {
+        guard let url = url(for: item, kind), FileManager.default.fileExists(atPath: url.path) else { return nil }
         return url
     }
 }
@@ -91,7 +115,7 @@ public actor DerivedMediaCache {
     /// The item's copy, made from the file at `url` if it hasn't been. Nil
     /// when there's nowhere to keep it, or it couldn't be made.
     public func make(_ kind: DerivedMedia, for item: MediaItem, from url: URL) async -> URL? {
-        guard let store, let destination = store.url(for: item.id, kind) else { return nil }
+        guard let store, let destination = store.url(for: item, kind) else { return nil }
         if FileManager.default.fileExists(atPath: destination.path) { return destination }
         let key = Key(mediaID: item.id, kind: kind)
         if let task = inFlight[key] { return await task.value }
@@ -114,7 +138,7 @@ public actor DerivedMediaCache {
     @discardableResult
     public func makeAll(_ kind: DerivedMedia, neededIn project: Project, resolver: MediaResolver) async -> Bool {
         var madeAny = false
-        for item in kind.media(neededIn: project) where store?.existingURL(for: item.id, kind) == nil {
+        for item in kind.media(neededIn: project) where store?.existingURL(for: item, kind) == nil {
             guard !Task.isCancelled else { break }
             guard let url = resolver.url(for: item) else { continue }
             if await make(kind, for: item, from: url) != nil { madeAny = true }
@@ -229,6 +253,6 @@ extension MediaResolver {
     /// in a store.
     public func findingDerivedMedia(in store: (any DerivedMediaStore)?) -> MediaResolver {
         guard let store else { return self }
-        return addingDerivedMedia { item, kind in store.existingURL(for: item.id, kind) }
+        return addingDerivedMedia { item, kind in store.existingURL(for: item, kind) }
     }
 }

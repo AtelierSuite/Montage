@@ -12,8 +12,8 @@ import UniformTypeIdentifiers
 ///     ├── Thumbnails/<media ID>/220x124.jpg          the library's pictures
 ///     ├── Thumbnails/<media ID>/h60/2000.jpg         timeline frames, by height, then milliseconds
 ///     ├── Waveforms/<media ID>.peaks                 `WaveformPeaks.encoded()`
-///     ├── Stereo/<media ID>.m4a                      mono media's sound on both channels
-///     └── Proxies/<media ID>.mov                     large video, smaller, for preview
+///     ├── Stereo/<media ID>-<source>.m4a             mono media's sound on both channels
+///     └── Proxies/<media ID>-<source>.mov            large video, smaller, for preview
 ///
 /// Files are written straight into the package on disk as they're made,
 /// between saves, and `ProjectPackage` keeps the folder whenever it writes
@@ -103,13 +103,29 @@ public final class PackageCache: MediaCacheStore, DerivedMediaStore, Sendable {
 
     // MARK: - Copies of media
 
-    public func url(for mediaID: MediaItem.ID, _ kind: DerivedMedia) -> URL? {
-        let (folder, pathExtension) = switch kind {
-        case .stereoAudio: ("Stereo", "m4a")
-        case .proxy: ("Proxies", "mov")
+    public func url(for item: MediaItem, _ kind: DerivedMedia) -> URL? {
+        copiesDirectory(kind)?.appending(path: kind.fileName(for: item), directoryHint: .notDirectory)
+    }
+
+    private func copiesDirectory(_ kind: DerivedMedia) -> URL? {
+        let name = switch kind {
+        case .stereoAudio: "Stereo"
+        case .proxy: "Proxies"
         }
-        return cacheDirectory?.appending(path: folder, directoryHint: .isDirectory)
-            .appending(path: "\(mediaID.uuidString).\(pathExtension)", directoryHint: .notDirectory)
+        return cacheDirectory?.appending(path: name, directoryHint: .isDirectory)
+    }
+
+    /// Throws away every copy made from a media item, whatever file it was
+    /// made from.
+    public func removeCopies(for mediaID: MediaItem.ID) {
+        let prefix = mediaID.uuidString + "-"
+        for kind in DerivedMedia.allCases {
+            guard let folder = copiesDirectory(kind),
+                  let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else { continue }
+            for name in names where name.hasPrefix(prefix) {
+                try? FileManager.default.removeItem(at: folder.appending(path: name, directoryHint: .notDirectory))
+            }
+        }
     }
 
     // MARK: - Clearing
@@ -119,9 +135,7 @@ public final class PackageCache: MediaCacheStore, DerivedMediaStore, Sendable {
     public func removeCache(for mediaID: MediaItem.ID) {
         if let folder = thumbnailsDirectory(for: mediaID) { try? FileManager.default.removeItem(at: folder) }
         if let url = waveformURL(for: mediaID) { try? FileManager.default.removeItem(at: url) }
-        for kind in DerivedMedia.allCases {
-            if let url = url(for: mediaID, kind) { try? FileManager.default.removeItem(at: url) }
-        }
+        removeCopies(for: mediaID)
     }
 
     /// Writes a file of the cache, making its folder if need be. A write

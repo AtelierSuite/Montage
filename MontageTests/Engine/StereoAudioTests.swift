@@ -8,8 +8,8 @@ import Testing
 private struct FolderStore: DerivedMediaStore {
     let folder: URL
 
-    func url(for mediaID: MediaItem.ID, _ kind: DerivedMedia) -> URL? {
-        folder.appending(path: "\(kind.rawValue)-\(mediaID.uuidString).m4a")
+    func url(for item: MediaItem, _ kind: DerivedMedia) -> URL? {
+        folder.appending(path: kind.fileName(for: item))
     }
 }
 
@@ -108,7 +108,7 @@ struct StereoAudioTests {
         defer { fixture.remove() }
         let cache = DerivedMediaCache(store: fixture.store)
         let made = try #require(await cache.make(.stereoAudio, for: fixture.item, from: fixture.url))
-        #expect(fixture.store.existingURL(for: fixture.item.id, .stereoAudio) == made)
+        #expect(fixture.store.existingURL(for: fixture.item, .stereoAudio) == made)
 
         let asset = AVURLAsset(url: made)
         let track = try #require(try await asset.loadTracks(withMediaType: .audio).first)
@@ -134,7 +134,7 @@ struct StereoAudioTests {
         #expect(await cache.makeAll(.stereoAudio, neededIn: left, resolver: fixture.resolver))
         let built = try await fixture.build(left, findingCopies: true)
         let track = try #require(built.composition.tracks(withMediaType: .audio).first as? AVCompositionTrack)
-        #expect(track.segments.first?.sourceURL == fixture.store.url(for: fixture.item.id, .stereoAudio))
+        #expect(track.segments.first?.sourceURL == fixture.store.url(for: fixture.item, .stereoAudio))
 
         // Fully left, and as loud overall as it was centred.
         let panned = try await RenderedAudio.read(built)
