@@ -5515,6 +5515,35 @@
         }
       }
     },
+    "Inspector.Mask.EditInPreview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit in Preview"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プレビューで編集"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在预览中编辑"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在預覽中編輯"
+          }
+        }
+      }
+    },
     "Inspector.Mask.Ellipse" : {
       "extractionState" : "manual",
       "localizations" : {
