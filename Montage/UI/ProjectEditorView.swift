@@ -269,6 +269,9 @@ struct ProjectEditorView: View {
 private struct LibrarySheet: View {
     @Environment(ProjectEditor.self) private var editor
     @State private var sheet = SheetHandle()
+    /// How far the sheet's pulled up: half way to begin with. A sheet given
+    /// no selection starts at its smallest.
+    @State private var detent = PresentationDetent.medium
     /// Where the sheet was before a drag pulled it down, to go back to.
     @State private var detentBeforeDrag: UISheetPresentationController.Detent.Identifier?
 
@@ -281,7 +284,7 @@ private struct LibrarySheet: View {
                 .navigationTitle("Library.Title")
                 .navigationBarTitleDisplayMode(.inline)
         }
-        .presentationDetents([Self.minimized, .medium, .large])
+        .presentationDetents([Self.minimized, .medium, .large], selection: $detent)
         // Pulled down, the timeline above it can be used, and takes the
         // media dragged out of it.
         .presentationBackgroundInteraction(.enabled(upThrough: Self.minimized))
