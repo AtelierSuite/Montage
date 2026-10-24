@@ -15,7 +15,9 @@ import CoreMedia
 /// video clip's own sound goes on its track's audio track unless it has been
 /// detached, and an audio track's clips go on its own. Clips are cut out of
 /// their media with `insertTimeRange`, and gaps between them are empty time,
-/// which draws black and plays silence. Each audio track of the composition
+/// which draws black and plays silence. A still image's clip is placed with
+/// filler that the compositor draws the image over (see `StillFiller`), and
+/// has no sound. Each audio track of the composition
 /// has a tap that runs its clips' audio effects (see `audioTail(for:)` for
 /// the room left for them to ring out).
 ///
