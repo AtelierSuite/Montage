@@ -19,7 +19,8 @@ public struct BuiltComposition: @unchecked Sendable {
     /// How the video tracks are laid into the frame. Nil when nothing in the
     /// composition has a picture.
     public let videoComposition: AVVideoComposition?
-    /// The clips' volumes. Nil when nothing in the composition makes a sound.
+    /// The clips' volumes, and the taps that run their audio effects. Nil
+    /// when nothing in the composition makes a sound.
     public let audioMix: AVAudioMix?
     /// How long the composition runs: to the end of the last clip placed, gaps
     /// included. Shorter than the project when clips at the end were left out.

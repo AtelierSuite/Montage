@@ -7,7 +7,7 @@ import CoreMedia
 /// ```
 /// Project ─► CompositionBuilder ─► AVComposition       (what plays when)
 ///                                  AVVideoComposition  (where each picture goes)
-///                                  AVAudioMix          (how loud each clip is)
+///                                  AVAudioMix          (how each clip sounds)
 /// ```
 ///
 /// Each video track of the timeline that isn't hidden becomes a composition
@@ -15,7 +15,9 @@ import CoreMedia
 /// video clip's own sound goes on its track's audio track unless it has been
 /// detached, and an audio track's clips go on its own. Clips are cut out of
 /// their media with `insertTimeRange`, and gaps between them are empty time,
-/// which draws black and plays silence.
+/// which draws black and plays silence. Each audio track of the composition
+/// has a tap that runs its clips' audio effects (see `audioTail(for:)` for
+/// the room left for them to ring out).
 ///
 /// The video composition fits each clip's picture, turned upright, into the
 /// render size, then moves it by the clip's transform and fades it by its
