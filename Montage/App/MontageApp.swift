@@ -14,7 +14,7 @@ struct MontageApp: App {
             ProjectEditorView(document: configuration.$document, fileURL: configuration.fileURL)
         }
 
-        DocumentGroupLaunchScene {
+        DocumentGroupLaunchScene(Text(verbatim: "")) {
             NewDocumentButton("Launch.NewProject", contentType: .montageProject)
         } background: {
             DocumentLaunchBackground()
