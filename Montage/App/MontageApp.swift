@@ -3,6 +3,8 @@ import SwiftUI
 
 @main
 struct MontageApp: App {
+    @State private var launchReveal = DocumentLaunchReveal()
+
     init() {
         // Exports keep going when the user leaves the app.
         let queue = ExportCenter.queue
@@ -17,7 +19,9 @@ struct MontageApp: App {
         DocumentGroupLaunchScene(Text(verbatim: "")) {
             NewDocumentButton("Launch.NewProject", contentType: .montageProject)
         } background: {
-            DocumentLaunchBackground()
+            DocumentLaunchBackground(reveal: launchReveal)
+        } backgroundAccessoryView: { _ in
+            DocumentLaunchRevealTrigger(reveal: launchReveal)
         }
     }
 }
