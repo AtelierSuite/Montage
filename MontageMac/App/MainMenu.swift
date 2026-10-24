@@ -1,4 +1,5 @@
 import AppKit
+import MontageEngine
 
 /// The menu bar, built in code so every item is in one place alongside the
 /// action it sends. Items send their actions up the responder chain.
@@ -9,6 +10,7 @@ enum MainMenu {
         menu.addItem(submenu(appMenu()))
         menu.addItem(submenu(fileMenu()))
         menu.addItem(submenu(editMenu()))
+        menu.addItem(submenu(insertMenu()))
         menu.addItem(submenu(viewMenu()))
         let window = windowMenu()
         menu.addItem(submenu(window))
@@ -85,6 +87,22 @@ enum MainMenu {
         menu.addItem(item(String(localized: "Edit.RippleDelete"), #selector(ProjectWindowController.rippleDelete(_:))))
         menu.addItem(item(String(localized: "Edit.AddMarker"), #selector(ProjectWindowController.addMarker(_:))))
         menu.addItem(item(String(localized: "Timeline.Snapping"), #selector(ProjectWindowController.toggleSnapping(_:))))
+        return menu
+    }
+
+    /// Layers added at the playhead, over the video there.
+    private static func insertMenu() -> NSMenu {
+        let menu = NSMenu(title: String(localized: "Mac.Menu.Insert"))
+        menu.addItem(item(String(localized: "Add.Text"), #selector(ProjectWindowController.insertTextLayer(_:)), "t", [.command, .control]))
+        let shapes = NSMenu(title: String(localized: "Add.Shape"))
+        for (index, kind) in ShapeContent.Kind.allCases.enumerated() {
+            let shape = item(kind.title, #selector(ProjectWindowController.insertShapeLayer(_:)))
+            shape.tag = index
+            shape.image = NSImage(systemSymbolName: kind.symbol, accessibilityDescription: nil)
+            shapes.addItem(shape)
+        }
+        menu.addItem(submenu(shapes))
+        menu.addItem(item(String(localized: "Mac.Menu.InsertImage"), #selector(ProjectWindowController.insertImageLayer(_:))))
         return menu
     }
 

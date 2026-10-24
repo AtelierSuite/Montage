@@ -1,5 +1,7 @@
 import AppKit
+import MontageEngine
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// A project's window: the library in the sidebar, the editor beside it,
 /// and the inspector on the other side.
@@ -96,6 +98,32 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         checkbox.setFrameOrigin(NSPoint(x: 20, y: 10))
         container.addSubview(checkbox)
         return container
+    }
+
+    // MARK: - Inserting
+
+    @objc func insertTextLayer(_ sender: Any?) { editor.addText() }
+
+    /// Insert > Shape: the menu item's tag is the shape's place in the list.
+    @objc func insertShapeLayer(_ sender: Any?) {
+        let kinds = ShapeContent.Kind.allCases
+        let index = (sender as? NSMenuItem)?.tag ?? 0
+        editor.addShape(kinds.indices.contains(index) ? kinds[index] : .rectangle)
+    }
+
+    /// Insert > Image: chooses images to import and put at the playhead.
+    @objc func insertImageLayer(_ sender: Any?) {
+        guard let window else { return }
+        let time = editor.insertionTime
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.prompt = String(localized: "Mac.Menu.InsertImage.Prompt")
+        panel.beginSheetModal(for: window) { [importer] response in
+            guard response == .OK else { return }
+            MainActor.assumeIsolated { importer.importFiles(panel.urls, placingAt: time) }
+        }
     }
 
     // MARK: - Exporting
