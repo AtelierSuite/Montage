@@ -155,9 +155,10 @@ struct TimelineView: View {
 
     private func block(for clip: Clip, kind: Track.Kind) -> some View {
         let color: Color = kind == .video ? .blue : .green
+        let isSelected = editor.selectedClipIDs.contains(clip.id)
         return RoundedRectangle(cornerRadius: 5)
             .fill(color.opacity(0.7))
-            .strokeBorder(color, lineWidth: 1)
+            .strokeBorder(isSelected ? Color.primary : color, lineWidth: isSelected ? 2 : 1)
             .overlay(alignment: .leading) {
                 Text(verbatim: editor.project.mediaItem(id: clip.mediaID)?.name ?? "")
                     .font(.caption2)
@@ -167,6 +168,10 @@ struct TimelineView: View {
             }
             .clipped()
             .frame(width: max(2, clip.duration.seconds * pointsPerSecond))
+            // A tap selects the clip, for the inspector to show.
+            .contentShape(.rect)
+            .onTapGesture { editor.selectedClipIDs = [clip.id] }
+            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             .offset(x: clip.timelineStart.seconds * pointsPerSecond)
     }
 

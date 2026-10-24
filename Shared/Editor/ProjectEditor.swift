@@ -30,6 +30,10 @@ final class ProjectEditor {
     }
     @ObservationIgnored private var playbackController: PlaybackController?
 
+    /// The clips selected on the timeline, which the inspector shows and
+    /// the editing tools act on.
+    var selectedClipIDs: Set<Clip.ID> = []
+
     /// The library's thumbnails, kept while the project is open.
     @ObservationIgnored let thumbnails = ThumbnailCache()
 
