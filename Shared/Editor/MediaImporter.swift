@@ -45,9 +45,9 @@ final class MediaImporter {
     #if os(macOS)
     /// The preference to leave imported files where they are, found again
     /// through bookmarks, rather than copying them into the project.
-    static let referencesFilesInPlaceKey = "Import.ReferencesFilesInPlace"
+    nonisolated static let referencesFilesInPlaceKey = "Import.ReferencesFilesInPlace"
 
-    static var referencesFilesInPlace: Bool {
+    nonisolated static var referencesFilesInPlace: Bool {
         UserDefaults.standard.bool(forKey: referencesFilesInPlaceKey)
     }
     #endif
@@ -159,7 +159,7 @@ final class MediaImporter {
 
     /// Copies a chosen file into staging. The read is coordinated, so a file
     /// in cloud storage that isn't on the device yet is downloaded first.
-    private nonisolated static func stageCoordinated(
+    nonisolated static func stageCoordinated(
         _ url: URL, store: PackageMediaStore, takenPaths: Set<String>
     ) throws -> String {
         let isAccessing = url.startAccessingSecurityScopedResource()
@@ -177,7 +177,7 @@ final class MediaImporter {
         MediaItem(name: name, kind: probed.kind, location: .package(path: path), metadata: probed.metadata)
     }
 
-    private static func message(for error: Error) -> String {
+    static func message(for error: Error) -> String {
         let error = error as NSError
         return [error.localizedDescription, error.localizedRecoverySuggestion]
             .compactMap { $0 }.joined(separator: " ")
