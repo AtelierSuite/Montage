@@ -226,3 +226,88 @@ extension ImportedProject {
         project.tracks.firstIndex { $0.clip(id: clip.id) != nil }!
     }
 }
+
+struct XMEMLImportTests {
+    private let imported: ImportedProject
+    private let frame = CMTime(value: 1001, timescale: 30000)
+
+    init() throws {
+        imported = try InterchangeFixtures.read("Premiere.xml")
+    }
+
+    private func frames(_ count: Int64) -> CMTime {
+        CMTime(value: count * 1001, timescale: 30000)
+    }
+
+    @Test func takesTheSequenceSettings() {
+        #expect(imported.name == "Premiere Sequence")
+        #expect(imported.project.settings.frameDuration == frame)
+        #expect(imported.project.settings.renderSize == CGSize(width: 1920, height: 1080))
+        #expect(imported.mediaSources.values.contains(URL(fileURLWithPath: "/Volumes/Footage/IMG_1805.MOV")))
+    }
+
+    @Test func cutsInTheMiddleOfTheDissolve() throws {
+        let opening = try #require(imported.clip("IMG_1805.MOV")).clip
+        #expect(opening.timelineStart == .zero)
+        #expect(opening.sourceRange == CMTimeRange(start: frames(30), duration: frames(150)))
+        let second = try #require(imported.clip("IMG_1813.MOV")).clip
+        #expect(second.timelineRange == CMTimeRange(start: frames(150), duration: frames(150)))
+        #expect(second.sourceRange.start == frames(15))
+    }
+
+    @Test func joinsLinkedSoundToItsPicture() throws {
+        let opening = try #require(imported.clip("IMG_1805.MOV")).clip
+        #expect(!opening.isAudioDetached)
+        #expect(opening.volume.value == 0.5)
+        #expect(imported.clips(of: "IMG_1805.MOV").count == 1)
+        // A picture whose sound isn't on the timeline plays without it.
+        #expect(try #require(imported.clip("IMG_1813.MOV")).clip.isAudioDetached)
+    }
+
+    @Test func readsMotionAndOpacity() throws {
+        let opening = try #require(imported.clip("IMG_1805.MOV")).clip
+        #expect(opening.transform.scale.value == 0.5)
+        #expect(opening.transform.rotation.value == 15)
+        #expect(opening.transform.position.value == CGPoint(x: 0.75, y: 0.25))
+        #expect(opening.opacity.keyframes.map(\.time) == [.zero, frames(30)])
+        #expect(opening.opacity.keyframes.map(\.value) == [0, 0.8])
+    }
+
+    @Test func mapsEffectsAndKeepsTheRest() throws {
+        let blurred = try #require(imported.clip("IMG_3311.MOV", on: .video))
+        #expect(blurred.track == 1)
+        #expect(blurred.clip.timelineRange == CMTimeRange(start: frames(30), duration: frames(60)))
+        guard case .mosaic(let mosaic) = blurred.clip.effects.first?.kind else {
+            Issue.record("No blur")
+            return
+        }
+        #expect(mosaic.style == .blur)
+        #expect(abs(mosaic.scale.value - 0.005) < 0.000001)
+        guard case .unsupported(let lumetri) = blurred.clip.effects.last?.kind else {
+            Issue.record("No unsupported effect")
+            return
+        }
+        #expect(lumetri.identifier == "Lumetri")
+        #expect(lumetri.parameters.first?.value == "0.5")
+        #expect(blurred.clip.effects.last?.isEnabled == false)
+    }
+
+    @Test func keepsSoundOfItsOwnOnAnAudioTrack() throws {
+        let sound = try #require(imported.clip("IMG_1841.MOV", on: .audio)).clip
+        #expect(sound.timelineRange == CMTimeRange(start: .zero, duration: frames(90)))
+        guard case .pan(let pan) = sound.effects.first?.kind else {
+            Issue.record("No pan")
+            return
+        }
+        #expect(pan.position.value == -1)
+        #expect(imported.project.tracks.filter { $0.kind == .audio }.count == 1)
+    }
+
+    @Test func reportsWhatDidntComeAcross() {
+        let issues = imported.report.items.map(\.issue)
+        #expect(issues.contains(.unsupportedEffect(name: "Lumetri Color")))
+        #expect(issues.contains(.transition(name: "Cross Dissolve")))
+        #expect(issues.contains(.generator(name: "Color")))
+        #expect(issues.contains(.marker(name: "Chapter")))
+    }
+}

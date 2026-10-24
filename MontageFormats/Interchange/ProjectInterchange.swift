@@ -35,6 +35,7 @@ public enum ProjectInterchange {
         let root = try MarkupElement.parse(data)
         switch root.name {
         case "fcpxml": return try FCPXMLImporter.read(root, baseURL: baseURL)
+        case "xmeml": return try XMEMLImporter.read(root, baseURL: baseURL)
         default: throw InterchangeError.unsupportedFormat
         }
     }
