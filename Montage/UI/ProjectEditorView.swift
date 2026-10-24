@@ -18,11 +18,6 @@ struct ProjectEditorView: View {
     @State private var importer: MediaImporter
     @State private var history = ProjectHistory()
     @State private var isShowingLibrary = false
-    /// How far the library's sheet is pulled up, on an iPhone.
-    @State private var libraryDetent = PresentationDetent.medium
-    /// Where the library's sheet was before a drag out of it pulled it down,
-    /// to go back to once the drag's put down.
-    @State private var libraryDetentBeforeDrag: PresentationDetent?
     @State private var isShowingInspector = false
     @State private var isShowingFullscreen = false
     /// Whether the preview floats over the editor, picture in picture,
@@ -108,18 +103,7 @@ struct ProjectEditorView: View {
     private var layout: some View {
         if horizontalSizeClass == .compact {
             editorArea
-                .sheet(isPresented: $isShowingLibrary) {
-                    NavigationStack {
-                        LibraryView()
-                            .navigationTitle("Library.Title")
-                            .navigationBarTitleDisplayMode(.inline)
-                    }
-                    .presentationDetents([Self.minimizedLibrary, .medium, .large], selection: $libraryDetent)
-                    // Pulled down, the timeline above it can be used, and
-                    // takes the media dragged out of it.
-                    .presentationBackgroundInteraction(.enabled(upThrough: Self.minimizedLibrary))
-                }
-                .onChange(of: editor.timeline.isDraggingMedia) { _, isDragging in minimizeLibrary(isDragging) }
+                .sheet(isPresented: $isShowingLibrary) { LibrarySheet() }
         } else {
             NavigationSplitView(columnVisibility: $sidebarVisibility) {
                 LibraryView()
@@ -220,24 +204,6 @@ struct ProjectEditorView: View {
         return size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9
     }
 
-    /// The library's sheet pulled down to its bar, out of the timeline's way.
-    private static let minimizedLibrary = PresentationDetent.height(120)
-
-    /// Pulls the library's sheet down while media is dragged out of it, so
-    /// the timeline it's going to is in sight, and back up once it's put down.
-    private func minimizeLibrary(_ isDragging: Bool) {
-        withAnimation(.snappy) {
-            if isDragging {
-                guard libraryDetent != Self.minimizedLibrary else { return }
-                libraryDetentBeforeDrag = libraryDetent
-                libraryDetent = Self.minimizedLibrary
-            } else if let detent = libraryDetentBeforeDrag {
-                libraryDetentBeforeDrag = nil
-                if libraryDetent == Self.minimizedLibrary { libraryDetent = detent }
-            }
-        }
-    }
-
     /// Opens the library, where it's not already beside the editor in an
     /// iPad's sidebar.
     private var showLibrary: (() -> Void)? {
@@ -291,5 +257,87 @@ struct ProjectEditorView: View {
             }
         }
         .accessibilityIdentifier("more")
+    }
+}
+
+/// The library over the editor, on an iPhone. It's pulled down while media
+/// is dragged out of it, so the timeline it's going to is in sight, and back
+/// up once it's put down.
+///
+/// The sheet is moved through UIKit: once it's up, SwiftUI doesn't pass a
+/// changed detent selection on to it.
+private struct LibrarySheet: View {
+    @Environment(ProjectEditor.self) private var editor
+    @State private var sheet = SheetHandle()
+    /// How far the sheet's pulled up: half way to begin with. A sheet given
+    /// no selection starts at its smallest.
+    @State private var detent = PresentationDetent.medium
+    /// Where the sheet was before a drag pulled it down, to go back to.
+    @State private var detentBeforeDrag: UISheetPresentationController.Detent.Identifier?
+
+    /// Pulled down to its bar, out of the timeline's way.
+    private static let minimized = PresentationDetent.height(120)
+
+    var body: some View {
+        NavigationStack {
+            LibraryView()
+                .navigationTitle("Library.Title")
+                .navigationBarTitleDisplayMode(.inline)
+        }
+        .presentationDetents([Self.minimized, .medium, .large], selection: $detent)
+        // Pulled down, the timeline above it can be used, and takes the
+        // media dragged out of it.
+        .presentationBackgroundInteraction(.enabled(upThrough: Self.minimized))
+        .background { SheetFinder(handle: sheet) }
+        .onChange(of: editor.timeline.isDraggingMedia) { _, isDragging in minimize(isDragging) }
+    }
+
+    private func minimize(_ isDragging: Bool) {
+        guard let controller = sheet.controller else { return }
+        let current = controller.selectedDetentIdentifier ?? .medium
+        // The smallest is the one that's neither of the system's.
+        guard let minimized = controller.detents.map(\.identifier).first(where: { $0 != .medium && $0 != .large })
+        else { return }
+        if isDragging {
+            guard current != minimized else { return }
+            detentBeforeDrag = current
+            controller.animateChanges { controller.selectedDetentIdentifier = minimized }
+        } else if let previous = detentBeforeDrag {
+            detentBeforeDrag = nil
+            guard current == minimized else { return }
+            controller.animateChanges { controller.selectedDetentIdentifier = previous }
+        }
+    }
+}
+
+/// The UIKit controller presenting a sheet, once its content is on screen.
+private final class SheetHandle {
+    weak var controller: UISheetPresentationController?
+}
+
+/// Finds the sheet the view it's put behind is in.
+private struct SheetFinder: UIViewControllerRepresentable {
+    let handle: SheetHandle
+
+    func makeUIViewController(context: Context) -> Finder {
+        Finder(handle: handle)
+    }
+
+    func updateUIViewController(_ controller: Finder, context: Context) {}
+
+    final class Finder: UIViewController {
+        let handle: SheetHandle
+
+        init(handle: SheetHandle) {
+            self.handle = handle
+            super.init(nibName: nil, bundle: nil)
+        }
+
+        required init?(coder: NSCoder) { fatalError() }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            handle.controller = sheetPresentationController
+        }
     }
 }

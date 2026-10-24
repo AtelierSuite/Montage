@@ -33,8 +33,8 @@ final class TimelineState {
     /// The effect of the selected clip whose mask the preview has handles
     /// for, in place of the clip's own.
     var editedMaskEffectID: Effect.ID?
-    /// Whether media from the library is being dragged, for the editor to
-    /// give the timeline room to take it.
+    /// Whether media dragged from the library has been taken out of it, for
+    /// the editor to give the timeline room to take it.
     var isDraggingMedia = false
 
     /// How far the timeline zooms in and out.
