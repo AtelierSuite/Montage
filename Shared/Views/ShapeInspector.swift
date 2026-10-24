@@ -11,6 +11,9 @@ struct ShapeInspector: View {
     var body: some View {
         let shape = editing.clip.shapeContent
         let size = editing.parameter(\.shapeContent.size)
+        // Up to twice the frame, so a shape can overflow it.
+        let frame = editing.editor.project.settings.renderSize
+        let maximum = max(frame.width, frame.height) * 2
         Section("Inspector.Shape") {
             Picker("Inspector.Shape.Kind", selection: Binding {
                 shape.kind
@@ -21,14 +24,14 @@ struct ShapeInspector: View {
                     Label(kind.title, systemImage: kind.symbol).tag(kind)
                 }
             }
-            ParameterSlider("Inspector.Shape.Width", size, in: 0...3840, format: ParameterFormat.whole,
+            ParameterSlider("Inspector.Shape.Width", size, in: 0...max(1, frame.width * 2), format: ParameterFormat.whole,
                             component: { Double($0.width) }, setComponent: { $0.width = $1 })
             if shape.kind != .line {
-                ParameterSlider("Inspector.Shape.Height", size, in: 0...2160, format: ParameterFormat.whole,
+                ParameterSlider("Inspector.Shape.Height", size, in: 0...max(1, frame.height * 2), format: ParameterFormat.whole,
                                 component: { Double($0.height) }, setComponent: { $0.height = $1 })
             }
             if shape.kind == .roundedRectangle {
-                ParameterSlider("Inspector.Shape.CornerRadius", editing.parameter(\.shapeContent.cornerRadius), in: 0...500,
+                ParameterSlider("Inspector.Shape.CornerRadius", editing.parameter(\.shapeContent.cornerRadius), in: 0...max(1, maximum / 4),
                                 format: ParameterFormat.whole)
             }
             if shape.kind == .polygon || shape.kind == .star {
