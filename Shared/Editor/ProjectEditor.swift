@@ -122,7 +122,12 @@ final class ProjectEditor {
         if project != self.project { self.project = project }
         if let undoManager {
             undoManager.registerUndo(withTarget: self) { editor in
-                MainActor.assumeIsolated { editor.apply(previous, undoName: undoName) }
+                MainActor.assumeIsolated {
+                    // Undone mid-drag, the drag lets go of its change rather
+                    // than putting it back over the undo when it ends.
+                    editor.cancelGesture()
+                    editor.apply(previous, undoName: undoName)
+                }
             }
             undoManager.setActionName(undoName)
         }
