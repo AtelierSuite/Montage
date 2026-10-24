@@ -88,9 +88,32 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         ExportSavePanel.begin(for: window, editor: editor, title: title)
     }
 
+    // MARK: - Editing
+
+    /// Edit > Delete, when no text takes it first: the selected clips.
+    @objc func delete(_ sender: Any?) { editor.deleteSelection() }
+    @objc func rippleDelete(_ sender: Any?) { editor.deleteSelection(ripple: true) }
+    /// Edit > Select All, when no text takes it first: every clip.
+    override func selectAll(_ sender: Any?) { editor.selectAllClips() }
+    @objc func splitClips(_ sender: Any?) { editor.splitAtPlayhead() }
+    @objc func detachAudio(_ sender: Any?) { editor.detachAudio() }
+    @objc func addMarker(_ sender: Any?) { editor.addMarkerAtPlayhead() }
+    @objc func toggleSnapping(_ sender: Any?) { editor.timeline.isSnapping.toggle() }
+    @objc func zoomInTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1.5) }
+    @objc func zoomOutTimeline(_ sender: Any?) { editor.timeline.zoom(by: 1 / 1.5) }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(exportMovie(_:)) { return editor.canExport }
-        return true
+        switch menuItem.action {
+        case #selector(exportMovie(_:)): return editor.canExport
+        case #selector(delete(_:)), #selector(rippleDelete(_:)): return editor.canDelete
+        case #selector(splitClips(_:)): return editor.canSplit
+        case #selector(detachAudio(_:)): return editor.canDetachAudio
+        case #selector(addMarker(_:)): return editor.playback.hasContent
+        case #selector(toggleSnapping(_:)):
+            menuItem.state = editor.timeline.isSnapping ? .on : .off
+            return true
+        default: return true
+        }
     }
 
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {

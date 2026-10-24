@@ -20,6 +20,8 @@ public struct Clip: Identifiable, Equatable, Sendable {
     /// 1 is opaque.
     public var opacity: Animatable<Double>
     public var transform: ClipTransform
+    /// How the picture mixes with the layers under it.
+    public var blendMode: BlendMode
     /// Whether the clip's audio has been split off into a clip of its own,
     /// so this one plays only its picture.
     public var isAudioDetached: Bool
@@ -29,7 +31,8 @@ public struct Clip: Identifiable, Equatable, Sendable {
     public init(
         id: UUID = UUID(), mediaID: MediaItem.ID, sourceRange: CMTimeRange, timelineStart: CMTime = .zero,
         volume: Animatable<Double> = Animatable(1), opacity: Animatable<Double> = Animatable(1),
-        transform: ClipTransform = ClipTransform(), isAudioDetached: Bool = false, effects: [Effect] = []
+        transform: ClipTransform = ClipTransform(), blendMode: BlendMode = .normal, isAudioDetached: Bool = false,
+        effects: [Effect] = []
     ) {
         self.id = id
         self.mediaID = mediaID
@@ -38,6 +41,7 @@ public struct Clip: Identifiable, Equatable, Sendable {
         self.volume = volume
         self.opacity = opacity
         self.transform = transform
+        self.blendMode = blendMode
         self.isAudioDetached = isAudioDetached
         self.effects = effects
     }
@@ -63,7 +67,7 @@ public struct Clip: Identifiable, Equatable, Sendable {
 
 extension Clip: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, mediaID, sourceRange, timelineStart, volume, opacity, transform, isAudioDetached, effects
+        case id, mediaID, sourceRange, timelineStart, volume, opacity, transform, blendMode, isAudioDetached, effects
     }
 
     public init(from decoder: Decoder) throws {
@@ -75,6 +79,7 @@ extension Clip: Codable {
         volume = try container.decodeIfPresent(Animatable<Double>.self, forKey: .volume) ?? Animatable(1)
         opacity = try container.decodeIfPresent(Animatable<Double>.self, forKey: .opacity) ?? Animatable(1)
         transform = try container.decodeIfPresent(ClipTransform.self, forKey: .transform) ?? ClipTransform()
+        blendMode = try container.decodeIfPresent(BlendMode.self, forKey: .blendMode) ?? .normal
         isAudioDetached = try container.decodeIfPresent(Bool.self, forKey: .isAudioDetached) ?? false
         effects = try container.decodeIfPresent([Effect].self, forKey: .effects) ?? []
     }
@@ -88,6 +93,7 @@ extension Clip: Codable {
         try container.encode(volume, forKey: .volume)
         try container.encode(opacity, forKey: .opacity)
         try container.encode(transform, forKey: .transform)
+        try container.encode(blendMode, forKey: .blendMode)
         try container.encode(isAudioDetached, forKey: .isAudioDetached)
         try container.encode(effects, forKey: .effects)
     }

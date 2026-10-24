@@ -12,10 +12,10 @@ extension ProjectEditor {
     func makeRenderSource() -> @Sendable (RenderContext) async throws -> RenderSource {
         let builder = CompositionBuilder(project: project, mediaResolver: mediaResolver)
         return { context in
-            // TODO: (#8) once the custom compositor exists, have it render on
-            // the CPU when `context.allowsGPU` is false (an iOS export kept
-            // going in the background without the GPU).
-            _ = context
+            // On the CPU when the GPU may go, such as an iOS export kept going
+            // in the background.
+            var builder = builder
+            builder.usesGPU = context.allowsGPU
             let built = try await builder.build()
             guard !built.isEmpty else { throw ExportError.nothingToExport }
             return RenderSource(built)
