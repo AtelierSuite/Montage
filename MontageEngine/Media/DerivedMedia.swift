@@ -110,10 +110,25 @@ extension DerivedMediaStore {
 public actor DerivedMediaCache {
     public nonisolated let store: (any DerivedMediaStore)?
     private var inFlight: [Key: Task<URL?, Never>] = [:]
+    /// The copies that couldn't be made, by the file they were made from,
+    /// so they aren't tried again on every edit.
+    private var failed: Set<Source> = []
 
     private struct Key: Hashable {
         let mediaID: MediaItem.ID
         let kind: DerivedMedia
+    }
+
+    private struct Source: Hashable {
+        let mediaID: MediaItem.ID
+        let kind: DerivedMedia
+        let sourceKey: String
+
+        init(_ item: MediaItem, _ kind: DerivedMedia) {
+            mediaID = item.id
+            self.kind = kind
+            sourceKey = DerivedMedia.sourceKey(of: item)
+        }
     }
 
     public init(store: (any DerivedMediaStore)?) {
@@ -125,6 +140,9 @@ public actor DerivedMediaCache {
     public func make(_ kind: DerivedMedia, for item: MediaItem, from url: URL) async -> URL? {
         guard let store, let destination = store.url(for: item, kind) else { return nil }
         if FileManager.default.fileExists(atPath: destination.path) { return destination }
+        // Not again from the same file: pointed at another, or its metadata
+        // read again, it's tried afresh.
+        guard !failed.contains(Source(item, kind)) else { return nil }
         let key = Key(mediaID: item.id, kind: kind)
         if let task = inFlight[key] { return await task.value }
         let task = Task.detached(priority: .utility) { () -> URL? in
@@ -149,7 +167,19 @@ public actor DerivedMediaCache {
         // made rather than running on to the end.
         let made = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         inFlight[key] = nil
+        // A copy given up on isn't one that failed.
+        if made == nil, !Task.isCancelled, !task.isCancelled { failed.insert(Source(item, kind)) }
         return made
+    }
+
+    /// Whether the item's copy couldn't be made from its file as it is.
+    public func hasFailed(_ kind: DerivedMedia, for item: MediaItem) -> Bool {
+        failed.contains(Source(item, kind))
+    }
+
+    /// Tries an item's copies again next time, such as once it's relinked.
+    public func forgetFailures(for mediaID: MediaItem.ID) {
+        failed = failed.filter { $0.mediaID != mediaID }
     }
 
     /// Makes every copy of a kind the project needs that hasn't been made,

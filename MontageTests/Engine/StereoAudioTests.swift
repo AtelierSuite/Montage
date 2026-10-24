@@ -197,4 +197,22 @@ struct StereoAudioTests {
         let expected = summed.rms(\.left, 0.1, 1.9)
         #expect(abs(panned.rms(\.left, 0.1, 1.9) - expected) < 0.02 * expected)
     }
+
+    @Test func aCopyThatFailsIsntTriedAgainFromTheSameFile() async throws {
+        let fixture = try MonoFixture()
+        defer { fixture.remove() }
+        let cache = DerivedMediaCache(store: fixture.store)
+        let nowhere = fixture.folder.appending(path: "missing.caf")
+        #expect(await cache.make(.stereoAudio, for: fixture.item, from: nowhere) == nil)
+        #expect(await cache.hasFailed(.stereoAudio, for: fixture.item))
+        // The file there now would do, but it's the same item as before.
+        #expect(await cache.make(.stereoAudio, for: fixture.item, from: fixture.url) == nil)
+
+        // Pointed at another file, it's tried again.
+        var relinked = fixture.item
+        relinked.location = .package(path: "other.caf")
+        #expect(await cache.make(.stereoAudio, for: relinked, from: fixture.url) != nil)
+        await cache.forgetFailures(for: fixture.item.id)
+        #expect(await cache.make(.stereoAudio, for: fixture.item, from: fixture.url) != nil)
+    }
 }

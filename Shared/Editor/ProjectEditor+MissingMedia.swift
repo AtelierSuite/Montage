@@ -34,6 +34,7 @@ extension ProjectEditor {
             cacheStore?.removeCache(for: id)
             await thumbnails.removeThumbnails(for: id)
             await waveforms.removeWaveform(for: id)
+            await derivedMedia.forgetFailures(for: id)
         }
         perform(String(localized: "Action.RelinkMedia")) { project in
             for index in project.media.indices {
