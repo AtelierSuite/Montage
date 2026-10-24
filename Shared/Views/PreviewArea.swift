@@ -20,23 +20,35 @@ struct PreviewArea: View {
     private var frame: some View {
         if editor.playback.hasContent {
             PlayerView(player: editor.playback.player)
+                .overlay {
+                    if let error = editor.playback.playbackError {
+                        message(
+                            systemImage: "exclamationmark.triangle", title: "Preview.Error.Title",
+                            detail: Text(verbatim: error.localizedDescription)
+                        )
+                    }
+                }
         } else {
             Rectangle()
                 .fill(Color(white: 0.08))
                 .overlay {
-                    VStack(spacing: 6) {
-                        Image(systemName: "film")
-                            .font(.largeTitle)
-                        Text("Preview.Empty.Title")
-                            .font(.headline)
-                        Text("Preview.Empty.Message")
-                            .font(.subheadline)
-                            .multilineTextAlignment(.center)
-                    }
-                    .foregroundStyle(.white.opacity(0.6))
-                    .padding()
+                    message(systemImage: "film", title: "Preview.Empty.Title", detail: Text("Preview.Empty.Message"))
                 }
         }
+    }
+
+    private func message(systemImage: String, title: LocalizedStringKey, detail: Text) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.largeTitle)
+            Text(title)
+                .font(.headline)
+            detail
+                .font(.subheadline)
+                .multilineTextAlignment(.center)
+        }
+        .foregroundStyle(.white.opacity(0.6))
+        .padding()
     }
 
     /// The project's frame shape, or 16:9 if its settings have none.

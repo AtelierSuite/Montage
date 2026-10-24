@@ -34,6 +34,9 @@ public final class PlaybackController {
     public private(set) var isPlaying = false
     /// Whether the playhead is being dragged.
     public private(set) var isScrubbing = false
+    /// Why the player couldn't play the composition, if it couldn't. Cleared
+    /// when the next one is swapped in.
+    public private(set) var playbackError: (any Error)?
 
     /// How long the timeline runs.
     public var duration: CMTime { project.duration }
@@ -49,6 +52,7 @@ public final class PlaybackController {
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var timeObserverInterval = CMTime.invalid
     @ObservationIgnored private var endObserver: (any NSObjectProtocol)?
+    @ObservationIgnored private var statusObservation: NSKeyValueObservation?
     @ObservationIgnored private var isInvalidated = false
 
     // Seeks are chased rather than queued: while one is under way, only the
@@ -146,9 +150,11 @@ public final class PlaybackController {
         composition = built
         let time = pendingSeek?.time ?? currentTime
         let item = built.makePlayerItem()
+        playbackError = nil
         player.replaceCurrentItem(with: item)
         observeTime()
         observeEnd(of: item)
+        observeStatus(of: item)
         // The old item's seeks are moot; start over at the same time.
         seekInFlight = nil
         pendingSeek = (min(time, duration), .zero)
@@ -159,7 +165,7 @@ public final class PlaybackController {
     // MARK: - Transport
 
     public func play() {
-        guard hasContent else { return }
+        guard hasContent, playbackError == nil else { return }
         // From the end, play from the start again.
         if let composition, currentTime >= min(duration, composition.duration) {
             seek(to: .zero)
@@ -303,6 +309,20 @@ public final class PlaybackController {
         }
     }
 
+    /// Notices the player giving up on an item, which it otherwise does
+    /// silently: the playhead would sit still with the transport playing.
+    private func observeStatus(of item: AVPlayerItem) {
+        statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+            guard item.status == .failed else { return }
+            let error = item.error
+            Task { @MainActor in
+                guard let self, self.player.currentItem === item else { return }
+                self.playbackError = error ?? CocoaError(.featureUnsupported)
+                self.isPlaying = false
+            }
+        }
+    }
+
     private func tearDown() {
         isInvalidated = true
         rebuildTask?.cancel()
@@ -313,6 +333,7 @@ public final class PlaybackController {
         timeObserver = nil
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         endObserver = nil
+        statusObservation = nil
         player.replaceCurrentItem(with: nil)
     }
 }

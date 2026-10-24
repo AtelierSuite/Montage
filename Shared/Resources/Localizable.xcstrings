@@ -672,6 +672,17 @@
         }
       }
     },
+    "Preview.Error.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't Play the Project"
+          }
+        }
+      }
+    },
     "Timeline.Empty" : {
       "extractionState" : "manual",
       "localizations" : {
