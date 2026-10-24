@@ -23,6 +23,17 @@
         }
       }
     },
+    "Action.RelinkMedia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relink Media"
+          }
+        }
+      }
+    },
     "Action.RemoveFromLibrary" : {
       "extractionState" : "manual",
       "localizations" : {

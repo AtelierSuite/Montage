@@ -19,7 +19,7 @@ import UniformTypeIdentifiers
 /// time, and whatever's missing is made again from the media when it's next
 /// asked for. Until the project is first saved there's nowhere to keep
 /// anything, and the caches in memory are all there is.
-public final class PackageCache: ThumbnailStore, WaveformStore, Sendable {
+public final class PackageCache: MediaCacheStore, Sendable {
     static let thumbnailsDirectoryName = "Thumbnails"
     static let waveformsDirectoryName = "Waveforms"
 

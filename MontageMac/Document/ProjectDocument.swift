@@ -23,6 +23,9 @@ final class ProjectDocument: NSDocument {
         super.init()
         hasUndoManager = true
         editor.undoManager = undoManager
+        editor.takeRefreshedBookmarks = { [media] in media.bookmarks.takeRefreshedBookmarks() }
+        // Changes that aren't undo steps still need saving.
+        editor.onAmend = { [weak self] in self?.updateChangeCount(.changeDone) }
         editor.mediaResolver = media.resolver
     }
 

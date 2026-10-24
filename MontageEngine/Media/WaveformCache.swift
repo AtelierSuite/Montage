@@ -53,6 +53,13 @@ public protocol WaveformStore: Sendable {
     func store(_ waveform: WaveformPeaks, for mediaID: MediaItem.ID) async
 }
 
+/// A store on disk for everything made from media: thumbnails and
+/// waveforms, such as the project package's cache.
+public protocol MediaCacheStore: ThumbnailStore, WaveformStore {
+    /// Throws away everything made from a media item.
+    func removeCache(for mediaID: MediaItem.ID)
+}
+
 // MARK: - Encoding
 
 extension WaveformPeaks {

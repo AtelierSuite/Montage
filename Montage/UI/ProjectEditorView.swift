@@ -57,10 +57,11 @@ struct ProjectEditorView: View {
             .environment(importer)
             .onAppear {
                 attach(to: undoManager)
-                locateMedia(at: fileURL)
                 // Every edit goes back into the document, which marks it
                 // as changed so it's saved.
                 editor.onChange = { [$document] project in $document.wrappedValue.project = project }
+                editor.takeRefreshedBookmarks = { [media = document.media] in media.bookmarks.takeRefreshedBookmarks() }
+                locateMedia(at: fileURL)
             }
             .onChange(of: undoManager) { _, undoManager in attach(to: undoManager) }
             // Closing the document; the player goes with the editor.
