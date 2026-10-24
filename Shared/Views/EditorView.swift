@@ -22,6 +22,7 @@ struct EditorView<Controls: View>: View {
     /// it floats over the editor, the timeline takes its room.
     var showsPreview = true
 
+    @Environment(ProjectEditor.self) private var editor
     /// The share of the height the preview was last dragged to, stacked; nil
     /// until it's dragged, sizing the preview to fit the width instead.
     @AppStorage("Editor.PreviewHeightShare") private var previewHeightShare: Double?
@@ -96,6 +97,8 @@ struct EditorView<Controls: View>: View {
             }
         }
         .background { TransportShortcuts() }
+        // Media dragged in from the library.
+        .libraryDropDestination(editor)
     }
 
     /// The preview over the timeline, and the divider under it to drag.
