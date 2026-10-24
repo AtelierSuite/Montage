@@ -21,6 +21,13 @@ extension CGPoint: Interpolatable {
     }
 }
 
+extension CGSize: Interpolatable {
+    public static func interpolate(from: CGSize, to: CGSize, fraction: Double) -> CGSize {
+        CGSize(width: .interpolate(from: from.width, to: to.width, fraction: fraction),
+               height: .interpolate(from: from.height, to: to.height, fraction: fraction))
+    }
+}
+
 extension CGFloat: Interpolatable {
     public static func interpolate(from: CGFloat, to: CGFloat, fraction: Double) -> CGFloat {
         from + (to - from) * fraction
