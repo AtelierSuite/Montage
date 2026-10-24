@@ -8,6 +8,8 @@ struct EditorActionBar: View {
     var showLibrary: (() -> Void)?
     @Binding var isShowingInspector: Bool
 
+    @Environment(ProjectEditor.self) private var editor
+
     /// How wide the bar's room is, so the groups stay centred while they fit.
     @State private var width = 0.0
 
@@ -22,12 +24,23 @@ struct EditorActionBar: View {
                             action("photo.on.rectangle.angled", label: "Toolbar.Library", perform: showLibrary)
                         }
                     }
-                    // Nothing to play or edit until there's a timeline.
+                    // Nothing to play until there's something on the timeline.
                     group {
-                        action("backward.end.fill", label: "Transport.GoToStart", isEnabled: false) {}
-                        action("play.fill", label: "Transport.Play", isEnabled: false) {}
-                        action("forward.end.fill", label: "Transport.GoToEnd", isEnabled: false) {}
+                        let playback = editor.playback
+                        action("backward.end.fill", label: "Transport.GoToStart", isEnabled: playback.hasContent) {
+                            playback.goToStart()
+                        }
+                        action(
+                            playback.isPlaying ? "pause.fill" : "play.fill",
+                            label: playback.isPlaying ? "Transport.Pause" : "Transport.Play", isEnabled: playback.hasContent
+                        ) {
+                            playback.togglePlayPause()
+                        }
+                        action("forward.end.fill", label: "Transport.GoToEnd", isEnabled: playback.hasContent) {
+                            playback.goToEnd()
+                        }
                     }
+                    // Nothing to edit until clips can be selected.
                     group {
                         action("scissors", label: "Edit.Split", isEnabled: false) {}
                         action("waveform", label: "Edit.DetachAudio", isEnabled: false) {}

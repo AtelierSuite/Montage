@@ -793,6 +793,17 @@
         }
       }
     },
+    "Transport.Pause" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause"
+          }
+        }
+      }
+    },
     "Transport.Play" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -800,6 +811,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Play"
+          }
+        }
+      }
+    },
+    "Transport.StepBackward" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back One Frame"
+          }
+        }
+      }
+    },
+    "Transport.StepForward" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forward One Frame"
           }
         }
       }

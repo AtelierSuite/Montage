@@ -26,5 +26,6 @@ struct EditorView: View {
                 TimelineView()
             }
         }
+        .background { TransportShortcuts() }
     }
 }
