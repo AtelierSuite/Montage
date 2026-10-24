@@ -10,6 +10,9 @@ struct TextInspector: View {
     let editing: ClipEditing
 
     @State private var selection: TextSelection?
+    /// Whether the words are being typed, which is one undo step until the
+    /// box is left.
+    @FocusState private var isTyping: Bool
     @State private var isNamingPreset = false
     @State private var presetName = ""
     private var presets: TextPresetLibrary { TextPresetLibrary.shared }
@@ -21,6 +24,11 @@ struct TextInspector: View {
         Section {
             TextEditor(text: words, selection: $selection)
                 .frame(minHeight: 72)
+                .focused($isTyping)
+                .onChange(of: isTyping) { _, isTyping in
+                    if !isTyping { editing.editor.endClipChange() }
+                }
+                .onDisappear { editing.editor.endClipChange() }
                 .accessibilityLabel(Text("Inspector.Text.Words"))
             formattingBar
         } header: {
@@ -87,13 +95,14 @@ struct TextInspector: View {
 
     // MARK: - Words
 
-    /// The words, changed keeping each piece's formatting.
+    /// The words, changed keeping each piece's formatting. Typing is one
+    /// continuous change, from the words as they were when it began.
     private var words: Binding<String> {
         Binding {
             editing.clip.textContent.string
         } set: { string in
             guard string != editing.clip.textContent.string else { return }
-            editing.change { $0.textContent.replaceString(with: string) }
+            editing.editor.changeClip(editing.clip.id, continuously: true) { $0.textContent.replaceString(with: string) }
         }
     }
 
