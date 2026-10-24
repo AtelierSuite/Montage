@@ -1,4 +1,5 @@
 import CoreImage
+import CoreImage.CIFilterBuiltins
 import CoreMedia
 
 /// What a video effect needs to know to change one frame.
@@ -28,9 +29,16 @@ extension VideoEffectContext {
 extension Effect {
     /// The image with this effect applied, at the context's time. An effect
     /// that's turned off, or changes only the sound, leaves it as it is.
+    /// Given a mask, the effect changes only the part inside it.
     public func apply(to image: CIImage, in context: VideoEffectContext) -> CIImage {
         guard isEnabled, kind.isVideo else { return image }
-        return VideoEffects.apply(kind, to: image, in: context)
+        let effected = VideoEffects.apply(kind, to: image, in: context)
+        guard let mask else { return effected }
+        let filter = CIFilter.blendWithMask()
+        filter.inputImage = effected
+        filter.backgroundImage = image
+        filter.maskImage = mask.image(in: context.frame(of: image), at: context.clipTime)
+        return filter.outputImage ?? effected
     }
 }
 

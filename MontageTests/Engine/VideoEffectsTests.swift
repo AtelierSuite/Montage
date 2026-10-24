@@ -154,10 +154,120 @@ struct VideoEffectsTests {
         #expect(apply(.mosaic(mosaic), to: image, at: .zero) === image)
     }
 
+    // MARK: - Masks
+
+    /// An effect that turns white black, to see plainly where it applies.
+    private var darken: Effect.Kind {
+        var correction = ColorCorrection()
+        correction.exposure = Animatable(-20)
+        return .colorCorrection(correction)
+    }
+
+    @Test func aRectangleMaskLimitsTheEffectToIt() {
+        let image = Pixels.solid(display: 1)
+        let output = apply(darken, to: image, mask: Mask(.rectangle))
+        // The middle half of the 320 × 240 frame: 80 to 240 across, 60 to 180 down.
+        #expect(Pixels.display(output, at: Pixels.middle).red < 0.01)
+        #expect(Pixels.display(output, at: CGPoint(x: 85, y: 65)).red < 0.01)
+        #expect(Pixels.display(output, at: CGPoint(x: 75, y: 160)).red > 0.99)
+        #expect(Pixels.display(output, at: CGPoint(x: 160, y: 185)).red > 0.99)
+    }
+
+    @Test func anInvertedMaskLimitsTheEffectToOutsideIt() {
+        let image = Pixels.solid(display: 1)
+        let output = apply(darken, to: image, mask: Mask(.rectangle, isInverted: true))
+        #expect(Pixels.display(output, at: Pixels.middle).red > 0.99)
+        #expect(Pixels.display(output, at: CGPoint(x: 10, y: 10)).red < 0.01)
+    }
+
+    @Test func anEllipseMaskLeavesTheBoxsCorners() {
+        let image = Pixels.solid(display: 1)
+        let output = apply(darken, to: image, mask: Mask(.ellipse))
+        #expect(Pixels.display(output, at: Pixels.middle).red < 0.01)
+        // Inside the box, but outside the ellipse in it.
+        #expect(Pixels.display(output, at: CGPoint(x: 90, y: 70)).red > 0.99)
+        // Just inside the ellipse's ends, across and down.
+        #expect(Pixels.display(output, at: CGPoint(x: 84, y: 120)).red < 0.05)
+        #expect(Pixels.display(output, at: CGPoint(x: 160, y: 64)).red < 0.05)
+    }
+
+    @Test func aFeatheredMaskFadesAcrossItsEdge() {
+        let image = Pixels.solid(display: 1)
+        for shape in [Mask.Shape.rectangle, .ellipse] {
+            let output = apply(darken, to: image, mask: Mask(shape, feather: 0.1))
+            // On the edge, half way through the fade.
+            let edge = Pixels.linear(output, at: CGPoint(x: 80, y: 120)).red
+            #expect(edge > 0.3 && edge < 0.7, "\(shape)")
+            #expect(Pixels.display(output, at: Pixels.middle).red < 0.01, "\(shape)")
+            #expect(Pixels.display(output, at: CGPoint(x: 40, y: 120)).red > 0.99, "\(shape)")
+        }
+    }
+
+    @Test func aPathMaskFollowsItsPoints() {
+        let image = Pixels.solid(display: 1)
+        let output = apply(darken, to: image, mask: Mask(.path, size: CGSize(width: 1, height: 1)))
+        // The diamond touches the middle of each side of the frame.
+        #expect(Pixels.display(output, at: Pixels.middle).red < 0.01)
+        #expect(Pixels.display(output, at: CGPoint(x: 160, y: 10)).red < 0.01)
+        #expect(Pixels.display(output, at: CGPoint(x: 20, y: 20)).red > 0.99)
+        #expect(Pixels.display(output, at: CGPoint(x: 300, y: 220)).red > 0.99)
+    }
+
+    @Test func aMaskTurnsClockwise() {
+        let image = Pixels.solid(display: 1)
+        // A bar across, a tenth as tall as the frame, turned a little
+        // clockwise: its right end goes down, its left end up.
+        let mask = Mask(.rectangle, size: CGSize(width: 0.8, height: 0.1), rotation: 20)
+        let output = apply(darken, to: image, mask: mask)
+        #expect(Pixels.display(output, at: CGPoint(x: 260, y: 150)).red < 0.01)
+        #expect(Pixels.display(output, at: CGPoint(x: 60, y: 90)).red < 0.01)
+        #expect(Pixels.display(output, at: CGPoint(x: 260, y: 90)).red > 0.99)
+    }
+
+    @Test func aKeyframedMaskMovesWithTheClip() {
+        let image = Pixels.solid(display: 1)
+        var mask = Mask(.rectangle, size: CGSize(width: 0.2, height: 0.2))
+        mask.center = Animatable(.zero, keyframes: [
+            Keyframe(time: .zero, value: CGPoint(x: 0.2, y: 0.5)),
+            Keyframe(time: CMTime(value: 2, timescale: 1), value: CGPoint(x: 0.8, y: 0.5)),
+        ])
+        let midway = apply(darken, to: image, at: CMTime(value: 1, timescale: 1), mask: mask)
+        #expect(Pixels.display(midway, at: Pixels.middle).red < 0.01)
+        #expect(Pixels.display(midway, at: CGPoint(x: 64, y: 120)).red > 0.99)
+        let start = apply(darken, to: image, at: .zero, mask: mask)
+        #expect(Pixels.display(start, at: CGPoint(x: 64, y: 120)).red < 0.01)
+        #expect(Pixels.display(start, at: Pixels.middle).red > 0.99)
+    }
+
+    @Test(.enabled(if: Samples.isAvailable))
+    func aMaskedMosaicLeavesThePhotoOutsideIt() throws {
+        let photo = try Pixels.photo()
+        var mosaic = Mosaic(style: .pixelate)
+        mosaic.scale = Animatable(0.1)
+        let output = apply(.mosaic(mosaic), to: photo, mask: Mask(.ellipse, size: CGSize(width: 0.3, height: 0.3)))
+        for point in [CGPoint(x: 10, y: 10), CGPoint(x: 300, y: 50), CGPoint(x: 30, y: 200)] {
+            #expect(Pixels.display(output, at: point).isClose(to: Pixels.display(photo, at: point)))
+        }
+    }
+
+    // MARK: - Turned off
+
+    @Test func skipsEffectsThatAreOffOrForSound() {
+        let image = Pixels.solid(display: 0.5)
+        var correction = ColorCorrection()
+        correction.exposure = Animatable(1)
+        let context = VideoEffectContext(renderSize: Pixels.size, clipTime: .zero)
+        #expect(Effect(isEnabled: false, .colorCorrection(correction)).apply(to: image, in: context) === image)
+        #expect(Effect(.gain(Gain())).apply(to: image, in: context) === image)
+        // In order: darkening then pixelating is still dark.
+        let effects = [Effect(darken), Effect(.mosaic(Mosaic()))]
+        #expect(Pixels.display(effects.apply(to: image, in: context), at: Pixels.middle).red < 0.01)
+    }
+
     // MARK: - Helpers
 
-    private func apply(_ kind: Effect.Kind, to image: CIImage, at time: CMTime = .zero) -> CIImage {
-        Effect(kind).apply(to: image, in: VideoEffectContext(renderSize: image.extent.size, clipTime: time))
+    private func apply(_ kind: Effect.Kind, to image: CIImage, at time: CMTime = .zero, mask: Mask? = nil) -> CIImage {
+        Effect(kind, mask: mask).apply(to: image, in: VideoEffectContext(renderSize: image.extent.size, clipTime: time))
     }
 }
 
