@@ -139,6 +139,15 @@ struct LayerContentTests {
         #expect(fixture.project.tracks[2].clip(id: over) != nil)
     }
 
+    @Test func addedLayersPassOverHiddenTracks() {
+        var fixture = TimelineFixture([(0, 0, 10)])
+        fixture.project.tracks.append(Track(kind: .video, isHidden: true))
+        let id = fixture.project.insertClip(of: .text(TextContent("Hi")), at: s(3))
+        #expect(fixture.project.tracks.count == 3)
+        #expect(fixture.project.tracks[1].clips.isEmpty)
+        #expect(fixture.project.tracks[2].clip(id: id) != nil)
+    }
+
     @Test func kenBurnsZoomsAcrossTheWholeClip() {
         var clip = Clip(content: .image(UUID()), sourceRange: range(0, 6))
         clip.applyKenBurns(zoom: 1.2)

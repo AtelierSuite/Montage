@@ -94,8 +94,9 @@ extension Project {
 
     /// Puts a clip of text or a shape on the timeline at `time`, lasting
     /// `duration`, over whatever video is there: on the first video track
-    /// above the clips under it with room, or a new track on top. Returns the
-    /// new clip's ID.
+    /// above the clips under it with room, or a new track on top. Hidden
+    /// tracks are passed over, since nothing on them shows. Returns the new
+    /// clip's ID.
     @discardableResult
     public mutating func insertClip(
         of content: ClipContent, at time: CMTime, duration: CMTime = Project.defaultImageDuration
@@ -107,8 +108,9 @@ extension Project {
             !tracks[index].clips.contains { !$0.timelineRange.intersection(range).isEmpty }
         }
         let video = tracks.indices.filter { tracks[$0].kind == .video }
-        let covered = video.last { !isFree($0) }
-        let index = video.first { $0 > (covered ?? -1) && isFree($0) } ?? {
+        let visible = video.filter { !tracks[$0].isHidden }
+        let covered = visible.last { !isFree($0) }
+        let index = visible.first { $0 > (covered ?? -1) && isFree($0) } ?? {
             let index = video.last.map { $0 + 1 } ?? tracks.firstIndex { $0.kind == .audio } ?? tracks.endIndex
             tracks.insert(Track(kind: .video), at: index)
             return index
