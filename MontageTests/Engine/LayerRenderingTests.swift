@@ -170,7 +170,7 @@ struct LayerRenderingTests {
     }
 
     @Test func picturesAreDrawnAgainOnlyWhenTheyChange() {
-        let artwork = LayerArtwork(capacity: 8)
+        let artwork = LayerArtwork(byteLimit: 64 * 1024 * 1024)
         var text = TextContent("Cached")
         let size = CGSize(width: 1920, height: 1080)
         _ = artwork.picture(of: .text(text), at: .zero, renderSize: size, scale: 1)
@@ -188,6 +188,20 @@ struct LayerRenderingTests {
         // A sharper copy for a zoomed-in layer is a picture of its own.
         _ = artwork.picture(of: .text(text), at: seconds(2), renderSize: size, scale: 2)
         #expect(artwork.drawCount == 5)
+    }
+
+    @Test func theCacheKeepsToItsMemoryLimit() {
+        // Room for about one picture of the text.
+        let artwork = LayerArtwork(byteLimit: 200_000)
+        let size = CGSize(width: 1920, height: 1080)
+        let first = TextContent("First"), second = TextContent("Second")
+        _ = artwork.picture(of: .text(first), at: .zero, renderSize: size, scale: 1)
+        _ = artwork.picture(of: .text(second), at: .zero, renderSize: size, scale: 1)
+        _ = artwork.picture(of: .text(second), at: .zero, renderSize: size, scale: 1)
+        #expect(artwork.drawCount == 2)
+        // The first was let go to make room.
+        _ = artwork.picture(of: .text(first), at: .zero, renderSize: size, scale: 1)
+        #expect(artwork.drawCount == 3)
     }
 
     @Test func zoomedLayersAreDrawnSharperInSteps() {

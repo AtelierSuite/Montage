@@ -7,7 +7,7 @@ import Synchronization
 /// looks has changed: an edit, or a keyframed value moving on.
 public final class LayerArtwork: Sendable {
     /// Shared by every compositor.
-    public static let shared = LayerArtwork(capacity: 48)
+    public static let shared = LayerArtwork(byteLimit: 256 * 1024 * 1024)
 
     private enum Key: Hashable {
         case text(TextContent.Resolved, scale: Double)
@@ -18,14 +18,22 @@ public final class LayerArtwork: Sendable {
         var pictures: [Key: DrawnLayer?] = [:]
         /// Least recently used first.
         var order: [Key] = []
+        /// How much memory the kept pictures take.
+        var bytes = 0
         var drawCount = 0
     }
 
-    private let capacity: Int
+    /// The most memory the kept pictures may take; the least recently used
+    /// go first past it. One picture bigger than it is still kept, alone.
+    private let byteLimit: Int
     private let cache = Mutex(Cache())
 
-    init(capacity: Int) {
-        self.capacity = capacity
+    init(byteLimit: Int) {
+        self.byteLimit = byteLimit
+    }
+
+    private static func cost(of picture: DrawnLayer?) -> Int {
+        picture.map { $0.image.bytesPerRow * $0.image.height } ?? 0
     }
 
     /// How many pictures have been drawn rather than found kept.
@@ -56,9 +64,15 @@ public final class LayerArtwork: Sendable {
         }
         cache.withLock { cache in
             cache.drawCount += 1
-            if cache.pictures.updateValue(picture, forKey: key) == nil { cache.order.append(key) }
-            while cache.order.count > capacity {
-                cache.pictures[cache.order.removeFirst()] = nil
+            if let replaced = cache.pictures.updateValue(picture, forKey: key) {
+                cache.bytes -= Self.cost(of: replaced)
+            } else {
+                cache.order.append(key)
+            }
+            cache.bytes += Self.cost(of: picture)
+            while cache.bytes > byteLimit, cache.order.count > 1 {
+                let oldest = cache.order.removeFirst()
+                cache.bytes -= Self.cost(of: cache.pictures.removeValue(forKey: oldest) ?? nil)
             }
         }
         return picture
