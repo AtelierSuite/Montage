@@ -30,17 +30,24 @@ final class ProjectEditor {
     }
     @ObservationIgnored private var playbackController: PlaybackController?
 
-    /// The library's thumbnails, kept while the project is open.
-    @ObservationIgnored let thumbnails = ThumbnailCache()
+    /// The library's thumbnails and the timeline's strips of frames, kept
+    /// while the project is open, and in the package's cache behind that.
+    @ObservationIgnored let thumbnails: ThumbnailCache
+    /// The timeline's waveforms, kept the same way.
+    @ObservationIgnored let waveforms: WaveformCache
 
     /// Where undo steps go: the document's undo manager.
     @ObservationIgnored weak var undoManager: UndoManager?
     /// Called after every change, with the project as it now is.
     @ObservationIgnored var onChange: (Project) -> Void = { _ in }
 
-    init(project: Project, mediaResolver: MediaResolver = .none) {
+    /// `cache` is where thumbnails and waveforms are kept on disk, if
+    /// anywhere: the project package's cache folder.
+    init(project: Project, mediaResolver: MediaResolver = .none, cache: (any ThumbnailStore & WaveformStore)? = nil) {
         self.project = project
         self.mediaResolver = mediaResolver
+        thumbnails = ThumbnailCache(store: cache, capacity: 600)
+        waveforms = WaveformCache(store: cache)
     }
 
     /// Makes a change as one undo step, named for the Edit menu. A change

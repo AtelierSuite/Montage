@@ -7,14 +7,19 @@ import MontageFormats
 final class ProjectDocument: NSDocument {
     /// The project as its window edits it. Its undo steps go to the
     /// document's undo manager, which is how the document knows it changed.
-    let editor = ProjectEditor(project: Project())
+    let editor: ProjectEditor
     /// The media imported into the project but not saved yet, and where the
     /// package is, so the editor finds media before and after it's saved.
     let media = PackageMediaStore()
+    /// Thumbnails and waveforms, kept in the package's cache folder.
+    let cache: PackageCache
     /// Brings files into the project, staged in `media` until it's saved.
     private(set) lazy var importer = MediaImporter(store: media, editor: editor)
 
     override init() {
+        let cache = PackageCache()
+        self.cache = cache
+        editor = ProjectEditor(project: Project(), cache: cache)
         super.init()
         hasUndoManager = true
         editor.undoManager = undoManager
@@ -23,7 +28,10 @@ final class ProjectDocument: NSDocument {
 
     // Set when the document is opened, first saved, renamed or moved.
     override var fileURL: URL? {
-        didSet { media.packageURL = fileURL }
+        didSet {
+            media.packageURL = fileURL
+            cache.packageURL = fileURL
+        }
     }
 
     override class var autosavesInPlace: Bool { true }

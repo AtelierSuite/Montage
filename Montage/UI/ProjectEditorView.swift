@@ -43,7 +43,10 @@ struct ProjectEditorView: View {
         self.fileURL = fileURL
         let media = document.wrappedValue.media
         media.packageURL = fileURL
-        let editor = ProjectEditor(project: document.wrappedValue.project, mediaResolver: media.resolver)
+        document.wrappedValue.cache.packageURL = fileURL
+        let editor = ProjectEditor(
+            project: document.wrappedValue.project, mediaResolver: media.resolver, cache: document.wrappedValue.cache
+        )
         _editor = State(initialValue: editor)
         _importer = State(initialValue: MediaImporter(store: media, editor: editor))
     }
@@ -83,6 +86,7 @@ struct ProjectEditorView: View {
             accessedURL = url?.startAccessingSecurityScopedResource() == true ? url : nil
         }
         document.media.packageURL = url
+        document.cache.packageURL = url
         editor.mediaResolver = document.media.resolver
         importer.store = document.media
     }
