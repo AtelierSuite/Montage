@@ -7,7 +7,10 @@ import Observation
 /// can save.
 ///
 /// Edits go through `perform`, which keeps the project as it was for undo:
-/// the project is a value, so the snapshot is the undo step.
+/// the project is a value, so the snapshot is the undo step. A continuous
+/// gesture, such as dragging a clip or a slider, is one undo step however
+/// many changes it makes: `beginGesture`, then `updateGesture` as it goes,
+/// then `endGesture`.
 @MainActor
 @Observable
 final class ProjectEditor {
@@ -30,12 +33,15 @@ final class ProjectEditor {
     }
     @ObservationIgnored private var playbackController: PlaybackController?
 
-    /// The clips selected on the timeline, which the inspector shows and
-    /// the editing tools act on.
-    var selectedClipIDs: Set<Clip.ID> = []
+    /// The timeline's selection, zoom and editing options.
+    let timeline = TimelineState()
 
     /// The library's thumbnails, kept while the project is open.
     @ObservationIgnored let thumbnails = ThumbnailCache()
+
+    /// The gesture under way: the project as it was when it began, and the
+    /// name of the undo step it makes.
+    @ObservationIgnored private var gesture: (baseline: Project, actionName: String)?
 
     /// Where undo steps go: the document's undo manager.
     @ObservationIgnored weak var undoManager: UndoManager?
@@ -50,37 +56,56 @@ final class ProjectEditor {
     /// Makes a change as one undo step, named for the Edit menu. A change
     /// that leaves the project as it was isn't recorded.
     func perform(_ actionName: String, _ change: (inout Project) -> Void) {
+        if gesture != nil { endGesture() }
         var project = self.project
         change(&project)
         guard project != self.project else { return }
         apply(project, undoName: actionName)
     }
 
-    /// Makes a change as a drag goes, such as a slider's, without an undo
-    /// step or a save for every move. `endContinuousChange` makes the whole
-    /// drag one undo step.
-    func changeContinuously(_ change: (inout Project) -> Void) {
-        var project = self.project
+    // MARK: - Gestures
+
+    /// The project as it was when the gesture under way began, or nil when
+    /// there's none.
+    var gestureBaseline: Project? { gesture?.baseline }
+
+    /// Starts a continuous change, such as a drag, that ends as one undo
+    /// step with the given name.
+    func beginGesture(_ actionName: String) {
+        if gesture != nil { endGesture() }
+        gesture = (project, actionName)
+    }
+
+    /// Changes the project during a gesture. Each change starts again from
+    /// the project as it was when the gesture began, so a drag can make the
+    /// whole of its change from where it started, every step of the way.
+    func updateGesture(_ change: (inout Project) -> Void) {
+        guard let gesture else { return }
+        var project = gesture.baseline
         change(&project)
-        guard project != self.project else { return }
-        if continuousChangeStart == nil { continuousChangeStart = self.project }
-        self.project = project
+        if project != self.project { self.project = project }
     }
 
-    /// Ends a drag's change, as one undo step from where it began.
-    func endContinuousChange(_ actionName: String) {
-        guard let start = continuousChangeStart else { return }
-        continuousChangeStart = nil
-        guard project != start else { return }
-        apply(project, undoName: actionName, previous: start)
+    /// Ends the gesture as one undo step, unless it left the project as it
+    /// was.
+    func endGesture() {
+        guard let gesture else { return }
+        self.gesture = nil
+        guard project != gesture.baseline else { return }
+        apply(project, undoName: gesture.actionName, from: gesture.baseline)
     }
 
-    /// The project as it was when a continuous change began.
-    @ObservationIgnored private var continuousChangeStart: Project?
+    /// Ends the gesture, putting the project back as it was.
+    func cancelGesture() {
+        guard let gesture else { return }
+        self.gesture = nil
+        if project != gesture.baseline { project = gesture.baseline }
+    }
 
     /// Puts in a project read from outside, such as on revert, without an
     /// undo step: the history it would undo to is gone.
     func replace(with project: Project) {
+        gesture = nil
         guard project != self.project else { return }
         self.project = project
     }
@@ -90,12 +115,19 @@ final class ProjectEditor {
         playbackController?.invalidate()
     }
 
-    private func apply(_ project: Project, undoName: String, previous: Project? = nil) {
+    /// Puts in a changed project, undone back to `previous`: the project as
+    /// it is unless a gesture has already put the change in.
+    private func apply(_ project: Project, undoName: String, from previous: Project? = nil) {
         let previous = previous ?? self.project
         if project != self.project { self.project = project }
         if let undoManager {
             undoManager.registerUndo(withTarget: self) { editor in
-                MainActor.assumeIsolated { editor.apply(previous, undoName: undoName) }
+                MainActor.assumeIsolated {
+                    // Undone mid-drag, the drag lets go of its change rather
+                    // than putting it back over the undo when it ends.
+                    editor.cancelGesture()
+                    editor.apply(previous, undoName: undoName)
+                }
             }
             undoManager.setActionName(undoName)
         }

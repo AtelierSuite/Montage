@@ -7,56 +7,70 @@ import SwiftUI
 /// above the headers shows where the playhead is, and dragging along the
 /// ruler moves it.
 ///
-/// Shows the clips where they are; editing them here comes later (#11).
+/// The ruler and every clip are drawn in one canvas (`TimelineCanvas`), with
+/// the gestures over it working out what's under them through
+/// `TimelineLayout`:
+/// - A tap or click selects a clip, or with `selectsMultiple`, Command or
+///   Shift, adds it to the selection or takes it out. Elsewhere it clears
+///   the selection.
+/// - A long press then a drag moves clips, along their tracks and onto
+///   others; on a Mac, a drag does.
+/// - The handles at the ends of selected clips, and of the clip under the
+///   pointer on a Mac, trim them, in the editor's trim style.
+/// - Pinching zooms about where the pinch is.
+/// - With the timeline focused, keys edit: J, K and L shuttle, I and O mark
+///   a range, M adds a marker, B splits, Delete deletes and Shift-Delete
+///   ripple deletes, N turns snapping on and off, and + and - zoom.
+///
+/// Drags snap to the playhead, markers and clip edges, showing a line where
+/// they've snapped.
 struct TimelineView: View {
     @Environment(ProjectEditor.self) private var editor
+    @Environment(\.displayScale) private var displayScale
 
     private let headerWidth = 88.0
-    private let rulerHeight = 24.0
-    private let trackHeight = 52.0
-    /// How far apart, in points, the ruler marks each second.
-    private let pointsPerSecond = 60.0
     /// Room after the last clip, to see that it's the end.
     private let trailingRoom = 120.0
+    /// The lanes' coordinate space, that every gesture's location is in.
+    private static let space = "Timeline.Lanes"
 
     /// The size of the visible part of the lanes.
     @State private var viewport = CGSize.zero
     @State private var scrollPosition = ScrollPosition(edge: .leading)
     /// How far the lanes are scrolled along.
     @State private var scrollOffset = 0.0
+    @State private var drag: TimelineDrag?
+    /// Whether a move or trim gesture is under way. It goes back to false
+    /// however the gesture stops, including when the system cancels it
+    /// without ending it, so the drag never outlives it.
+    @GestureState private var isDragGestureActive = false
+    /// The pinch under way: the zoom it began at, and the time and place in
+    /// the view it's kept over.
+    @State private var pinch: (pointsPerSecond: Double, time: Double, x: Double)?
+    /// The clip under the pointer. Kept rather than the pointer's place, so
+    /// the timeline is only redrawn when the pointer moves onto another clip.
+    @State private var hoveredClip: Clip.ID?
+    @State private var thumbnails: [MediaItem.ID: CGImage] = [:]
+    /// Counts the long presses that picked clips up, for a tap of feedback.
+    @State private var pickUps = 0
+    @FocusState private var isFocused: Bool
 
     var body: some View {
-        let rows = self.rows
+        let layout = TimelineLayout(project: editor.project, pointsPerSecond: editor.timeline.pointsPerSecond)
         ScrollView(.vertical) {
             HStack(alignment: .top, spacing: 0) {
-                VStack(spacing: 0) {
-                    TimecodeLabel()
-                        .padding(.leading, 8)
-                        .frame(width: headerWidth, height: rulerHeight, alignment: .leading)
-                    Divider()
-                    ForEach(rows) { row in
-                        header(row)
-                            .frame(width: headerWidth, height: trackHeight, alignment: .leading)
-                        Divider()
-                    }
-                }
-                // Held to its width: the dividers would otherwise take half
-                // the timeline's.
-                .frame(width: headerWidth)
+                headers(layout)
                 ScrollView(.horizontal) {
-                    lanes(rows)
-                        .frame(width: max(viewport.width, contentWidth), alignment: .topLeading)
-                        .frame(minHeight: viewport.height, alignment: .top)
-                        .overlay(alignment: .topLeading) {
-                            Playhead(pointsPerSecond: pointsPerSecond)
-                        }
+                    lanes(layout)
                 }
                 .scrollPosition($scrollPosition)
+                // A drag that moves clips or trims them doesn't scroll too.
+                .scrollDisabled(drag != nil)
                 .onScrollGeometryChange(for: Double.self) { $0.contentOffset.x } action: { scrollOffset = $1 }
                 .background {
                     PlayheadFollower(
-                        pointsPerSecond: pointsPerSecond, visibleRange: scrollOffset...(scrollOffset + viewport.width),
-                        scrollPosition: $scrollPosition
+                        pointsPerSecond: layout.pointsPerSecond, visibleRange: scrollOffset...(scrollOffset + viewport.width),
+                        isDragging: drag != nil, scrollPosition: $scrollPosition
                     )
                 }
             }
@@ -65,37 +79,50 @@ struct TimelineView: View {
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
             viewport = CGSize(width: max(0, size.width - headerWidth), height: size.height)
         }
+        .simultaneousGesture(pinching)
         .background(.background.secondary)
+        #if os(macOS)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .onKeyPress(phases: .down, action: keyPressed)
+        #else
+        // Focusing a view on iOS brings up the software keyboard, so a
+        // hardware keyboard's keys come as shortcuts instead.
+        .background { shortcuts }
+        #endif
+        .task(id: thumbnailRequests) { await loadThumbnails() }
+        #if os(iOS)
+        .sensoryFeedback(.impact(weight: .medium), trigger: pickUps)
+        .sensoryFeedback(.alignment, trigger: drag?.snap?.point)
+        #endif
     }
 
     /// As wide as the project runs, with room to spare.
-    private var contentWidth: Double {
-        editor.project.duration.seconds * pointsPerSecond + trailingRoom
+    private func contentWidth(_ layout: TimelineLayout) -> Double {
+        max(viewport.width, layout.x(editor.project.duration) + trailingRoom)
     }
 
-    // MARK: - Rows
+    // MARK: - Headers
 
-    /// One of the timeline's rows: a track, or a placeholder for one in a
-    /// project that has none yet.
-    private struct Row: Identifiable {
-        var id: String
-        var kind: Track.Kind
-        var track: Track?
-    }
-
-    /// The project's tracks, top video layer first, then the audio tracks.
-    /// A project without tracks shows an empty video and audio lane.
-    private var rows: [Row] {
-        let tracks = editor.project.tracks
-        guard !tracks.isEmpty else {
-            return [Row(id: "video", kind: .video), Row(id: "audio", kind: .audio)]
+    private func headers(_ layout: TimelineLayout) -> some View {
+        VStack(spacing: 0) {
+            TimecodeLabel()
+                .padding(.leading, 8)
+                .frame(width: headerWidth, height: TimelineLayout.rulerHeight, alignment: .leading)
+            Divider()
+            ForEach(layout.rows) { row in
+                header(row)
+                    .frame(width: headerWidth, height: TimelineLayout.trackHeight - 1, alignment: .leading)
+                Divider()
+            }
         }
-        let video = tracks.filter { $0.kind == .video }.reversed()
-        let audio = tracks.filter { $0.kind == .audio }
-        return (video + audio).map { Row(id: $0.id.uuidString, kind: $0.kind, track: $0) }
+        // Held to its width: the dividers would otherwise take half the
+        // timeline's.
+        .frame(width: headerWidth)
     }
 
-    private func header(_ row: Row) -> some View {
+    private func header(_ row: TimelineLayout.Row) -> some View {
         Group {
             switch row.kind {
             case .video: Label("Timeline.Track.Video", systemImage: "film")
@@ -107,111 +134,364 @@ struct TimelineView: View {
         .padding(.leading, 12)
     }
 
-    private func lanes(_ rows: [Row]) -> some View {
-        VStack(spacing: 0) {
-            ruler
-                .frame(height: rulerHeight)
+    // MARK: - Lanes
+
+    private func lanes(_ layout: TimelineLayout) -> some View {
+        let width = contentWidth(layout)
+        let height = max(layout.height, viewport.height)
+        // The canvas covers the part in sight and as much again either side,
+        // so it's never caught short while it catches up with a scroll.
+        let canvasWidth = min(width, max(viewport.width, 1) * 3)
+        let origin = min(max(0, scrollOffset - viewport.width), width - canvasWidth)
+        return ZStack(alignment: .topLeading) {
+            Color.clear
+                .frame(width: width, height: height)
                 .contentShape(.rect)
-                .gesture(scrubbing)
-            Divider()
-            ForEach(rows) { row in
-                lane(row, isFirst: row.id == rows.first?.id)
-                    .frame(height: trackHeight)
-                Divider()
+                .onTapGesture(coordinateSpace: .named(Self.space)) { tapped(at: $0, layout: layout) }
+                .gesture(moving(layout))
+            TimelineCanvas(
+                layout: layout, origin: origin, media: mediaByID, frames: editor.playback.frames,
+                selected: editor.timeline.selectedClipIDs, hovered: hoveredClipID,
+                markers: editor.project.markers, markedIn: editor.timeline.markedIn, markedOut: editor.timeline.markedOut,
+                snapTime: drag?.snap?.point.time, thumbnails: thumbnails, waveforms: waveforms,
+                showsEmptyMessage: editor.project.tracks.allSatisfy(\.clips.isEmpty), viewportWidth: viewport.width
+            )
+            .frame(width: canvasWidth, height: layout.height)
+            .offset(x: origin)
+            .allowsHitTesting(false)
+            Color.clear
+                .frame(width: width, height: TimelineLayout.rulerHeight)
+                .contentShape(.rect)
+                .gesture(scrubbing(layout))
+            trimHandles(layout, visible: origin...(origin + canvasWidth))
+        }
+        .frame(width: width, height: height, alignment: .topLeading)
+        .overlay(alignment: .topLeading) {
+            Playhead(pointsPerSecond: layout.pointsPerSecond)
+        }
+        .coordinateSpace(.named(Self.space))
+        .onChange(of: isDragGestureActive) { _, isActive in
+            if !isActive { endDrag() }
+        }
+        .onContinuousHover(coordinateSpace: .named(Self.space)) { phase in
+            switch phase {
+            case .active(let location):
+                let id = layout.clip(at: location)?.clip.id
+                if id != hoveredClip { hoveredClip = id }
+            case .ended:
+                if hoveredClip != nil { hoveredClip = nil }
             }
         }
     }
 
-    /// A track's lane: its clips where they sit on the timeline, or a dashed
-    /// outline while it has none, the first saying how to fill it.
-    @ViewBuilder
-    private func lane(_ row: Row, isFirst: Bool) -> some View {
-        if let track = row.track, !track.clips.isEmpty {
-            ZStack(alignment: .leading) {
-                Color.clear
-                ForEach(track.clips) { clip in
-                    block(for: clip, kind: track.kind)
-                }
-            }
-            .padding(.vertical, 6)
-            // A hidden or muted track's clips are left out of playback.
-            .opacity(track.kind == .video && track.isHidden || track.kind == .audio && track.isMuted ? 0.4 : 1)
-        } else {
-            RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                .foregroundStyle(.tertiary)
-                .overlay {
-                    if isFirst && editor.project.tracks.allSatisfy(\.clips.isEmpty) {
-                        Text("Timeline.Empty")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 6)
-                .padding(.trailing, 6)
-                .frame(maxWidth: max(viewport.width, 0), alignment: .leading)
+    private var mediaByID: [MediaItem.ID: MediaItem] {
+        Dictionary(editor.project.media.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// The clip under the pointer, lit up, unless something's being dragged.
+    private var hoveredClipID: Clip.ID? {
+        drag == nil ? hoveredClip : nil
+    }
+
+    // MARK: - Selecting
+
+    private func tapped(at location: CGPoint, layout: TimelineLayout) {
+        focus()
+        let extending = editor.timeline.selectsMultiple || Self.isExtendingSelection
+        if let (clip, _) = layout.clip(at: location) {
+            editor.select(clip.id, extending: extending)
+        } else if !extending {
+            editor.deselectAll()
         }
     }
 
-    private func block(for clip: Clip, kind: Track.Kind) -> some View {
-        let color: Color = kind == .video ? .blue : .green
-        let isSelected = editor.selectedClipIDs.contains(clip.id)
-        return RoundedRectangle(cornerRadius: 5)
-            .fill(color.opacity(0.7))
-            .strokeBorder(isSelected ? Color.primary : color, lineWidth: isSelected ? 2 : 1)
-            .overlay(alignment: .leading) {
-                Text(verbatim: editor.project.mediaItem(id: clip.mediaID)?.name ?? "")
-                    .font(.caption2)
-                    .lineLimit(1)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
+    /// Whether Command or Shift is held, to add a clicked clip to the
+    /// selection rather than select it alone.
+    private static var isExtendingSelection: Bool {
+        #if os(macOS)
+        !NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty
+        #else
+        false
+        #endif
+    }
+
+    // MARK: - Moving
+
+    /// Moves clips: after a long press on iOS, where a plain drag scrolls,
+    /// and straight away on a Mac, which scrolls by trackpad or wheel.
+    private func moving(_ layout: TimelineLayout) -> some Gesture {
+        #if os(macOS)
+        DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.space))
+            .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
+            .onChanged { value in moveChanged(start: value.startLocation, to: value.location, layout: layout) }
+            .onEnded { _ in endDrag() }
+        #else
+        LongPressGesture(minimumDuration: 0.3)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space)))
+            .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
+            .onChanged { value in
+                guard case .second(true, let value?) = value else { return }
+                moveChanged(start: value.startLocation, to: value.location, layout: layout)
             }
-            .clipped()
-            .frame(width: max(2, clip.duration.seconds * pointsPerSecond))
-            // A tap selects the clip, for the inspector to show.
+            .onEnded { _ in endDrag() }
+        #endif
+    }
+
+    private func moveChanged(start: CGPoint, to location: CGPoint, layout: TimelineLayout) {
+        if drag == nil {
+            focus()
+            guard let move = TimelineDrag.move(at: start, layout: layout, editor: editor) else { return }
+            drag = move
+            pickUps += 1
+        }
+        drag?.update(to: location, editor: editor)
+    }
+
+    private func endDrag() {
+        guard drag != nil else { return }
+        drag = nil
+        editor.endGesture()
+    }
+
+    // MARK: - Trimming
+
+    /// The edges that can be taken hold of to trim: those of the selected
+    /// clips in sight, and of the clip under the pointer.
+    private func trimHandles(_ layout: TimelineLayout, visible: ClosedRange<Double>) -> some View {
+        let selected = editor.timeline.selectedClipIDs
+        let hovered = hoveredClipID
+        let clips = layout.clips(in: visible).filter { selected.contains($0.clip.id) || $0.clip.id == hovered }
+        return ForEach(clips, id: \.clip.id) { clip, row in
+            let rect = layout.rect(of: clip, inRow: row)
+            trimHandle(clip.id, edge: .start, rect: rect, layout: layout)
+            trimHandle(clip.id, edge: .end, rect: rect, layout: layout)
+        }
+    }
+
+    #if os(macOS)
+    /// How far a handle's hit area reaches outside the clip, and in.
+    private let handleReach = (outside: 4.0, inside: 6.0)
+    #else
+    private let handleReach = (outside: 14.0, inside: 20.0)
+    #endif
+
+    private func trimHandle(_ id: Clip.ID, edge: ClipEdge, rect: CGRect, layout: TimelineLayout) -> some View {
+        // Never more than a third of the clip inside it, so a short clip
+        // can still be taken hold of in the middle to move.
+        let inside = min(handleReach.inside, rect.width / 3)
+        let width = handleReach.outside + inside
+        let x = edge == .start ? rect.minX - handleReach.outside : rect.maxX - inside
+        return Color.clear
+            .frame(width: width, height: rect.height)
             .contentShape(.rect)
-            .onTapGesture { editor.selectedClipIDs = [clip.id] }
-            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-            .offset(x: clip.timelineStart.seconds * pointsPerSecond)
+            #if os(macOS)
+            .pointerStyle(.frameResize(position: edge == .start ? .leading : .trailing, directions: [.inward, .outward]))
+            #endif
+            .offset(x: x, y: rect.minY)
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
+                    .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
+                    .onChanged { value in
+                        if drag == nil {
+                            focus()
+                            if !editor.timeline.selectedClipIDs.contains(id) { editor.select(id) }
+                            drag = TimelineDrag.trim(id, edge: edge, at: value.startLocation, layout: layout, editor: editor)
+                        }
+                        drag?.update(to: value.location, editor: editor)
+                    }
+                    .onEnded { _ in endDrag() }
+            )
+            .accessibilityHidden(true)
     }
 
-    // MARK: - Ruler
-
-    private var ruler: some View {
-        Canvas { context, size in
-            var ticks = Path()
-            var second = 0
-            var x = 0.0
-            while x <= size.width {
-                ticks.move(to: CGPoint(x: x, y: size.height))
-                ticks.addLine(to: CGPoint(x: x, y: size.height * 0.45))
-                let half = x + pointsPerSecond / 2
-                ticks.move(to: CGPoint(x: half, y: size.height))
-                ticks.addLine(to: CGPoint(x: half, y: size.height * 0.75))
-                let label = Text(verbatim: String(format: "%d:%02d", second / 60, second % 60))
-                    .font(.system(size: 9, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                context.draw(label, at: CGPoint(x: x + 3, y: 2), anchor: .topLeading)
-                second += 1
-                x += pointsPerSecond
-            }
-            context.stroke(ticks, with: .style(.secondary), lineWidth: 0.5)
-        }
-    }
+    // MARK: - Scrubbing
 
     /// Tapping or dragging along the ruler moves the playhead there, onto
     /// the start of the frame under the finger.
-    private var scrubbing: some Gesture {
-        DragGesture(minimumDistance: 0)
+    private func scrubbing(_ layout: TimelineLayout) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
             .onChanged { value in
                 let playback = editor.playback
-                let time = CMTime(seconds: max(0, value.location.x / pointsPerSecond), preferredTimescale: 6000)
+                let time = CMTime(seconds: max(0, layout.seconds(atX: value.location.x)), preferredTimescale: 6000)
                 playback.scrub(to: playback.frames.snapped(time))
             }
             .onEnded { _ in
                 editor.playback.endScrubbing()
             }
     }
+
+    // MARK: - Zooming
+
+    /// Pinching zooms, keeping the time under the pinch where it is.
+    private var pinching: some Gesture {
+        MagnifyGesture(minimumScaleDelta: 0.01)
+            .onChanged { value in
+                let timeline = editor.timeline
+                if pinch == nil {
+                    let x = value.startLocation.x - headerWidth
+                    pinch = (timeline.pointsPerSecond, (scrollOffset + x) / timeline.pointsPerSecond, x)
+                }
+                guard let pinch else { return }
+                timeline.pointsPerSecond = pinch.pointsPerSecond
+                timeline.zoom(by: value.magnification)
+                scrollPosition.scrollTo(x: max(0, pinch.time * timeline.pointsPerSecond - pinch.x))
+            }
+            .onEnded { _ in pinch = nil }
+    }
+
+    /// Zooms by a factor about the playhead, keeping it where it is on
+    /// screen, or in sight if it wasn't.
+    private func zoom(by factor: Double) {
+        let timeline = editor.timeline
+        let time = editor.playback.currentTime.seconds
+        let x = min(max(time * timeline.pointsPerSecond - scrollOffset, 0), viewport.width)
+        timeline.zoom(by: factor)
+        scrollPosition.scrollTo(x: max(0, time * timeline.pointsPerSecond - x))
+    }
+
+    /// Zooms so the whole project fits across.
+    private func zoomToFit() {
+        let duration = editor.project.duration.seconds
+        guard duration > 0, viewport.width > 0 else { return }
+        let timeline = editor.timeline
+        timeline.pointsPerSecond = 1
+        timeline.zoom(by: (viewport.width - trailingRoom / 2) / duration)
+        scrollPosition.scrollTo(x: 0)
+    }
+
+    // MARK: - Keys
+
+    /// Takes the keyboard's keys, on a Mac. On iOS they come as shortcuts,
+    /// whatever has focus.
+    private func focus() {
+        #if os(macOS)
+        isFocused = true
+        #endif
+    }
+
+    #if os(iOS)
+    /// The keys as buttons nobody sees, as `TransportShortcuts` does.
+    private var shortcuts: some View {
+        let keys: [(KeyEquivalent, EventModifiers)] = [
+            ("j", []), ("k", []), ("l", []), ("i", []), ("o", []), ("x", []), ("m", []), ("b", []), ("n", []),
+            ("=", []), ("-", []), ("z", .shift), ("a", .command), (.delete, []), (.delete, .shift), (.escape, []),
+        ]
+        return ZStack {
+            ForEach(keys.indices, id: \.self) { index in
+                let (key, modifiers) = keys[index]
+                Button(String(key.character)) { _ = perform(key, modifiers: modifiers) }
+                    .keyboardShortcut(key, modifiers: modifiers)
+            }
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+    #endif
+
+    private func keyPressed(_ press: KeyPress) -> KeyPress.Result {
+        perform(press.key, modifiers: press.modifiers.subtracting([.capsLock, .numericPad])) ? .handled : .ignored
+    }
+
+    /// Does what a key does, returning whether it did anything.
+    private func perform(_ key: KeyEquivalent, modifiers: EventModifiers) -> Bool {
+        keyAction(key, modifiers: modifiers) == .handled
+    }
+
+    private func keyAction(_ key: KeyEquivalent, modifiers: EventModifiers) -> KeyPress.Result {
+        let playback = editor.playback
+        let timeline = editor.timeline
+        let character = String(key.character).lowercased()
+        if key == .delete || key == .deleteForward {
+            guard editor.canDelete else { return .ignored }
+            editor.deleteSelection(ripple: modifiers.contains(.shift))
+            return .handled
+        }
+        if key == .escape {
+            editor.deselectAll()
+            return .handled
+        }
+        if modifiers == .command, character == "a" {
+            editor.selectAllClips()
+            return .handled
+        }
+        if modifiers == .shift, character == "z" {
+            zoomToFit()
+            return .handled
+        }
+        guard modifiers.isEmpty || modifiers == .shift else { return .ignored }
+        switch character {
+        case "j":
+            // Again and again, faster backwards.
+            playback.shuttle(at: playback.isPlaying && playback.rate < 0 ? max(playback.rate * 2, -8) : -1)
+        case "k":
+            playback.pause()
+        case "l":
+            playback.shuttle(at: playback.isPlaying && playback.rate > 0 ? min(playback.rate * 2, 8) : 1)
+        case "i":
+            editor.markIn()
+        case "o":
+            editor.markOut()
+        case "x":
+            editor.clearMarkedRange()
+        case "m":
+            editor.addMarkerAtPlayhead()
+        case "b":
+            editor.splitAtPlayhead()
+        case "n":
+            timeline.isSnapping.toggle()
+        case "=", "+":
+            zoom(by: 1.5)
+        case "-":
+            zoom(by: 1 / 1.5)
+        default:
+            return .ignored
+        }
+        return .handled
+    }
+
+    // MARK: - Thumbnails and waveforms
+
+    /// The media whose pictures the video clips show, and the size, in
+    /// pixels, to make them.
+    private struct ThumbnailRequests: Equatable {
+        var media: [MediaItem]
+        var height: Double
+    }
+
+    private var thumbnailRequests: ThumbnailRequests {
+        let onVideo = Set(editor.project.tracks.filter { $0.kind == .video }.flatMap(\.clips).map(\.mediaID))
+        let media = editor.project.media.filter { onVideo.contains($0.id) && $0.kind != .audio }
+        return ThumbnailRequests(
+            media: media,
+            height: ((TimelineLayout.trackHeight - TimelineLayout.laneInset * 2) * displayScale).rounded(.up)
+        )
+    }
+
+    /// Makes each picture the clips need that hasn't been made, one at a
+    /// time, through the editor's thumbnail cache.
+    private func loadThumbnails() async {
+        let requests = thumbnailRequests
+        for item in requests.media where thumbnails[item.id] == nil {
+            guard let url = editor.mediaResolver.url(for: item) else { continue }
+            let size = item.metadata.presentationSize
+            let aspect = size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9
+            let pixels = CGSize(width: (requests.height * aspect).rounded(.up), height: requests.height)
+            let image = await editor.thumbnails.thumbnail(for: item, at: url, filling: pixels)
+            guard !Task.isCancelled else { return }
+            if let image { thumbnails[item.id] = image }
+        }
+    }
+
+    /// The sound of each media item, to draw over its clips.
+    ///
+    /// TODO: hook for the waveform cache (#11, being built with the media
+    /// library): hand back its peaks for the project's media with sound,
+    /// loading any it hasn't made the way `loadThumbnails` does. The canvas
+    /// draws whatever's here: over audio clips, and along the bottom of
+    /// video clips whose sound is still attached.
+    private var waveforms: [MediaItem.ID: WaveformPeaks] { [:] }
 }
 
 /// Where the playhead is, as timecode. A view of its own, since it changes
@@ -227,7 +507,7 @@ private struct TimecodeLabel: View {
     }
 }
 
-/// The line across the tracks at the playhead.
+/// The line across the tracks at the playhead, with a grip at the top.
 private struct Playhead: View {
     @Environment(ProjectEditor.self) private var editor
     let pointsPerSecond: Double
@@ -237,29 +517,48 @@ private struct Playhead: View {
             .fill(Color.accentColor)
             .frame(width: 1.5)
             .frame(maxHeight: .infinity)
-            .offset(x: editor.playback.currentTime.seconds * pointsPerSecond)
+            .overlay(alignment: .top) {
+                UnevenRoundedRectangle(cornerRadii: RectangleCornerRadii(bottomLeading: 5, bottomTrailing: 5))
+                    .fill(Color.accentColor)
+                    .frame(width: 11, height: 10)
+            }
+            .offset(x: editor.playback.currentTime.seconds * pointsPerSecond - 0.75)
             .allowsHitTesting(false)
     }
 }
 
-/// Scrolls the lanes along to keep the playhead in sight while playing.
-/// Nothing to see; it only watches the time.
+/// Scrolls the lanes along to keep the playhead in sight: a page at a time
+/// while playing, and straight to it when it's moved out of sight while
+/// paused, such as by Go to End. Nothing to see; it only watches the time.
 private struct PlayheadFollower: View {
     @Environment(ProjectEditor.self) private var editor
     let pointsPerSecond: Double
     let visibleRange: ClosedRange<Double>
+    /// Whether clips are being dragged, which keeps the lanes still.
+    let isDragging: Bool
     @Binding var scrollPosition: ScrollPosition
 
     var body: some View {
         Color.clear
             .onChange(of: editor.playback.currentTime) { _, time in
-                guard editor.playback.isPlaying, visibleRange.upperBound > visibleRange.lowerBound else { return }
+                let playback = editor.playback
+                // Dragged along the ruler, the playhead is under the finger.
+                guard !playback.isScrubbing, !isDragging, visibleRange.upperBound > visibleRange.lowerBound else { return }
                 let x = time.seconds * pointsPerSecond
-                // A page on when it reaches the edge, rather than following
-                // every frame, which would make the clips hard to watch.
-                if x > visibleRange.upperBound - 8 || x < visibleRange.lowerBound {
+                let width = visibleRange.upperBound - visibleRange.lowerBound
+                if playback.isPlaying {
+                    // A page on when it reaches the edge, rather than
+                    // following every frame, which would make the clips hard
+                    // to watch.
+                    let isReversed = playback.rate < 0
+                    if x > visibleRange.upperBound - 8 || x < visibleRange.lowerBound {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            scrollPosition.scrollTo(x: max(0, isReversed ? x - width + 24 : x - 24))
+                        }
+                    }
+                } else if x > visibleRange.upperBound - 4 || x < visibleRange.lowerBound {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        scrollPosition.scrollTo(x: max(0, x - 24))
+                        scrollPosition.scrollTo(x: max(0, x - width / 2))
                     }
                 }
             }

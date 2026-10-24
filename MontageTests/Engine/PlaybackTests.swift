@@ -33,9 +33,17 @@ struct RebuildTests {
         moved.tracks[0].update(clip.id) { $0.timelineStart = seconds(1) }
         #expect(PlaybackController.needsRebuild(from: project, to: moved))
 
-        var faded = project
-        faded.tracks[0].update(clip.id) { $0.opacity = Animatable(0.5) }
-        #expect(PlaybackController.needsRebuild(from: project, to: faded))
+        var restyled = project
+        restyled.tracks[0].update(clip.id) {
+            $0.opacity = Animatable(0.5)
+            $0.transform.scale = Animatable(0.5)
+            $0.blendMode = .screen
+        }
+        #expect(!PlaybackController.needsRebuild(from: project, to: restyled))
+
+        var quieter = project
+        quieter.tracks[0].update(clip.id) { $0.volume = Animatable(0.5) }
+        #expect(PlaybackController.needsRebuild(from: project, to: quieter))
     }
 }
 
@@ -114,6 +122,32 @@ struct PlaybackControllerTests {
         try await waitUntil { controller.player.currentTime() == seconds(2) }
     }
 
+    @Test func shuttlingPlaysFasterOrBackwards() async throws {
+        let controller = PlaybackController(project: project(), mediaResolver: resolver, rebuildDelay: .milliseconds(10))
+        defer { controller.invalidate() }
+        try await waitUntil { controller.composition != nil }
+
+        controller.shuttle(at: 2)
+        #expect(controller.isPlaying)
+        #expect(controller.rate == 2)
+        try await waitUntil { controller.currentTime > seconds(0.5) }
+        controller.shuttle(at: 0)
+        #expect(!controller.isPlaying)
+
+        // Backwards from the start there's nowhere to go.
+        controller.goToStart()
+        controller.shuttle(at: -1)
+        #expect(!controller.isPlaying)
+        controller.seek(to: seconds(1))
+        try await waitUntil { controller.player.currentTime() == seconds(1) }
+        controller.shuttle(at: -1)
+        #expect(controller.isPlaying)
+        try await waitUntil { controller.currentTime < seconds(0.8) }
+        controller.play()
+        #expect(controller.rate == 1)
+        controller.pause()
+    }
+
     @Test func aRebuildKeepsThePlayheadWhereItWas() async throws {
         let controller = PlaybackController(project: project(), mediaResolver: resolver, rebuildDelay: .milliseconds(10))
         defer { controller.invalidate() }
@@ -129,6 +163,56 @@ struct PlaybackControllerTests {
         #expect(controller.duration == seconds(5))
         #expect(controller.currentTime == seconds(3))
         try await waitUntil { controller.player.currentTime() == seconds(3) }
+    }
+
+    @Test func aParameterEditKeepsTheItemAndReachesTheCompositor() async throws {
+        let controller = PlaybackController(project: project(), mediaResolver: resolver, rebuildDelay: .milliseconds(10))
+        defer { controller.invalidate() }
+        try await waitUntil { controller.composition != nil }
+        controller.seek(to: seconds(2))
+        let item = controller.player.currentItem
+
+        var faded = controller.project
+        faded.tracks[0].update(faded.tracks[0].clips[0].id) { $0.opacity = Animatable(0.25) }
+        controller.update(project: faded, mediaResolver: resolver)
+        #expect(!controller.isBuilding)
+        #expect(controller.player.currentItem === item)
+        // The compositor's instructions read the controller's snapshot.
+        let instruction = try #require(controller.composition?.videoComposition?.instructions.first as? CompositorInstruction)
+        #expect(instruction.snapshot === controller.snapshot)
+        #expect(controller.currentTime == seconds(2))
+    }
+
+    @Test func aPausedParameterEditRedrawsTheFrame() async throws {
+        let controller = PlaybackController(project: project(), mediaResolver: resolver, rebuildDelay: .milliseconds(10))
+        defer { controller.invalidate() }
+        try await waitUntil { controller.composition != nil }
+        let item = try #require(controller.player.currentItem)
+        let output = AVPlayerItemVideoOutput(pixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+        item.add(output)
+        try await waitUntil { item.status == .readyToPlay }
+        controller.seek(to: seconds(2))
+        try await waitUntil { output.hasNewPixelBuffer(forItemTime: seconds(2)) }
+        #expect(try #require(centreBrightness(output, at: seconds(2))) > 0.1)
+
+        var faded = controller.project
+        faded.tracks[0].update(faded.tracks[0].clips[0].id) { $0.opacity = Animatable(0) }
+        controller.update(project: faded, mediaResolver: resolver)
+        #expect(controller.player.currentItem === item)
+        try await waitUntil { output.hasNewPixelBuffer(forItemTime: seconds(2)) }
+        #expect(try #require(centreBrightness(output, at: seconds(2))) < 0.02)
+    }
+
+    /// How bright the middle of the frame an output has for a time is.
+    private func centreBrightness(_ output: AVPlayerItemVideoOutput, at time: CMTime) -> Double? {
+        guard let buffer = output.copyPixelBuffer(forItemTime: time, itemTimeForDisplay: nil) else { return nil }
+        CVPixelBufferLockBaseAddress(buffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddress(buffer) else { return nil }
+        let row = CVPixelBufferGetBytesPerRow(buffer)
+        let pixel = base.advanced(by: CVPixelBufferGetHeight(buffer) / 2 * row + CVPixelBufferGetWidth(buffer) / 2 * 4)
+            .assumingMemoryBound(to: UInt8.self)
+        return (Double(pixel[0]) + Double(pixel[1]) + Double(pixel[2])) / (3 * 255)
     }
 
     @Test func editsCloseTogetherRebuildOnce() async throws {

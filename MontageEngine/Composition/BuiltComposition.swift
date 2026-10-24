@@ -122,13 +122,16 @@ public struct SkippedClip: Equatable, Sendable {
         /// Still images need the custom compositor (#8) to be drawn, since an
         /// `AVComposition` can only hold timed media.
         case stillImage
+        /// More video layers would show along the clip than the device can
+        /// decode at once (see `VideoLayerLimit`). Its sound still plays.
+        case tooManyLayers
 
         /// Whether the clip's media itself is missing, rather than the clip
         /// being something the composition can't hold.
         public var isMissingMedia: Bool {
             switch self {
             case .mediaNotInProject, .fileNotFound, .unreadable: true
-            case .noUsableTrack, .outsideMedia, .stillImage: false
+            case .noUsableTrack, .outsideMedia, .stillImage, .tooManyLayers: false
             }
         }
     }

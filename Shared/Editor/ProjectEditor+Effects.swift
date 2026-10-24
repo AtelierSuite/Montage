@@ -42,13 +42,14 @@ extension ProjectEditor {
         _ effectID: Effect.ID, ofClip clipID: Clip.ID, continuously: Bool = false, _ change: (inout Effect) -> Void
     ) {
         if continuously {
-            changeContinuously { $0.updateEffect(effectID, ofClip: clipID, change) }
+            if gestureBaseline == nil { beginGesture(String(localized: "Inspector.Action.ChangeEffect")) }
+            updateGesture { $0.updateEffect(effectID, ofClip: clipID, change) }
         } else {
             perform(String(localized: "Inspector.Action.ChangeEffect")) { $0.updateEffect(effectID, ofClip: clipID, change) }
         }
     }
 
     func endEffectChange() {
-        endContinuousChange(String(localized: "Inspector.Action.ChangeEffect"))
+        endGesture()
     }
 }
