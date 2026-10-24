@@ -116,7 +116,15 @@ capture() {
   xcrun simctl shutdown $udid 2>/dev/null || true
 }
 
+# Each device's run is waited on by itself: a bare `wait` would succeed even
+# when one of them failed.
+pids=()
 for device in ${=DEVICES:-iPhone iPad}; do
   capture $device &
+  pids+=($!)
 done
-wait
+failed=0
+for pid in $pids; do
+  wait $pid || failed=1
+done
+exit $failed
