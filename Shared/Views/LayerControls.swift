@@ -24,7 +24,8 @@ struct LayerControls: View {
                             component: { Double($0.x) }, setComponent: { $0.x = $1 })
             ParameterSlider("Inspector.Layer.Y", position, in: -0.5...1.5, format: ParameterFormat.percent,
                             component: { Double($0.y) }, setComponent: { $0.y = $1 })
-            ParameterSlider("Inspector.Layer.Scale", parameter(\.transform.scale), in: 0...4, format: ParameterFormat.percent)
+            ParameterSlider("Inspector.Layer.Scale", parameter(\.transform.scale), in: ClipTransform.scaleRange.lowerBound...4,
+                            format: ParameterFormat.percent)
             ParameterSlider("Inspector.Layer.Rotation", parameter(\.transform.rotation), in: -180...180,
                             format: ParameterFormat.degrees)
             ParameterSlider("Inspector.Layer.Opacity", parameter(\.opacity), in: 0...1, format: ParameterFormat.percent)
