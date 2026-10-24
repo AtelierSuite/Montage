@@ -345,9 +345,13 @@ public final class PlaybackController {
             forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self else { return }
+                // Only playing reaches the end. Paused, the notice is a late
+                // one, and the playhead is where the last seek put it.
+                guard let self, self.isPlaying else { return }
                 self.isPlaying = false
-                self.currentTime = self.clamped(self.player.currentTime())
+                if self.pendingSeek == nil, self.seekInFlight == nil {
+                    self.currentTime = self.clamped(self.player.currentTime())
+                }
             }
         }
     }
