@@ -51,6 +51,10 @@ struct TimelineView: View {
     /// the timeline is only redrawn when the pointer moves onto another clip.
     @State private var hoveredClip: Clip.ID?
     @State private var thumbnails: [MediaItem.ID: CGImage] = [:]
+    @State private var waveforms: [MediaItem.ID: WaveformPeaks] = [:]
+    /// The media each waveform was read for, so one is read again once its
+    /// item is relinked to another file.
+    @State private var waveformSources: [MediaItem.ID: MediaItem] = [:]
     /// Counts the long presses that picked clips up, for a tap of feedback.
     @State private var pickUps = 0
     @FocusState private var isFocused: Bool
@@ -92,6 +96,7 @@ struct TimelineView: View {
         .background { shortcuts }
         #endif
         .task(id: thumbnailRequests) { await loadThumbnails() }
+        .task(id: waveformRequests) { await loadWaveforms() }
         #if os(iOS)
         .sensoryFeedback(.impact(weight: .medium), trigger: pickUps)
         .sensoryFeedback(.alignment, trigger: drag?.snap?.point)
@@ -484,14 +489,31 @@ struct TimelineView: View {
         }
     }
 
-    /// The sound of each media item, to draw over its clips.
-    ///
-    /// TODO: hook for the waveform cache (#11, being built with the media
-    /// library): hand back its peaks for the project's media with sound,
-    /// loading any it hasn't made the way `loadThumbnails` does. The canvas
-    /// draws whatever's here: over audio clips, and along the bottom of
-    /// video clips whose sound is still attached.
-    private var waveforms: [MediaItem.ID: WaveformPeaks] { [:] }
+    /// The media with sound whose clips show a waveform: those on audio
+    /// tracks, and videos whose sound is still attached.
+    private var waveformRequests: [MediaItem] {
+        var heard = Set<MediaItem.ID>()
+        for track in editor.project.tracks {
+            for clip in track.clips where track.kind == .audio || !clip.isAudioDetached {
+                heard.insert(clip.mediaID)
+            }
+        }
+        return editor.project.media.filter { heard.contains($0.id) && $0.kind != .image && $0.metadata.hasAudio }
+    }
+
+    /// Reads the sound of each media item the clips need that hasn't been
+    /// read, one at a time, through the editor's waveform cache. The canvas
+    /// draws them over audio clips, and along the bottom of video clips
+    /// whose sound is still attached.
+    private func loadWaveforms() async {
+        for item in waveformRequests where waveformSources[item.id] != item {
+            guard let url = editor.mediaResolver.url(for: item) else { continue }
+            let peaks = await editor.waveforms.waveform(for: item, at: url)
+            guard !Task.isCancelled else { return }
+            waveformSources[item.id] = item
+            waveforms[item.id] = peaks
+        }
+    }
 }
 
 /// Where the playhead is, as timecode. A view of its own, since it changes

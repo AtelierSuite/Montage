@@ -2,24 +2,6 @@ import CoreMedia
 import MontageEngine
 import SwiftUI
 
-/// The peaks of a media item's sound, to draw over its clips: the loudest
-/// level, from 0 to 1, in each of a run of equal slices of the media.
-///
-/// The timeline draws whatever it's handed in `TimelineCanvas.waveforms`;
-/// making them is the waveform cache's job, not the timeline's.
-struct WaveformPeaks: Equatable, Sendable {
-    var peaks: [Float]
-    /// How long the media the peaks are spread over runs.
-    var duration: CMTime
-
-    /// The peak at a time in the media.
-    func peak(at time: CMTime) -> Float {
-        guard !peaks.isEmpty, duration.seconds > 0 else { return 0 }
-        let index = Int(time.seconds / duration.seconds * Double(peaks.count))
-        return peaks[min(max(index, 0), peaks.count - 1)]
-    }
-}
-
 /// The ruler and the lanes, with every clip, drawn in one canvas rather than
 /// a view for each, so long projects stay smooth to zoom and scroll. Only a
 /// window of the timeline about the part in sight is drawn: the canvas sits
@@ -185,13 +167,19 @@ struct TimelineCanvas: View {
         let start = max(rect.minX, visible.lowerBound)
         let end = min(rect.maxX, visible.upperBound)
         guard end > start else { return }
+        // A bar for each point in sight, each the loudest of the media it
+        // covers, so nothing is lost however far out the timeline is zoomed.
+        let first = start.rounded(.down)
+        let count = Int((end - first).rounded(.up))
+        let source = CMTimeRange(
+            start: clip.sourceRange.start + CMTime(seconds: layout.seconds(atX: first - rect.minX), preferredTimescale: 6000),
+            duration: CMTime(seconds: layout.seconds(atX: Double(count)), preferredTimescale: 6000)
+        )
         var bars = Path()
-        var x = start.rounded(.down)
-        while x < end {
-            let source = clip.sourceRange.start + CMTime(seconds: layout.seconds(atX: x - rect.minX), preferredTimescale: 6000)
-            let height = Double(peaks.peak(at: source)) * band.height
+        for (index, peak) in peaks.peaks(in: source, count: count).enumerated() {
+            let height = Double(peak) * band.height
+            let x = first + Double(index)
             bars.addRect(CGRect(x: x, y: onPicture ? band.maxY - height : band.midY - height / 2, width: 1, height: max(height, 0.5)))
-            x += 1
         }
         context.fill(bars, with: .color(.white.opacity(onPicture ? 0.6 : 0.75)))
     }
