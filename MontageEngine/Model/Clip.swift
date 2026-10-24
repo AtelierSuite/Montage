@@ -31,6 +31,8 @@ public struct Clip: Identifiable, Equatable, Sendable {
     public var effects: [Effect]
     /// How the picture is fitted into the frame before it's transformed.
     public var fit: FrameFit
+    /// Set while the clip pans and zooms (see `applyKenBurns`).
+    public var kenBurns: KenBurnsMotion?
 
     /// A clip of a media item: a stretch of a video or a sound, or a still.
     public init(
@@ -89,7 +91,7 @@ public struct Clip: Identifiable, Equatable, Sendable {
 extension Clip: Codable {
     private enum CodingKeys: String, CodingKey {
         case id, content, mediaID, sourceRange, timelineStart, volume, opacity, transform, blendMode, isAudioDetached,
-             effects, fit
+             effects, fit, kenBurns
     }
 
     public init(from decoder: Decoder) throws {
@@ -107,6 +109,7 @@ extension Clip: Codable {
         isAudioDetached = try container.decodeIfPresent(Bool.self, forKey: .isAudioDetached) ?? false
         effects = try container.decodeIfPresent([Effect].self, forKey: .effects) ?? []
         fit = try container.decodeIfPresent(FrameFit.self, forKey: .fit) ?? .fit
+        kenBurns = try container.decodeIfPresent(KenBurnsMotion.self, forKey: .kenBurns)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -125,6 +128,7 @@ extension Clip: Codable {
         try container.encode(isAudioDetached, forKey: .isAudioDetached)
         try container.encode(effects, forKey: .effects)
         try container.encode(fit, forKey: .fit)
+        try container.encodeIfPresent(kenBurns, forKey: .kenBurns)
     }
 }
 

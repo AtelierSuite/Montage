@@ -171,16 +171,25 @@ struct LayerContentTests {
         #expect(shape.fill.style == .radialGradient)
     }
 
-    @Test func kenBurnsZoomsAcrossTheWholeClip() {
+    @Test func kenBurnsZoomsAcrossTheWholeClip() throws {
         var clip = Clip(content: .image(UUID()), sourceRange: range(0, 6))
+        // Keyframes set by hand aren't a pan and zoom.
+        let handmade = Animatable(1.0, keyframes: [Keyframe(time: .zero, value: 1), Keyframe(time: s(3), value: 2)])
+        clip.transform.scale = handmade
+        clip.transform.position.set(CGPoint(x: 0.4, y: 0.5), at: .zero)
+        #expect(!clip.hasKenBurns)
+        clip.transform.scale = Animatable(1)
         clip.applyKenBurns(zoom: 1.2)
         #expect(clip.hasKenBurns)
         #expect(clip.transform.scale.value(at: .zero) == 1)
         #expect(abs(clip.transform.scale.value(at: s(6)) - 1.2) < 0.0001)
-        #expect(clip.transform.position.value(at: s(6)) == CGPoint(x: 0.5, y: 0.5))
+        #expect(clip.transform.position.value(at: s(6)) == CGPoint(x: 0.4, y: 0.5))
+        let decoded = try JSONDecoder().decode(Clip.self, from: JSONEncoder().encode(clip))
+        #expect(decoded.hasKenBurns)
         clip.removeKenBurns()
         #expect(!clip.hasKenBurns)
         #expect(clip.transform.scale == Animatable(1))
+        #expect(clip.transform.position == Animatable(CGPoint(x: 0.4, y: 0.5)))
     }
 
     @Test func presetsSetTheStyleAndPlace() throws {

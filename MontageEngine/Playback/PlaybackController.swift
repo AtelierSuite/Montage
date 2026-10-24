@@ -144,6 +144,7 @@ public final class PlaybackController {
                         $0.transform = ClipTransform()
                         $0.blendMode = .normal
                         $0.fit = .fit
+                        $0.kenBurns = nil
                         // How text and shapes look is drawn from the
                         // snapshot too; only what kind of clip it is counts.
                         switch $0.content {
