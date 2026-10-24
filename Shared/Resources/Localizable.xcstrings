@@ -5341,6 +5341,35 @@
         }
       }
     },
+    "Inspector.Keyframes.Count" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ keyframe times"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーフレーム %@ か所"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 个关键帧时间点"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 個關鍵影格時間點"
+          }
+        }
+      }
+    },
     "Inspector.Keyframes.Curve.X1" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10586,6 +10615,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "從資料庫加入媒體以開始編輯。"
+          }
+        }
+      }
+    },
+    "Timeline.Keyframe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyframe"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーフレーム"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关键帧"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關鍵影格"
           }
         }
       }

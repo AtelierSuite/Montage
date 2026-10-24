@@ -15,10 +15,23 @@ struct KeyframeControls: View {
             HStack {
                 Button("Inspector.Keyframes.Previous", systemImage: "chevron.left") { editor.goToPreviousKeyframe() }
                     .disabled(editor.previousKeyframeTime == nil)
+                    .help(Text("Inspector.Keyframes.Previous"))
+                Spacer()
+                Text(verbatim: "\(clip.keyframeTimes.count)")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(Text(verbatim: String(
+                        format: String(localized: "Inspector.Keyframes.Count"), clip.keyframeTimes.count.formatted()
+                    )))
+                Image(systemName: "diamond")
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Spacer()
                 Button("Inspector.Keyframes.Next", systemImage: "chevron.right") { editor.goToNextKeyframe() }
                     .disabled(editor.nextKeyframeTime == nil)
+                    .help(Text("Inspector.Keyframes.Next"))
             }
+            .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             if let time {
                 EasingPicker(interpolation: clip.keyframeInterpolation(at: time)) { interpolation, continuously in
