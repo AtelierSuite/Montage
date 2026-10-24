@@ -67,6 +67,17 @@
         }
       }
     },
+    "Editor.Divider" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview Size"
+          }
+        }
+      }
+    },
     "Export.Action" : {
       "extractionState" : "manual",
       "localizations" : {
