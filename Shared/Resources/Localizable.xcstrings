@@ -78,6 +78,17 @@
         }
       }
     },
+    "Export.Background.Subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exporting from Montage"
+          }
+        }
+      }
+    },
     "Export.Cancel" : {
       "extractionState" : "manual",
       "localizations" : {
