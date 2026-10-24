@@ -25,6 +25,8 @@ public final class PackageMediaStore: Sendable {
     private let state: Mutex<State>
     /// Where imported files wait to be saved into the package.
     public let stagingDirectory: URL
+    /// Media left where it was, on the Mac, rather than copied in.
+    public let bookmarks = MediaBookmarks()
 
     public init(packageURL: URL? = nil) {
         state = Mutex(State(packageURL: packageURL))
@@ -43,12 +45,13 @@ public final class PackageMediaStore: Sendable {
     }
 
     /// Finds the files behind the project's media: in the package if they're
-    /// there, or where they were staged if they haven't been saved yet.
+    /// there, or where they were staged if they haven't been saved yet, and
+    /// through its bookmark for media left where it was.
     public var resolver: MediaResolver {
         MediaResolver { [self] item in
             switch item.location {
             case .package(let path): url(forPackagePath: path)
-            case .bookmark: nil
+            case .bookmark(let data): bookmarks.url(for: data)
             }
         }
     }
