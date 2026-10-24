@@ -180,6 +180,17 @@ struct VideoEffectsTests {
         #expect(Pixels.display(output, at: CGPoint(x: 10, y: 10)).red < 0.01)
     }
 
+    @Test func aFlatShapeCoversNothing() {
+        let image = Pixels.solid(display: 1)
+        for shape in [Mask.Shape.rectangle, .ellipse] {
+            let flat = Mask(shape, size: CGSize(width: 0, height: 0.5))
+            #expect(Pixels.display(apply(darken, to: image, mask: flat), at: Pixels.middle).red > 0.99, "\(shape)")
+            var inverted = flat
+            inverted.isInverted = true
+            #expect(Pixels.display(apply(darken, to: image, mask: inverted), at: Pixels.middle).red < 0.01, "\(shape)")
+        }
+    }
+
     @Test func anEllipseMaskLeavesTheBoxsCorners() {
         let image = Pixels.solid(display: 1)
         let output = apply(darken, to: image, mask: Mask(.ellipse))

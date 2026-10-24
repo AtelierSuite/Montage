@@ -58,8 +58,10 @@ extension Mask {
     /// wide as the ellipse's longer side, and only ever squeezed to shape, so
     /// it's never stretched blurry.
     private static func ellipse(width: Double, height: Double, featherWidth: Double) -> CIImage {
+        // Squeezed flat, the gradient would be an empty image rather than
+        // a black one, and an inverted mask would hide the effect.
+        guard width > 0, height > 0 else { return CIImage(color: .black) }
         let radius = max(width, height) / 2
-        guard radius > 0 else { return CIImage(color: .black) }
         // The soft edge is measured across the shorter side, where the
         // squeeze leaves it at the width asked for.
         let shorter = max(min(width, height) / 2, 1)
