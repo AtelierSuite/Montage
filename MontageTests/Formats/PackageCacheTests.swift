@@ -59,6 +59,24 @@ struct PackageCacheTests {
         #expect(await reopened.waveform(for: id) == nil)
     }
 
+    @Test func keepsCopiesOfMediaInThePackagesCache() throws {
+        let package = try makePackage()
+        defer { try? FileManager.default.removeItem(at: package) }
+        let cache = PackageCache(packageURL: package)
+        let id = UUID()
+        let folder = ProjectPackage.cacheDirectory(inPackageAt: package)
+        let stereo = try #require(cache.url(for: id, .stereoAudio))
+        #expect(stereo.standardizedFileURL == folder.appending(path: "Stereo/\(id).m4a").standardizedFileURL)
+        #expect(cache.existingURL(for: id, .stereoAudio) == nil)
+
+        try FileManager.default.createDirectory(at: stereo.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("m4a".utf8).write(to: stereo)
+        #expect(cache.existingURL(for: id, .stereoAudio) != nil)
+        cache.removeCache(for: id)
+        #expect(cache.existingURL(for: id, .stereoAudio) == nil)
+        #expect(PackageCache().url(for: id, .stereoAudio) == nil)
+    }
+
     @Test func keepsNothingBeforeThePackageIsSaved() async throws {
         let cache = PackageCache()
         let id = UUID()

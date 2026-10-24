@@ -18,7 +18,10 @@ import AVFoundation
 ///
 /// Gain and pan are worked out here, ramped across each buffer so a moving
 /// value doesn't click; the rest are Apple's Audio Units (see
-/// `AudioUnitHost`). Pan needs two channels: a mono track is left as it is.
+/// `AudioUnitHost`). Pan needs two channels, so a tap on mono media's own
+/// track leaves it as it is; the composition plays a stereo copy of mono
+/// media instead where there is one (see `DerivedMedia.stereoAudio`), which
+/// pan places as the one sound it is.
 ///
 /// Everything here is touched only by the tap's callbacks, which never run at
 /// the same time, hence the unchecked `Sendable`.
@@ -37,8 +40,15 @@ final class AudioEffectsProcessor: AudioTapProcessor, @unchecked Sendable {
         fileprivate let slots: [Slot]
         /// Where the peaks of its sound, after the effects, are noted.
         let meter: AudioMeter
+        /// Whether its media is mono, so two channels are the same sound,
+        /// to be panned as one rather than as a stereo picture.
+        let isMono: Bool
 
-        init(clipID: Clip.ID, clipStart: Double, start: Double, end: Double, tailEnd: Double, layout: AudioEffectLayout, meter: AudioMeter) {
+        init(
+            clipID: Clip.ID, clipStart: Double, start: Double, end: Double, tailEnd: Double, layout: AudioEffectLayout,
+            meter: AudioMeter, isMono: Bool = false
+        ) {
+            self.isMono = isMono
             self.clipID = clipID
             self.clipStart = clipStart
             self.start = start
@@ -111,7 +121,8 @@ final class AudioEffectsProcessor: AudioTapProcessor, @unchecked Sendable {
             sections.append(Section(
                 clipID: clip.id, clipStart: clip.timelineStart.seconds,
                 start: segment.timelineRange.start.seconds, end: segment.timelineRange.end.seconds, tailEnd: tailEnd.seconds,
-                layout: clip.audioEffectLayout, meter: meter
+                layout: clip.audioEffectLayout, meter: meter,
+                isMono: project.mediaItem(id: clip.mediaID)?.metadata.audioChannelCount == 1
             ))
         }
         guard !sections.isEmpty else { return nil }
@@ -275,7 +286,7 @@ final class AudioEffectsProcessor: AudioTapProcessor, @unchecked Sendable {
             case .gain:
                 applyGain(slot, to: buffers, frameCount: frameCount)
             case .pan:
-                applyPan(slot, to: buffers, frameCount: frameCount)
+                applyPan(slot, to: buffers, frameCount: frameCount, isMono: section.isMono)
             case .equalizer, .delay, .reverb:
                 slot.unit?.render(buffers, frameCount: frameCount)
             }
@@ -301,7 +312,12 @@ final class AudioEffectsProcessor: AudioTapProcessor, @unchecked Sendable {
     /// position with equal-power panning: centred, left stays left and right
     /// stays right; turned towards one side, the other side's channel moves
     /// across until, fully over, both play from that side.
-    private func applyPan(_ slot: Slot, to buffers: UnsafeMutableAudioBufferListPointer, frameCount: Int) {
+    ///
+    /// Mono media's sound, the same on both sides, is placed as one sound
+    /// instead, as loud wherever it goes: centred it's as it was, and fully
+    /// over it plays from that side alone, louder by the half it no longer
+    /// sends to the other.
+    private func applyPan(_ slot: Slot, to buffers: UnsafeMutableAudioBufferListPointer, frameCount: Int, isMono: Bool) {
         guard buffers.count == 2 else { return }
         let from = slot.current ?? slot.target
         let to = slot.target
@@ -309,6 +325,15 @@ final class AudioEffectsProcessor: AudioTapProcessor, @unchecked Sendable {
         let left = buffers[0].mData!.assumingMemoryBound(to: Float.self)
         let right = buffers[1].mData!.assumingMemoryBound(to: Float.self)
         let step = (to - from) / Float(frameCount)
+        if isMono {
+            for index in 0..<frameCount {
+                let (toLeft, toRight) = Self.equalPower(from + step * Float(index))
+                let sound = (left[index] + right[index]) / 2
+                left[index] = sound * toLeft * Float(2).squareRoot()
+                right[index] = sound * toRight * Float(2).squareRoot()
+            }
+            return
+        }
         for index in 0..<frameCount {
             let pan = from + step * Float(index)
             let leftPosition = pan > 0 ? 2 * pan - 1 : -1

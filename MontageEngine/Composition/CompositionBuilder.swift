@@ -359,9 +359,10 @@ private struct SourceTrack {
 }
 
 private struct LoadedMedia {
-    /// Kept for as long as its tracks are used: a track only holds on to its
-    /// asset weakly, and can't be inserted once the asset is gone.
-    let asset: AVURLAsset
+    /// Kept for as long as their tracks are used: a track only holds on to
+    /// its asset weakly, and can't be inserted once the asset is gone. The
+    /// media's own, and any copy made from it played in its place.
+    let assets: [AVURLAsset]
     let video: SourceTrack?
     let audio: SourceTrack?
 }
@@ -403,10 +404,29 @@ private struct MediaLoader {
                 break
             }
             guard video != nil || audio != nil else { return .failure(LoadFailure(reason: .unreadable)) }
-            return .success(LoadedMedia(asset: asset, video: try await source(video), audio: try await source(audio)))
+            var assets = [asset]
+            // Mono sound plays from a stereo copy where there is one, so it
+            // can be panned.
+            if audio != nil, DerivedMedia.stereoAudio.applies(to: item),
+               let stereo = await derivedTrack(.stereoAudio, of: item, mediaType: .audio, resolver: resolver) {
+                assets.append(stereo.asset)
+                audio = stereo.track
+            }
+            return .success(LoadedMedia(assets: assets, video: try await source(video), audio: try await source(audio)))
         } catch {
             return .failure(LoadFailure(reason: .unreadable))
         }
+    }
+
+    /// The first track of a kind in a copy made from an item's media, if
+    /// one's been made and can be read.
+    private static func derivedTrack(
+        _ kind: DerivedMedia, of item: MediaItem, mediaType: AVMediaType, resolver: MediaResolver
+    ) async -> (asset: AVURLAsset, track: AVAssetTrack)? {
+        guard let url = resolver.url(for: item, kind), (try? url.checkResourceIsReachable()) == true else { return nil }
+        let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+        guard let track = try? await asset.loadTracks(withMediaType: mediaType).first else { return nil }
+        return (asset, track)
     }
 
     private static func source(_ track: AVAssetTrack?) async throws -> SourceTrack? {

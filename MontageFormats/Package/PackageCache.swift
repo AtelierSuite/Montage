@@ -11,7 +11,8 @@ import UniformTypeIdentifiers
 ///     Cache/
 ///     ├── Thumbnails/<media ID>/220x124.jpg          the library's pictures
 ///     ├── Thumbnails/<media ID>/h60/2000.jpg         timeline frames, by height, then milliseconds
-///     └── Waveforms/<media ID>.peaks                 `WaveformPeaks.encoded()`
+///     ├── Waveforms/<media ID>.peaks                 `WaveformPeaks.encoded()`
+///     └── Stereo/<media ID>.m4a                      mono media's sound on both channels
 ///
 /// Files are written straight into the package on disk as they're made,
 /// between saves, and `ProjectPackage` keeps the folder whenever it writes
@@ -19,7 +20,7 @@ import UniformTypeIdentifiers
 /// time, and whatever's missing is made again from the media when it's next
 /// asked for. Until the project is first saved there's nowhere to keep
 /// anything, and the caches in memory are all there is.
-public final class PackageCache: MediaCacheStore, Sendable {
+public final class PackageCache: MediaCacheStore, DerivedMediaStore, Sendable {
     static let thumbnailsDirectoryName = "Thumbnails"
     static let waveformsDirectoryName = "Waveforms"
 
@@ -99,6 +100,16 @@ public final class PackageCache: MediaCacheStore, Sendable {
             .appending(path: "\(mediaID.uuidString).peaks", directoryHint: .notDirectory)
     }
 
+    // MARK: - Copies of media
+
+    public func url(for mediaID: MediaItem.ID, _ kind: DerivedMedia) -> URL? {
+        let (folder, pathExtension) = switch kind {
+        case .stereoAudio: ("Stereo", "m4a")
+        }
+        return cacheDirectory?.appending(path: folder, directoryHint: .isDirectory)
+            .appending(path: "\(mediaID.uuidString).\(pathExtension)", directoryHint: .notDirectory)
+    }
+
     // MARK: - Clearing
 
     /// Throws away everything made from a media item, such as when it's
@@ -106,6 +117,9 @@ public final class PackageCache: MediaCacheStore, Sendable {
     public func removeCache(for mediaID: MediaItem.ID) {
         if let folder = thumbnailsDirectory(for: mediaID) { try? FileManager.default.removeItem(at: folder) }
         if let url = waveformURL(for: mediaID) { try? FileManager.default.removeItem(at: url) }
+        for kind in DerivedMedia.allCases {
+            if let url = url(for: mediaID, kind) { try? FileManager.default.removeItem(at: url) }
+        }
     }
 
     /// Writes a file of the cache, making its folder if need be. A write
