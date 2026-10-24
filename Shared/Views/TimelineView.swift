@@ -40,6 +40,10 @@ struct TimelineView: View {
     /// How far the lanes are scrolled along.
     @State private var scrollOffset = 0.0
     @State private var drag: TimelineDrag?
+    /// Whether a move or trim gesture is under way. It goes back to false
+    /// however the gesture stops, including when the system cancels it
+    /// without ending it, so the drag never outlives it.
+    @GestureState private var isDragGestureActive = false
     /// The pinch under way: the zoom it began at, and the time and place in
     /// the view it's kept over.
     @State private var pinch: (pointsPerSecond: Double, time: Double, x: Double)?
@@ -164,6 +168,9 @@ struct TimelineView: View {
             Playhead(pointsPerSecond: layout.pointsPerSecond)
         }
         .coordinateSpace(.named(Self.space))
+        .onChange(of: isDragGestureActive) { _, isActive in
+            if !isActive { endDrag() }
+        }
         .onContinuousHover(coordinateSpace: .named(Self.space)) { phase in
             switch phase {
             case .active(let location): hoverLocation = location
@@ -211,11 +218,13 @@ struct TimelineView: View {
     private func moving(_ layout: TimelineLayout) -> some Gesture {
         #if os(macOS)
         DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.space))
+            .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
             .onChanged { value in moveChanged(start: value.startLocation, to: value.location, layout: layout) }
             .onEnded { _ in endDrag() }
         #else
         LongPressGesture(minimumDuration: 0.3)
             .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space)))
+            .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
             .onChanged { value in
                 guard case .second(true, let value?) = value else { return }
                 moveChanged(start: value.startLocation, to: value.location, layout: layout)
@@ -277,6 +286,7 @@ struct TimelineView: View {
             .offset(x: x, y: rect.minY)
             .gesture(
                 DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
+                    .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
                     .onChanged { value in
                         if drag == nil {
                             focus()
