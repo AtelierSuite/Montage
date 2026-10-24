@@ -59,6 +59,9 @@ enum MainMenu {
         menu.addItem(item(String(localized: "Mac.Menu.Rename"), #selector(NSDocument.rename(_:))))
         menu.addItem(item(String(localized: "Mac.Menu.MoveTo"), #selector(NSDocument.move(_:))))
         menu.addItem(item(String(localized: "Mac.Menu.RevertTo"), #selector(NSDocument.revertToSaved(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item(String(localized: "Mac.Menu.Import"), #selector(ProjectWindowController.importMedia(_:)),
+                          "i", [.command, .shift]))
         return menu
     }
 

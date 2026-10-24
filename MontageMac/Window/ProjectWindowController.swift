@@ -61,6 +61,23 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         return controller
     }
 
+    // MARK: - Importing
+
+    /// File > Import, and the library's Import button: chooses files to
+    /// copy into the project.
+    @objc func importMedia(_ sender: Any?) {
+        guard let window else { return }
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = MediaImporter.importableTypes
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.prompt = String(localized: "Library.Import")
+        panel.beginSheetModal(for: window) { [importer] response in
+            guard response == .OK else { return }
+            MainActor.assumeIsolated { importer.importFiles(panel.urls) }
+        }
+    }
+
     // MARK: - Toolbar
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {

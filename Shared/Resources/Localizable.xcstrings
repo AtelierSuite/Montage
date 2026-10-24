@@ -408,6 +408,17 @@
         }
       }
     },
+    "Mac.Menu.Import" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Media…"
+          }
+        }
+      }
+    },
     "Mac.Menu.Minimize" : {
       "extractionState" : "manual",
       "localizations" : {
