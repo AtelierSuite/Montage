@@ -14,6 +14,7 @@ struct ProjectEditorView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.undoManager) private var undoManager
     @State private var editor: ProjectEditor
+    @State private var importer: MediaImporter
     @State private var history = ProjectHistory()
     @State private var isShowingLibrary = false
     @State private var isShowingInspector = false
@@ -26,12 +27,15 @@ struct ProjectEditorView: View {
         self.fileURL = fileURL
         let media = document.wrappedValue.media
         media.packageURL = fileURL
-        _editor = State(initialValue: ProjectEditor(project: document.wrappedValue.project, mediaResolver: media.resolver))
+        let editor = ProjectEditor(project: document.wrappedValue.project, mediaResolver: media.resolver)
+        _editor = State(initialValue: editor)
+        _importer = State(initialValue: MediaImporter(store: media, editor: editor))
     }
 
     var body: some View {
         layout
             .environment(editor)
+            .environment(importer)
             .onAppear {
                 attach(to: undoManager)
                 // Every edit goes back into the document, which marks it
@@ -57,6 +61,7 @@ struct ProjectEditorView: View {
         }
         document.media.packageURL = url
         editor.mediaResolver = document.media.resolver
+        importer.store = document.media
     }
 
     private func attach(to undoManager: UndoManager?) {

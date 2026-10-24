@@ -11,6 +11,8 @@ final class ProjectDocument: NSDocument {
     /// The media imported into the project but not saved yet, and where the
     /// package is, so the editor finds media before and after it's saved.
     let media = PackageMediaStore()
+    /// Brings files into the project, staged in `media` until it's saved.
+    private(set) lazy var importer = MediaImporter(store: media, editor: editor)
 
     override init() {
         super.init()
@@ -27,7 +29,7 @@ final class ProjectDocument: NSDocument {
     override class var autosavesInPlace: Bool { true }
 
     override func makeWindowControllers() {
-        addWindowController(ProjectWindowController(editor: editor))
+        addWindowController(ProjectWindowController(editor: editor, importer: importer))
     }
 
     // MARK: - Reading and writing

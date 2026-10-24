@@ -10,9 +10,11 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     private static let exportItem = NSToolbarItem.Identifier("Export")
 
     private let editor: ProjectEditor
+    private let importer: MediaImporter
 
-    init(editor: ProjectEditor) {
+    init(editor: ProjectEditor, importer: MediaImporter) {
         self.editor = editor
+        self.importer = importer
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -54,7 +56,7 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     /// A SwiftUI view as a pane of the window, sized by the split view
     /// rather than sizing the window to itself.
     private func hosting(_ view: some View) -> NSViewController {
-        let controller = NSHostingController(rootView: view.environment(editor))
+        let controller = NSHostingController(rootView: view.environment(editor).environment(importer))
         controller.sizingOptions = []
         return controller
     }
