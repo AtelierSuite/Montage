@@ -320,6 +320,6 @@ private struct VolumeSlider: View {
                 }
             },
             endChange: { editor.endGesture() }
-        ), in: 0...2, format: ParameterFormat.percent)
+        ), in: 0...1, format: ParameterFormat.percent)
     }
 }
