@@ -59,8 +59,9 @@ extension ProjectEditor {
     /// Moves a clip's keyframes at one time to another, as a drag goes; the
     /// drag is one undo step, ended by `endGesture`.
     func moveKeyframes(ofClip clipID: Clip.ID, from time: CMTime, to newTime: CMTime) {
+        let frameDuration = project.settings.frameDuration
         changeClip(clipID, String(localized: "Action.MoveKeyframe"), continuously: true) {
-            $0.moveKeyframes(from: time, to: newTime)
+            $0.moveKeyframes(from: time, to: newTime, frameDuration: frameDuration)
         }
     }
 }

@@ -5,6 +5,8 @@ import Foundation
 import Testing
 
 struct KeyframeEditingTests {
+    private let frame = CMTime(value: 20, timescale: 600)
+
     private func s(_ seconds: Double) -> CMTime {
         CMTime(seconds: seconds, preferredTimescale: 600)
     }
@@ -48,7 +50,7 @@ struct KeyframeEditingTests {
 
     @Test func retimesKeyframesOfEveryParameterAtATime() {
         var clip = clip()
-        clip.moveKeyframes(from: s(3), to: s(4))
+        clip.moveKeyframes(from: s(3), to: s(4), frameDuration: frame)
         #expect(clip.keyframeTimes == [s(1), s(4), s(6)])
         #expect(clip.opacity.keyframes.map(\.time) == [s(1), s(4)])
         #expect(clip.opacity.keyframes[1].interpolation == .easeIn)
@@ -57,22 +59,24 @@ struct KeyframeEditingTests {
 
     @Test func retimingKeepsKeyframesWithinTheClip() {
         var clip = clip()
-        clip.moveKeyframes(from: s(6), to: s(20))
+        clip.moveKeyframes(from: s(6), to: s(20), frameDuration: frame)
         #expect(clip.keyframeTimes.last == s(10))
-        clip.moveKeyframes(from: s(1), to: s(-2))
+        clip.moveKeyframes(from: s(1), to: s(-2), frameDuration: frame)
         #expect(clip.keyframeTimes.first == .zero)
     }
 
-    @Test func retimingOntoAnotherKeyframeReplacesIt() {
+    @Test func retimingStopsAFrameShortOfTheNextKeyframe() {
         var clip = clip()
-        clip.moveKeyframes(from: s(1), to: s(3))
-        #expect(clip.opacity.keyframes.count == 1)
+        clip.moveKeyframes(from: s(1), to: s(5), frameDuration: frame)
+        #expect(clip.opacity.keyframes.map(\.time) == [s(3) - frame, s(3)])
         #expect(clip.opacity.keyframes[0].value == 0)
+        clip.moveKeyframes(from: s(6), to: s(2), frameDuration: frame)
+        #expect(clip.keyframeTimes == [s(3) - frame, s(3), s(3) + frame])
     }
 
     @Test func retimingChangesWhenValuesAreReached() {
         var clip = clip()
-        clip.moveKeyframes(from: s(3), to: s(5))
+        clip.moveKeyframes(from: s(3), to: s(5), frameDuration: frame)
         // Linear from 0 at 1 s to 1 at 5 s.
         #expect(abs(clip.opacity.value(at: s(3)) - 0.5) < 1e-9)
     }
@@ -122,7 +126,7 @@ struct KeyframeEditingTests {
         equalizer.bands[2].gain = Animatable(0, keyframes: [Keyframe(time: s(2), value: 6)])
         clip.effects = [Effect(.equalizer(equalizer))]
         #expect(clip.keyframeTimes == [s(2)])
-        clip.moveKeyframes(from: s(2), to: s(7))
+        clip.moveKeyframes(from: s(2), to: s(7), frameDuration: frame)
         guard case .equalizer(let moved) = clip.effects[0].kind else {
             Issue.record("The effect changed kind")
             return

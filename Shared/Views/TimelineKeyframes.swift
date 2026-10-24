@@ -92,7 +92,8 @@ struct TimelineKeyframes: View {
             .updating($isDragging) { _, isDragging, _ in isDragging = true }
             .onChanged { value in
                 let offset = editor.playback.frames.rounded(seconds: layout.seconds(atX: value.translation.width))
-                let target = min(max(time + offset, .zero), clip.duration)
+                let range = clip.keyframeRetimeRange(from: time, frameDuration: editor.project.settings.frameDuration)
+                let target = min(max(time + offset, range.lowerBound), range.upperBound)
                 drag = (clip.id, index, time, target)
                 editor.moveKeyframes(ofClip: clip.id, from: time, to: target)
             }

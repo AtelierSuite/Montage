@@ -69,11 +69,21 @@ extension Clip {
     }
 
     /// Moves every parameter's keyframe at one time to another, kept within
-    /// the clip. A parameter with a keyframe at the new time already has it
-    /// replaced.
-    public mutating func moveKeyframes(from time: CMTime, to newTime: CMTime) {
-        var mover = KeyframeMover(from: time, to: min(max(newTime, .zero), duration))
+    /// `keyframeRetimeRange`, so it never lands on another keyframe time and
+    /// takes its place.
+    public mutating func moveKeyframes(from time: CMTime, to newTime: CMTime, frameDuration: CMTime) {
+        let range = keyframeRetimeRange(from: time, frameDuration: frameDuration)
+        var mover = KeyframeMover(from: time, to: min(max(newTime, range.lowerBound), range.upperBound))
         visitParameters(&mover)
+    }
+
+    /// Where the keyframes at a time can be moved to: from a frame after the
+    /// keyframe time before them, or the clip's start, to a frame before
+    /// the one after them, or the clip's end.
+    public func keyframeRetimeRange(from time: CMTime, frameDuration: CMTime) -> ClosedRange<CMTime> {
+        let lower = keyframeTime(before: time).map { $0 + frameDuration } ?? .zero
+        let upper = keyframeTime(after: time).map { $0 - frameDuration } ?? duration
+        return upper >= lower ? lower...upper : time...time
     }
 
     /// How the keyframes at a time travel on: the way they all share, or nil
