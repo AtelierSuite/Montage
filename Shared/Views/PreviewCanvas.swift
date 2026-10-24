@@ -81,7 +81,7 @@ struct PreviewCanvas: View {
                         maskHandles(clip: clip, effect: effect, placement: MaskPlacement(mask, in: layer, at: clipTime(clip)),
                                     mapping: mapping)
                     } else {
-                        transformHandles(clip: clip, layer: layer, mapping: mapping)
+                        transformHandles(clip: clip, layer: layer, mapping: mapping, in: geometry.size)
                     }
                 }
             }
@@ -117,11 +117,16 @@ struct PreviewCanvas: View {
     // MARK: - The layer's handles
 
     @ViewBuilder
-    private func transformHandles(clip: Clip, layer: LayerPlacement, mapping: PreviewMapping) -> some View {
+    private func transformHandles(clip: Clip, layer: LayerPlacement, mapping: PreviewMapping, in size: CGSize) -> some View {
         let corners = layer.corners.map(mapping.viewPoint(fromRender:))
         let outline = Path { path in path.addLines(corners); path.closeSubpath() }
         let top = midpoint(corners[0], corners[1])
-        let rotateHandle = offset(top, awayFrom: mapping.viewPoint(fromRender: layer.center), by: rotateReach)
+        let center = mapping.viewPoint(fromRender: layer.center)
+        // Off the top edge, or inside it where that would be out of sight,
+        // as for a layer that fills the frame.
+        let outside = offset(top, awayFrom: center, by: rotateReach)
+        let bounds = CGRect(origin: .zero, size: size).insetBy(dx: handleSize, dy: handleSize)
+        let rotateHandle = bounds.contains(outside) ? outside : offset(top, awayFrom: center, by: -rotateReach)
 
         outline
             .fill(.clear)
