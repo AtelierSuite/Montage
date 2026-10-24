@@ -100,7 +100,8 @@ final class VideoCompositor: NSObject, AVVideoCompositing {
                 guard let source = request.sourceFrame(byTrackID: trackID) else { return nil }
                 return FrameComposer.Layer(image: CIImage(cvPixelBuffer: source), layer: layer, clip: clip)
             case .still(let still):
-                return FrameComposer.Layer(image: still.image, layer: layer, clip: clip)
+                guard let image = still.picture(for: renderSize) else { return nil }
+                return FrameComposer.Layer(image: image, layer: layer, clip: clip)
             case .drawn:
                 let clipTime = layer.clip.localTime(time)
                 let scale = LayerArtwork.drawingScale(

@@ -18,6 +18,11 @@ struct ProjectEditorView: View {
     @State private var importer: MediaImporter
     @State private var history = ProjectHistory()
     @State private var isShowingLibrary = false
+    /// How far the library's sheet is pulled up, on an iPhone.
+    @State private var libraryDetent = PresentationDetent.medium
+    /// Where the library's sheet was before a drag out of it pulled it down,
+    /// to go back to once the drag's put down.
+    @State private var libraryDetentBeforeDrag: PresentationDetent?
     @State private var isShowingInspector = false
     @State private var isShowingFullscreen = false
     /// Whether the preview floats over the editor, picture in picture,
@@ -109,8 +114,12 @@ struct ProjectEditorView: View {
                             .navigationTitle("Library.Title")
                             .navigationBarTitleDisplayMode(.inline)
                     }
-                    .presentationDetents([.medium, .large])
+                    .presentationDetents([Self.minimizedLibrary, .medium, .large], selection: $libraryDetent)
+                    // Pulled down, the timeline above it can be used, and
+                    // takes the media dragged out of it.
+                    .presentationBackgroundInteraction(.enabled(upThrough: Self.minimizedLibrary))
                 }
+                .onChange(of: editor.timeline.isDraggingMedia) { _, isDragging in minimizeLibrary(isDragging) }
         } else {
             NavigationSplitView(columnVisibility: $sidebarVisibility) {
                 LibraryView()
@@ -209,6 +218,24 @@ struct ProjectEditorView: View {
     private var previewAspectRatio: Double {
         let size = editor.project.settings.renderSize
         return size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9
+    }
+
+    /// The library's sheet pulled down to its bar, out of the timeline's way.
+    private static let minimizedLibrary = PresentationDetent.height(120)
+
+    /// Pulls the library's sheet down while media is dragged out of it, so
+    /// the timeline it's going to is in sight, and back up once it's put down.
+    private func minimizeLibrary(_ isDragging: Bool) {
+        withAnimation(.snappy) {
+            if isDragging {
+                guard libraryDetent != Self.minimizedLibrary else { return }
+                libraryDetentBeforeDrag = libraryDetent
+                libraryDetent = Self.minimizedLibrary
+            } else if let detent = libraryDetentBeforeDrag {
+                libraryDetentBeforeDrag = nil
+                if libraryDetent == Self.minimizedLibrary { libraryDetent = detent }
+            }
+        }
     }
 
     /// Opens the library, where it's not already beside the editor in an

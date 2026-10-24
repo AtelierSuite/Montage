@@ -171,6 +171,7 @@ struct LibraryView: View {
             }
             .padding(Self.gridPadding)
         }
+        .tracksMediaDrags(editor.timeline)
         // A click between the items clears the selection.
         .background {
             Color.clear
@@ -520,5 +521,29 @@ private struct ImportProgressRow: View {
             }
         }
         .font(.callout)
+    }
+}
+
+private extension View {
+    /// Keeps `isDraggingMedia` up to date while items are dragged out of the
+    /// library, from when a drag is picked up to when it's put down. Drag
+    /// sessions can only be followed from iOS 27.
+    @ViewBuilder
+    func tracksMediaDrags(_ timeline: TimelineState) -> some View {
+        #if os(iOS)
+        if #available(iOS 27, *) {
+            onDragSessionUpdated { session in
+                let isDragging = switch session.phase {
+                case .initial, .active: true
+                default: false
+                }
+                if timeline.isDraggingMedia != isDragging { timeline.isDraggingMedia = isDragging }
+            }
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
     }
 }

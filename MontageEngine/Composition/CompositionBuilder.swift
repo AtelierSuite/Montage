@@ -15,10 +15,9 @@ import CoreMedia
 /// video clip's own sound goes on its track's audio track unless it has been
 /// detached, and an audio track's clips go on its own. Clips are cut out of
 /// their media with `insertTimeRange`, and gaps between them are empty time,
-/// which draws black and plays silence. Stills, text and shapes have no time
-/// to insert: they're laid out as segments over empty time, which the
-/// compositor draws itself, with a carrier track under them so the
-/// composition runs as long as they do. Each audio track of the composition
+/// which draws black and plays silence. Stills, text and shapes are placed
+/// with filler that the compositor draws them over (see `StillFiller`), and
+/// have no sound. Each audio track of the composition
 /// has a tap that runs its clips' audio effects (see `audioTail(for:)` for
 /// the room left for them to ring out).
 ///
@@ -97,13 +96,24 @@ public struct CompositionBuilder: Sendable {
                     skipped.append(SkippedClip(clipID: clip.id, mediaID: clip.mediaID, reason: reason))
                 }
 
-                // Text and shapes, and stills, have no time to put into the
-                // composition: the compositor draws them over empty time.
+                // Text and shapes have no media: like stills, they're placed
+                // with filler, and the compositor draws them over it.
                 if clip.content.isGenerated {
                     if track.kind != .video {
                         skip(.noUsableTrack)
                     } else if picture != nil {
-                        picture!.placeDrawn(clip, from: .drawn, naturalSize: .zero)
+                        switch await media.loadFiller() {
+                        case .success(let filler):
+                            do {
+                                if try !picture!.place(clip, drawing: .drawn, naturalSize: .zero, filler: filler, in: composition) {
+                                    skip(.outsideMedia)
+                                }
+                            } catch {
+                                skip(.unreadable)
+                            }
+                        case .failure(let failure):
+                            skip(failure.reason)
+                        }
                     }
                     continue
                 }
@@ -112,14 +122,26 @@ public struct CompositionBuilder: Sendable {
                     continue
                 }
                 if item.kind == .image {
+                    // A still has no sound, and only shows on a video track.
                     guard track.kind == .video else {
                         skip(.noUsableTrack)
                         continue
                     }
                     guard picture != nil else { continue }
-                    switch media.loadStill(item, maximumSide: stillImageSide) {
-                    case .success(let still): picture!.placeDrawn(clip, from: .still(still), naturalSize: still.size)
-                    case .failure(let failure): skip(failure.reason)
+                    let still: (image: StillImage, filler: SourceTrack)
+                    switch await media.loadStill(item) {
+                    case .success(let loaded): still = loaded
+                    case .failure(let failure):
+                        skip(failure.reason)
+                        continue
+                    }
+                    do {
+                        if try !picture!.place(clip, drawing: .still(still.image), naturalSize: still.image.size,
+                                               filler: still.filler, in: composition) {
+                            skip(.outsideMedia)
+                        }
+                    } catch {
+                        skip(.unreadable)
                     }
                     continue
                 }
@@ -163,7 +185,7 @@ public struct CompositionBuilder: Sendable {
                     skip(.unreadable)
                 }
             }
-            if let picture, picture.compositionTrack != nil || !picture.segments.isEmpty { pictures.append(picture) }
+            if let picture, picture.compositionTrack != nil { pictures.append(picture) }
             sounds += sound.filter { $0.compositionTrack != nil }
         }
 
@@ -176,24 +198,7 @@ public struct CompositionBuilder: Sendable {
         }
         // A composition can't end in empty time, so it runs to the end of
         // the last clip placed: clips left out at the end shorten it.
-        var end = writers.map(\.cursor).max() ?? .zero
-        // Drawn layers have nothing on their tracks to keep the composition
-        // going, so a carrier runs under them where nothing else does.
-        let drawnEnd = pictures.map(\.drawnEnd).max() ?? .zero
-        let videoEnd = pictures.filter { $0.compositionTrack != nil }.map(\.cursor).max() ?? .zero
-        if drawnEnd > videoEnd {
-            do {
-                try await addCarrier(to: composition, until: max(end, drawnEnd))
-                end = max(end, drawnEnd)
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch {
-                // Without it, the drawn layers show only as far as the video.
-                TimingCarrier.logger.error(
-                    "Drawn layers past the video are left out: \(error.localizedDescription, privacy: .public)"
-                )
-            }
-        }
+        let end = writers.map(\.cursor).max() ?? .zero
         for index in sounds.indices {
             try sounds[index].fillTail(before: end)
         }
@@ -211,23 +216,6 @@ public struct CompositionBuilder: Sendable {
             skippedClips: skipped,
             audioLevels: AudioLevels(meters)
         )
-    }
-
-    /// How big a still image is read: big enough to zoom in on twice over.
-    private var stillImageSide: Double {
-        max(project.settings.renderSize.width, project.settings.renderSize.height) * 2
-    }
-
-    /// Stretches the timing carrier along a video track of its own from the
-    /// start to `end`.
-    private func addCarrier(to composition: AVMutableComposition, until end: CMTime) async throws {
-        let asset = AVURLAsset(url: try await TimingCarrier.shared.url())
-        guard let source = try await asset.loadTracks(withMediaType: .video).first,
-              let track = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
-        else { return }
-        let (range, _) = try await source.load(.timeRange, .formatDescriptions)
-        try track.insertTimeRange(range, of: source, at: .zero)
-        track.scaleTimeRange(CMTimeRange(start: .zero, duration: range.duration), toDuration: end)
     }
 
     /// One instruction for each stretch of the timeline between the points
@@ -309,8 +297,6 @@ private struct LayerWriter {
     /// Where the last clip's sound stops ringing on, after its tail. Earlier
     /// than `cursor` when it has none, so only a tail keeps clips away.
     private(set) var ringsUntil = CMTime.negativeInfinity
-    /// Where the last still, text or shape drawn on the layer ends.
-    private(set) var drawnEnd = CMTime.zero
     /// What the last clip played, for filler to keep the track going under
     /// its tail.
     private var lastPlaced: (source: SourceTrack, range: CMTimeRange)?
@@ -348,14 +334,7 @@ private struct LayerWriter {
             start = cursor
         }
 
-        if compositionTrack == nil {
-            let mediaType: AVMediaType = kind == .video ? .video : .audio
-            compositionTrack = composition.addMutableTrack(withMediaType: mediaType, preferredTrackID: kCMPersistentTrackID_Invalid)
-            if let compositionTrack, kind == .audio {
-                audioParameters = AVMutableAudioMixInputParameters(track: compositionTrack)
-            }
-        }
-        guard let compositionTrack else { return false }
+        guard let compositionTrack = makeCompositionTrack(in: composition) else { return false }
         if start > cursor {
             compositionTrack.insertEmptyTimeRange(CMTimeRange(start: cursor, end: start))
         }
@@ -386,21 +365,50 @@ private struct LayerWriter {
     }
 
     /// Puts a clip the compositor draws itself (a still, text or a shape) at
-    /// its place on the timeline. Nothing goes on the composition track: it
-    /// shows over empty time.
-    mutating func placeDrawn(_ clip: Clip, from source: CompositorLayer.Source, naturalSize: CGSize) {
+    /// its place on the timeline, after empty time from the clip before: the
+    /// filler, stretched to the clip's length, holds its time, and the
+    /// compositor draws the picture over it. False when an earlier clip
+    /// covers all of it.
+    mutating func place(
+        _ clip: Clip, drawing source: CompositorLayer.Source, naturalSize: CGSize, filler: SourceTrack,
+        in composition: AVMutableComposition
+    ) throws -> Bool {
+        var sourceRange = clip.sourceRange
         var start = clip.timelineStart
-        // As with media, an earlier clip it overlaps wins.
-        if let last = segments.last?.timelineRange.end, start < last { start = last }
-        let end = clip.timelineRange.end
-        guard end > start else { return }
-        let timelineRange = CMTimeRange(start: start, end: end)
-        let sourceRange = CMTimeRange(start: clip.sourceRange.start + (start - clip.timelineStart), duration: timelineRange.duration)
-        segments.append(CompositionLayer.Segment(
-            clipID: clip.id, mediaID: clip.mediaID, timelineRange: timelineRange, sourceRange: sourceRange
-        ))
+        if start < cursor {
+            let overlap = cursor - start
+            guard overlap < sourceRange.duration else { return false }
+            sourceRange = CMTimeRange(start: sourceRange.start + overlap, duration: sourceRange.duration - overlap)
+            start = cursor
+        }
+        guard sourceRange.duration > .zero, let compositionTrack = makeCompositionTrack(in: composition) else { return false }
+        if start > cursor {
+            compositionTrack.insertEmptyTimeRange(CMTimeRange(start: cursor, end: start))
+        }
+        let piece = min(sourceRange.duration, filler.timeRange.duration)
+        try compositionTrack.insertTimeRange(CMTimeRange(start: filler.timeRange.start, duration: piece), of: filler.track, at: start)
+        if piece < sourceRange.duration {
+            compositionTrack.scaleTimeRange(CMTimeRange(start: start, duration: piece), toDuration: sourceRange.duration)
+        }
+        let timelineRange = CMTimeRange(start: start, duration: sourceRange.duration)
+        cursor = timelineRange.end
+        ringsUntil = .negativeInfinity
+        lastPlaced = nil
+        segments.append(CompositionLayer.Segment(clipID: clip.id, mediaID: clip.mediaID, timelineRange: timelineRange, sourceRange: sourceRange))
         placements.append(CompositorLayer(source: source, clip: clip, naturalSize: naturalSize, preferredTransform: .identity))
-        drawnEnd = max(drawnEnd, end)
+        return true
+    }
+
+    /// The composition track, made when the first clip is placed.
+    private mutating func makeCompositionTrack(in composition: AVMutableComposition) -> AVMutableCompositionTrack? {
+        if compositionTrack == nil {
+            let mediaType: AVMediaType = kind == .video ? .video : .audio
+            compositionTrack = composition.addMutableTrack(withMediaType: mediaType, preferredTrackID: kCMPersistentTrackID_Invalid)
+            if let compositionTrack, kind == .audio {
+                audioParameters = AVMutableAudioMixInputParameters(track: compositionTrack)
+            }
+        }
+        return compositionTrack
     }
 
     /// Keeps the track going under the last clip's tail, as far as `end`.
@@ -445,6 +453,9 @@ private struct LoadFailure: Error {
 private struct MediaLoader {
     let resolver: MediaResolver
     private var loaded: [MediaItem.ID: Result<LoadedMedia, LoadFailure>] = [:]
+    private var stills: [MediaItem.ID: Result<StillImage, LoadFailure>] = [:]
+    /// What still images are placed with, opened once per build.
+    private var filler: Result<LoadedMedia, LoadFailure>?
 
     init(resolver: MediaResolver) {
         self.resolver = resolver
@@ -457,25 +468,54 @@ private struct MediaLoader {
         return result
     }
 
-    private var stills: [MediaItem.ID: Result<StillPicture, LoadFailure>] = [:]
-
-    /// Reads a still image once per build, however many clips show it.
-    mutating func loadStill(_ item: MediaItem, maximumSide: Double) -> Result<StillPicture, LoadFailure> {
-        if let result = stills[item.id] { return result }
-        let result: Result<StillPicture, LoadFailure>
-        if let url = resolver.url(for: item), (try? url.checkResourceIsReachable()) == true {
-            result = StillPicture.load(url, maximumSide: maximumSide).map { .success($0) } ?? .failure(LoadFailure(reason: .unreadable))
-        } else {
-            result = .failure(LoadFailure(reason: .fileNotFound))
+    /// A still image, and the filler to place its clip with.
+    mutating func loadStill(_ item: MediaItem) async -> Result<(image: StillImage, filler: SourceTrack), LoadFailure> {
+        let image: StillImage
+        switch stills[item.id] ?? Self.openStill(item, resolver: resolver) {
+        case .success(let opened):
+            stills[item.id] = .success(opened)
+            image = opened
+        case .failure(let failure):
+            stills[item.id] = .failure(failure)
+            return .failure(failure)
         }
-        stills[item.id] = result
-        return result
+        return await loadFiller().map { (image, $0) }
+    }
+
+    /// The filler that stills, text and shapes are placed with, opened once
+    /// per build.
+    mutating func loadFiller() async -> Result<SourceTrack, LoadFailure> {
+        if filler == nil {
+            filler = if let url = try? await StillFiller.shared.url() {
+                await Self.open(url)
+            } else {
+                .failure(LoadFailure(reason: .unreadable))
+            }
+        }
+        switch filler! {
+        case .success(let loaded):
+            guard let video = loaded.video else { return .failure(LoadFailure(reason: .unreadable)) }
+            return .success(video)
+        case .failure(let failure): return .failure(failure)
+        }
+    }
+
+    private static func openStill(_ item: MediaItem, resolver: MediaResolver) -> Result<StillImage, LoadFailure> {
+        guard let url = resolver.url(for: item), (try? url.checkResourceIsReachable()) == true else {
+            return .failure(LoadFailure(reason: .fileNotFound))
+        }
+        guard let image = StillImage(url: url) else { return .failure(LoadFailure(reason: .unreadable)) }
+        return .success(image)
     }
 
     private static func open(_ item: MediaItem, resolver: MediaResolver) async -> Result<LoadedMedia, LoadFailure> {
         guard let url = resolver.url(for: item), (try? url.checkResourceIsReachable()) == true else {
             return .failure(LoadFailure(reason: .fileNotFound))
         }
+        return await open(url)
+    }
+
+    private static func open(_ url: URL) async -> Result<LoadedMedia, LoadFailure> {
         // Precise timing, so cuts land on the frames the timeline shows.
         let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
         do {

@@ -15,8 +15,7 @@ public struct BuiltComposition: @unchecked Sendable {
     public let project: Project
     /// What plays when: one video track per visible video layer and one audio
     /// track per audible track of the timeline, with empty time in the gaps
-    /// and under stills, text and shapes, and a carrier track to keep it
-    /// going where nothing else does (see `TimingCarrier`).
+    /// and filler under stills, text and shapes (see `StillFiller`).
     public let composition: AVComposition
     /// How the video tracks are laid into the frame. Nil when nothing in the
     /// composition has a picture.
@@ -28,7 +27,7 @@ public struct BuiltComposition: @unchecked Sendable {
     /// included. Shorter than the project when clips at the end were left out.
     public let duration: CMTime
     /// Which composition tracks carry which clips' pictures, bottom layer
-    /// first. A layer of only stills, text and shapes has no track.
+    /// first.
     public let videoLayers: [CompositionLayer]
     /// Which composition tracks carry which clips' sound.
     public let audioLayers: [CompositionLayer]

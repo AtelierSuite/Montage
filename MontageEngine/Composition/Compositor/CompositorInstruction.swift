@@ -45,9 +45,11 @@ struct CompositorLayer: Sendable {
     enum Source: Sendable {
         /// A frame of the composition track carrying the clip's video.
         case track(CMPersistentTrackID)
-        /// A still image, read when the composition was built.
-        case still(StillPicture)
-        /// Text or a shape, drawn from the clip as it is at each frame.
+        /// A still image, drawn in place of the frames of the filler its
+        /// clip is placed with.
+        case still(StillImage)
+        /// Text or a shape, drawn from the clip as it is at each frame, in
+        /// place of the filler's frames.
         case drawn
     }
 

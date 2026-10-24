@@ -178,20 +178,26 @@ struct CompositionBuilderTests {
         #expect(try #require(built.videoComposition).instructions.map(\.timeRange) == [range(0, 2), range(2, 2)])
     }
 
-    @Test func stillImagesAreDrawnOverACarrier() async throws {
+    @Test func aStillImageHoldsItsTimeForTheCompositor() async throws {
         let image = Clip(mediaID: SampleMedia.image.id, sourceRange: range(0, 3))
+        let video = Clip(mediaID: SampleMedia.landscape.id, sourceRange: range(0, 2), timelineStart: seconds(4))
+        let built = try await build(project([Track(kind: .video, clips: [image, video])]))
+        #expect(built.skippedClips.isEmpty, "\(built.skippedClips)")
+        #expect(built.videoLayers.first?.segments.map(\.timelineRange) == [range(0, 3), range(4, 2)])
+        #expect(built.duration == seconds(6))
+        #expect(built.composition.duration == seconds(6))
+        // A still has no sound of its own.
+        #expect(built.audioLayers.first?.segments.map(\.clipID) == [video.id])
+    }
+
+    @Test func aStillImageAloneMakesAPicture() async throws {
+        let image = Clip(mediaID: SampleMedia.image.id, sourceRange: range(0, 10))
         let built = try await build(project([Track(kind: .video, clips: [image])]))
-        #expect(built.skippedClips.isEmpty)
-        #expect(built.videoLayers.first?.segments.map(\.timelineRange) == [range(0, 3)])
-        // The still has no track of its own; the carrier keeps the
-        // composition going as long as it shows.
-        #expect(built.videoLayers.first?.compositionTrackID == kCMPersistentTrackID_Invalid)
-        #expect(built.composition.tracks(withMediaType: .video).count == 1)
-        #expect(built.duration == seconds(3))
-        #expect(built.composition.duration == seconds(3))
-        let instructions = try #require(built.videoComposition).instructions
-        #expect(instructions.map(\.timeRange) == [range(0, 3)])
-        #expect(instructions.first?.requiredSourceTrackIDs?.isEmpty == true)
+        #expect(built.skippedClips.isEmpty, "\(built.skippedClips)")
+        #expect(built.duration == seconds(10))
+        #expect(built.composition.duration == seconds(10))
+        #expect(built.audioLayers.isEmpty)
+        #expect(try #require(built.videoComposition).instructions.map(\.timeRange) == [range(0, 10)])
     }
 
     @Test func textAfterTheLastVideoLengthensTheComposition() async throws {
@@ -209,6 +215,13 @@ struct CompositionBuilderTests {
     @Test func textOnAnAudioTrackIsLeftOut() async throws {
         let title = Clip(content: .text(TextContent("Nope")), sourceRange: range(0, 3))
         let built = try await build(project([Track(kind: .audio, clips: [title])]))
+        #expect(built.skippedClips.map(\.reason) == [.noUsableTrack])
+        #expect(built.isEmpty)
+    }
+
+    @Test func aStillImageOnAnAudioTrackIsSkipped() async throws {
+        let image = Clip(mediaID: SampleMedia.image.id, sourceRange: range(0, 3))
+        let built = try await build(project([Track(kind: .audio, clips: [image])]))
         #expect(built.skippedClips.map(\.reason) == [.noUsableTrack])
         #expect(built.isEmpty)
     }

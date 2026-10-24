@@ -170,7 +170,7 @@ private struct EditActions: View {
             TimelineOptionsMenu {
                 Image(systemName: "slider.horizontal.below.rectangle")
                     .font(.system(size: 17))
-                    .frame(width: 42, height: 44)
+                    .frame(width: 44, height: 44)
                     .contentShape(.circle)
                     .foregroundStyle(.primary)
             }
@@ -231,7 +231,7 @@ private struct ActionButton: View {
         Button(action: perform) {
             Image(systemName: symbol)
                 .font(.system(size: 17))
-                .frame(width: 42, height: 44)
+                .frame(width: 44, height: 44)
                 .contentShape(.circle)
                 .foregroundStyle(isOn ? AnyShapeStyle(Color.accentColor) : isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
                 // A round highlight, so an active control reads as a lit key.
