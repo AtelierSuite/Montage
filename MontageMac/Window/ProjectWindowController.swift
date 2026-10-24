@@ -92,7 +92,7 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(exportMovie(_:)) {
+        if menuItem.action == #selector(exportMovie(_:)) || menuItem.action == #selector(exportFCPXML(_:)) {
             return editor.canExport
         }
         if menuItem.action == #selector(importProject(_:)) { return !projectImport.isImporting }

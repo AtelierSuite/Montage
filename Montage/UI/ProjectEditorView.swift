@@ -36,6 +36,7 @@ struct ProjectEditorView: View {
     @State private var isShowingExport = false
     @State private var isShowingExports = false
     @State private var isImportingProject = false
+    @State private var isExportingFCPXML = false
     /// The document's location while it's being read from, for media in it.
     @State private var accessedURL: URL?
 
@@ -159,7 +160,7 @@ struct ProjectEditorView: View {
         }
         .projectInterchange(
             editor: editor, importer: importer, title: projectTitle,
-            isImporting: $isImportingProject
+            isImporting: $isImportingProject, isExporting: $isExportingFCPXML
         )
     }
 
@@ -253,6 +254,8 @@ struct ProjectEditorView: View {
             }
             Section {
                 Button("Toolbar.ImportProject", systemImage: "square.and.arrow.down") { isImportingProject = true }
+                Button("Toolbar.ExportFCPXML", systemImage: "film.stack") { isExportingFCPXML = true }
+                    .disabled(!editor.canExport)
             }
         }
         .accessibilityIdentifier("more")

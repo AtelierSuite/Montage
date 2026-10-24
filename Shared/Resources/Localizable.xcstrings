@@ -584,6 +584,17 @@
         }
       }
     },
+    "FCPXMLExport.Failed.Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Project Couldn’t Be Exported"
+          }
+        }
+      }
+    },
     "Fullscreen.Close" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1127,6 +1138,17 @@
         }
       }
     },
+    "Mac.Menu.ExportFCPXML" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Final Cut Pro XML…"
+          }
+        }
+      }
+    },
     "Mac.Menu.Exports" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1651,6 +1673,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export"
+          }
+        }
+      }
+    },
+    "Toolbar.ExportFCPXML" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Final Cut Pro XML…"
           }
         }
       }

@@ -3,7 +3,8 @@ import MontageEngine
 import MontageFormats
 import SwiftUI
 
-/// File > Import Project: projects from other editors.
+/// File > Import Project and File > Export Final Cut Pro XML: projects to
+/// and from other editors.
 extension ProjectWindowController {
     // MARK: - Importing
 
@@ -65,6 +66,31 @@ extension ProjectWindowController {
             let controller = NSHostingController(rootView: view)
             sheet = controller
             contentViewController?.presentAsSheet(controller)
+        }
+    }
+
+    // MARK: - Exporting
+
+    /// Writes the project as FCPXML, to open in Final Cut Pro.
+    @objc func exportFCPXML(_ sender: Any?) {
+        guard let window, editor.canExport else { return }
+        let title = (document as? NSDocument)?.displayName ?? String(localized: "Export.Untitled")
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.fcpxml]
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.nameFieldStringValue = "\(title).fcpxml"
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let destination = panel.url else { return }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                do {
+                    try self.editor.fcpxml(named: destination.deletingPathExtension().lastPathComponent)
+                        .write(to: destination, options: .atomic)
+                } catch {
+                    NSAlert(error: error).beginSheetModal(for: window)
+                }
+            }
         }
     }
 }
