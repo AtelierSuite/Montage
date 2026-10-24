@@ -19,13 +19,18 @@ public struct Project: Equatable, Sendable {
     public var settings: ProjectSettings
     /// The media imported into the project, in the order the library lists it.
     public var media: [MediaItem]
+    /// The library's bins, which media can be filed in, in the order they're listed.
+    public var bins: [MediaBin]
     /// Video tracks first, bottom layer first, then audio tracks.
     public var tracks: [Track]
 
-    public init(settings: ProjectSettings = ProjectSettings(), media: [MediaItem] = [], tracks: [Track] = []) {
+    public init(
+        settings: ProjectSettings = ProjectSettings(), media: [MediaItem] = [], bins: [MediaBin] = [], tracks: [Track] = []
+    ) {
         formatVersion = Self.currentFormatVersion
         self.settings = settings
         self.media = media
+        self.bins = bins
         self.tracks = tracks
     }
 
@@ -53,7 +58,7 @@ public struct Project: Equatable, Sendable {
 
 extension Project: Codable {
     private enum CodingKeys: String, CodingKey {
-        case formatVersion, settings, media, tracks
+        case formatVersion, settings, media, bins, tracks
     }
 
     // Everything but the version is optional to read, so a project saved
@@ -63,6 +68,7 @@ extension Project: Codable {
         formatVersion = try container.decode(Int.self, forKey: .formatVersion)
         settings = try container.decodeIfPresent(ProjectSettings.self, forKey: .settings) ?? ProjectSettings()
         media = try container.decodeIfPresent([MediaItem].self, forKey: .media) ?? []
+        bins = try container.decodeIfPresent([MediaBin].self, forKey: .bins) ?? []
         tracks = try container.decodeIfPresent([Track].self, forKey: .tracks) ?? []
     }
 
@@ -71,6 +77,7 @@ extension Project: Codable {
         try container.encode(formatVersion, forKey: .formatVersion)
         try container.encode(settings, forKey: .settings)
         try container.encode(media, forKey: .media)
+        try container.encode(bins, forKey: .bins)
         try container.encode(tracks, forKey: .tracks)
     }
 }

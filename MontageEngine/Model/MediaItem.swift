@@ -18,13 +18,19 @@ public struct MediaItem: Identifiable, Equatable, Sendable {
     public var kind: Kind
     public var location: MediaLocation
     public var metadata: MediaMetadata
+    /// The library's bin the item is filed in, or nil for none.
+    public var binID: MediaBin.ID?
 
-    public init(id: ID = UUID(), name: String, kind: Kind, location: MediaLocation, metadata: MediaMetadata) {
+    public init(
+        id: ID = UUID(), name: String, kind: Kind, location: MediaLocation, metadata: MediaMetadata,
+        binID: MediaBin.ID? = nil
+    ) {
         self.id = id
         self.name = name
         self.kind = kind
         self.location = location
         self.metadata = metadata
+        self.binID = binID
     }
 }
 
