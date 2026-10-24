@@ -24,7 +24,8 @@ struct TransportShortcuts: View {
                 .keyboardShortcut("]", modifiers: .option)
             #endif
         }
-        .disabled(!playback.hasContent)
+        // Typing into text in the preview takes every key.
+        .disabled(!playback.hasContent || editor.timeline.editedTextClipID != nil)
         .opacity(0)
         .frame(width: 0, height: 0)
         .allowsHitTesting(false)

@@ -1,4 +1,6 @@
+import CoreGraphics
 import CoreMedia
+import Foundation
 import MontageEngine
 import Observation
 
@@ -33,6 +35,11 @@ final class TimelineState {
     /// The effect of the selected clip whose mask the preview has handles
     /// for, in place of the clip's own.
     var editedMaskEffectID: Effect.ID?
+    /// The text clip whose words are being typed into in the preview, in
+    /// place of its handles. `ProjectEditor.beginEditingText` starts it.
+    var editedTextClipID: Clip.ID?
+    /// The last tap on the preview's picture, to tell a double tap by.
+    @ObservationIgnored var lastPictureTap: PictureTap?
     /// Whether media from the library is being dragged, for the editor to
     /// give the timeline room to take it.
     var isDraggingMedia = false
@@ -44,4 +51,10 @@ final class TimelineState {
     func zoom(by factor: Double) {
         pointsPerSecond = min(max(pointsPerSecond * factor, Self.zoomRange.lowerBound), Self.zoomRange.upperBound)
     }
+}
+
+/// A tap on the preview's picture: when, and where in the frame.
+struct PictureTap {
+    var date: Date
+    var point: CGPoint
 }
