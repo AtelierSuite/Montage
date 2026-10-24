@@ -15,6 +15,16 @@ public struct VideoEffectContext: Sendable {
     }
 }
 
+extension VideoEffectContext {
+    /// The part of the plane a frame covers: its own extent, or the render
+    /// size from the origin for one that runs on forever. Effects measure
+    /// their sizes and places against it, so they work the same on a clip's
+    /// own picture as on the whole frame.
+    func frame(of image: CIImage) -> CGRect {
+        image.extent.isInfinite ? CGRect(origin: .zero, size: renderSize) : image.extent
+    }
+}
+
 extension Effect {
     /// The image with this effect applied, at the context's time. An effect
     /// that's turned off, or changes only the sound, leaves it as it is.
@@ -38,8 +48,8 @@ enum VideoEffects {
         switch kind {
         case .colorCorrection(let correction):
             correction.apply(to: image, at: context.clipTime)
-        case .mosaic:
-            image
+        case .mosaic(let mosaic):
+            mosaic.apply(to: image, in: context.frame(of: image), at: context.clipTime)
         case .gain, .pan, .equalizer, .delay, .reverb:
             image
         }

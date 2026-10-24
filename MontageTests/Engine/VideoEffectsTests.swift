@@ -88,6 +88,72 @@ struct VideoEffectsTests {
         #expect(abs(end.red - 0.8) < 0.01)
     }
 
+    // MARK: - Mosaic
+
+    @Test func pixelatesInSquaresFromTheCorner() {
+        // A gradient across the frame: every column a different colour.
+        let image = Pixels.horizontalGradient
+        var mosaic = Mosaic(style: .pixelate)
+        mosaic.scale = Animatable(16 / Pixels.size.width)
+        let output = apply(.mosaic(mosaic), to: image)
+        #expect(output.extent == image.extent)
+        for block in [0, 16, 48, 160] {
+            let first = Pixels.display(output, at: CGPoint(x: block, y: 10)).red
+            let last = Pixels.display(output, at: CGPoint(x: block + 15, y: 30)).red
+            let next = Pixels.display(output, at: CGPoint(x: block + 16, y: 10)).red
+            #expect(abs(first - last) < 0.002, "block at \(block)")
+            #expect(next > first + 0.01, "block after \(block)")
+        }
+    }
+
+    @Test(.enabled(if: Samples.isAvailable))
+    func pixelatesAPhotoInSquares() throws {
+        let photo = try Pixels.photo()
+        var mosaic = Mosaic(style: .pixelate)
+        mosaic.scale = Animatable(20 / photo.extent.width)
+        let output = apply(.mosaic(mosaic), to: photo)
+        let corner = Pixels.display(output, at: CGPoint(x: 100, y: 100))
+        for point in [CGPoint(x: 119, y: 100), CGPoint(x: 100, y: 119), CGPoint(x: 110, y: 110)] {
+            #expect(Pixels.display(output, at: point).isClose(to: corner))
+        }
+    }
+
+    @Test func blursWithoutFadingAtTheEdges() {
+        let image = Pixels.solid(display: 0.6)
+        var mosaic = Mosaic(style: .blur)
+        mosaic.scale = Animatable(0.05)
+        let output = apply(.mosaic(mosaic), to: image)
+        #expect(output.extent == image.extent)
+        let corner = Pixels.display(output, at: CGPoint(x: 0, y: 0))
+        #expect(abs(corner.alpha - 1) < 0.001)
+        #expect(abs(corner.red - 0.6) < 0.01)
+    }
+
+    @Test func coversWithACheckerboard() {
+        let image = Pixels.solid(display: 0.5)
+        var mosaic = Mosaic(style: .checkerboard)
+        mosaic.scale = Animatable(20 / Pixels.size.width)
+        let output = apply(.mosaic(mosaic), to: image)
+        let first = Pixels.display(output, at: CGPoint(x: 5, y: 5)).red
+        let beside = Pixels.display(output, at: CGPoint(x: 25, y: 5)).red
+        let diagonal = Pixels.display(output, at: CGPoint(x: 25, y: 25)).red
+        #expect(Set([first, beside].map { $0.rounded() }) == [0, 1])
+        #expect(abs(first - diagonal) < 0.01)
+    }
+
+    @Test func strengthShowsPartOfTheMosaic() {
+        let image = Pixels.solid(linear: 0.5)
+        var mosaic = Mosaic(style: .checkerboard)
+        mosaic.firstColor = Animatable(.black)
+        mosaic.secondColor = Animatable(.black)
+        mosaic.strength = Animatable(0, keyframes: [
+            Keyframe(time: .zero, value: 0), Keyframe(time: CMTime(value: 1, timescale: 1), value: 1),
+        ])
+        let half = apply(.mosaic(mosaic), to: image, at: CMTime(value: 1, timescale: 2))
+        #expect(abs(Pixels.linear(half, at: Pixels.middle).red - 0.25) < 0.01)
+        #expect(apply(.mosaic(mosaic), to: image, at: .zero) === image)
+    }
+
     // MARK: - Helpers
 
     private func apply(_ kind: Effect.Kind, to image: CIImage, at time: CMTime = .zero) -> CIImage {
