@@ -313,9 +313,9 @@ struct InPlaceTextView: NSViewRepresentable {
         }
     }
 
-    /// Takes the keyboard as soon as it's in a window. Undo and redo stop
-    /// typing first, so they take back or put back the whole of it, as the
-    /// one step it is.
+    /// Takes the keyboard as soon as it's in a window, and pastes plain
+    /// text. Undo and redo stop typing first, so they take back or put back
+    /// the whole of it, as the one step it is.
     final class EditingTextView: NSTextView {
         var onEnd: (() -> Void)?
         private var hasFocused = false
@@ -328,6 +328,12 @@ struct InPlaceTextView: NSViewRepresentable {
                 guard let self else { return }
                 window.makeFirstResponder(self)
             }
+        }
+
+        /// Pasted words take on the formatting they're pasted into, rather
+        /// than bringing their own fonts and colours.
+        override func paste(_ sender: Any?) {
+            pasteAsPlainText(sender)
         }
 
         @objc func undo(_ sender: Any?) {
