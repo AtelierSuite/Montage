@@ -1,3 +1,4 @@
+import CoreMedia
 import CoreTransferable
 import Foundation
 import MontageEngine
@@ -71,22 +72,23 @@ final class MediaImporter {
     }
 
     /// Imports files the user chose: copied into the project, or on the Mac,
-    /// left where they are if that's what's preferred.
-    func importFiles(_ urls: [URL]) {
+    /// left where they are if that's what's preferred. Stills among them are
+    /// put on the timeline at `placingAt`, if it's given.
+    func importFiles(_ urls: [URL], placingAt time: CMTime? = nil) {
         #if os(macOS)
         if Self.referencesFilesInPlace {
-            enqueue(urls.map(Source.reference))
+            enqueue(urls.map(Source.reference), placingAt: time)
             return
         }
         #endif
-        enqueue(urls.map(Source.file))
+        enqueue(urls.map(Source.file), placingAt: time)
     }
 
-    func importPhotos(_ items: [PhotosPickerItem]) {
-        enqueue(items.map(Source.photo))
+    func importPhotos(_ items: [PhotosPickerItem], placingAt time: CMTime? = nil) {
+        enqueue(items.map(Source.photo), placingAt: time)
     }
 
-    func enqueue(_ sources: [Source]) {
+    func enqueue(_ sources: [Source], placingAt time: CMTime? = nil) {
         guard !sources.isEmpty else { return }
         var progress = self.progress ?? Progress(completed: 0, total: 0)
         progress.total += sources.count
@@ -95,11 +97,11 @@ final class MediaImporter {
         let previous = queue
         queue = Task {
             await previous?.value
-            await run(sources)
+            await run(sources, placingAt: time)
         }
     }
 
-    private func run(_ sources: [Source]) async {
+    private func run(_ sources: [Source], placingAt time: CMTime?) async {
         var items: [MediaItem] = []
         for source in sources {
             progress?.currentName = source.displayName
@@ -113,6 +115,7 @@ final class MediaImporter {
             progress?.completed += 1
         }
         editor?.addMedia(items)
+        if let time { editor?.addStills(items.map(\.id), at: time) }
         if let progress, progress.completed >= progress.total {
             self.progress = nil
         }
