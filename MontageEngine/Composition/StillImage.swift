@@ -2,6 +2,7 @@
 import CoreGraphics
 import CoreImage
 import ImageIO
+import os
 
 /// A still image clip's picture, which the compositor draws in place of the
 /// frames of the filler its clip is placed with (see `StillFiller`).
@@ -133,16 +134,37 @@ actor StillFiller {
     private static let frameDuration = CMTime(value: 1, timescale: 30)
     private var written: Task<URL, any Error>?
 
-    /// The movie's file, written the first time it's asked for.
+    static let logger = Logger(subsystem: "com.tsubuzaki.Montage", category: "StillFiller")
+
+    /// The movie's file, written the first time it's asked for. Callers at
+    /// the same time share one writing of it; if it fails, or the file has
+    /// gone since, the next call writes it again.
     func url() async throws -> URL {
-        if let written, let url = try? await written.value { return url }
-        let task = Task { try await Self.write() }
-        written = task
-        return try await task.value
+        var failure: (any Error)?
+        for _ in 0..<2 {
+            let task = written ?? {
+                let task = Task { try await Self.write() }
+                written = task
+                return task
+            }()
+            do {
+                let url = try await task.value
+                if FileManager.default.fileExists(atPath: url.path) { return url }
+            } catch {
+                Self.logger.error("Couldn't write the filler: \(error.localizedDescription, privacy: .public)")
+                failure = error
+            }
+            // Unless another caller has already started again.
+            if written == task { written = nil }
+        }
+        throw failure ?? StillFillerError.notWritten
     }
 
     private static func write() async throws -> URL {
         let url = FileManager.default.temporaryDirectory.appending(path: "Montage Still Filler \(UUID().uuidString).mov")
+        // A failed write leaves nothing behind.
+        var isWritten = false
+        defer { if !isWritten { try? FileManager.default.removeItem(at: url) } }
         let size = 64
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
@@ -173,6 +195,7 @@ actor StillFiller {
         writer.endSession(atSourceTime: CMTimeMultiply(frameDuration, multiplier: Int32(frameCount)))
         await writer.finishWriting()
         guard writer.status == .completed else { throw writer.error ?? StillFillerError.notWritten }
+        isWritten = true
         return url
     }
 }

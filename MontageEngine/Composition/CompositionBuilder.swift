@@ -486,10 +486,11 @@ private struct MediaLoader {
     /// per build.
     mutating func loadFiller() async -> Result<SourceTrack, LoadFailure> {
         if filler == nil {
-            filler = if let url = try? await StillFiller.shared.url() {
-                await Self.open(url)
-            } else {
-                .failure(LoadFailure(reason: .unreadable))
+            do {
+                filler = await Self.open(try await StillFiller.shared.url())
+            } catch {
+                StillFiller.logger.error("Couldn't make the filler: \(error.localizedDescription, privacy: .public)")
+                filler = .failure(LoadFailure(reason: .unreadable))
             }
         }
         switch filler! {
