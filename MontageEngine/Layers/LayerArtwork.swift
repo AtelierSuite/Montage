@@ -78,6 +78,14 @@ public final class LayerArtwork: Sendable {
         return picture
     }
 
+    /// How big a text or shape clip's picture is at a time, in a frame of
+    /// `renderSize`'s pixels: what the preview's handles go round. Zero
+    /// when there's nothing to draw.
+    public func pictureSize(of content: ClipContent, at clipTime: CMTime, renderSize: CGSize) -> CGSize {
+        guard let drawn = picture(of: content, at: clipTime, renderSize: renderSize, scale: 1) else { return .zero }
+        return CGSize(width: Double(drawn.image.width) / drawn.scale, height: Double(drawn.image.height) / drawn.scale)
+    }
+
     /// The scale to draw a layer at: enough pixels for the size the frame is
     /// drawn at, and for the layer's own scale, so it stays sharp when it's
     /// made bigger. Kept to steps, so a layer zooming in is drawn again only
