@@ -48,18 +48,20 @@ final class ProjectEditor {
     @ObservationIgnored private(set) var playbackController: PlaybackController?
 
     /// Whether preview plays large video from smaller copies, made in the
-    /// background. Export always uses the originals. Kept for next time.
-    var usesProxies = UserDefaults.standard.bool(forKey: ProjectEditor.usesProxiesKey) {
-        didSet {
-            guard usesProxies != oldValue else { return }
-            UserDefaults.standard.set(usesProxies, forKey: Self.usesProxiesKey)
-            playbackController?.usesProxies = usesProxies
-            // Turned off, proxies stop being made.
-            if !usesProxies { stopMakingDerivedMedia(.proxy) }
-            makeDerivedMedia()
-        }
+    /// background. Export always uses the originals. The same for every
+    /// open project, and kept for next time.
+    var usesProxies: Bool {
+        get { PreviewSettings.shared.usesProxies }
+        set { PreviewSettings.shared.usesProxies = newValue }
     }
-    static let usesProxiesKey = "Preview.UsesProxies"
+
+    /// Follows a change to `usesProxies`, made here or in another project.
+    func previewSettingsChanged() {
+        playbackController?.usesProxies = usesProxies
+        // Turned off, proxies stop being made.
+        if !usesProxies { stopMakingDerivedMedia(.proxy) }
+        makeDerivedMedia()
+    }
 
     /// The timeline's selection, zoom and editing options.
     let timeline = TimelineState()
@@ -81,6 +83,8 @@ final class ProjectEditor {
     /// The copies known to be there, or known not to be made, by kind and
     /// file name, so edits don't look for them on disk again.
     @ObservationIgnored var settledDerivedMedia: Set<String> = []
+
+    @ObservationIgnored private var settingsObserver: (any NSObjectProtocol)?
 
     /// The gesture under way: the project as it was when it began, and the
     /// name of the undo step it makes.
@@ -108,6 +112,11 @@ final class ProjectEditor {
         derivedMedia = DerivedMediaCache(store: cache as? any DerivedMediaStore)
         checkMedia()
         makeDerivedMedia()
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: PreviewSettings.didChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.previewSettingsChanged() }
+        }
     }
 
     /// Makes a change as one undo step, named for the Edit menu. A change
@@ -183,6 +192,8 @@ final class ProjectEditor {
     func close() {
         playbackController?.invalidate()
         stopMakingDerivedMedia()
+        if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }
+        settingsObserver = nil
     }
 
     /// Puts in a changed project, undone back to `previous`: the project as
