@@ -142,4 +142,28 @@ struct StereoAudioTests {
         let original = try await RenderedAudio.read(try await fixture.build(fixture.project(pan: nil), findingCopies: false))
         #expect(abs(original.rms(\.left, 0.1, 1.9) - level) < 0.02 * level)
     }
+
+    @Test func soundThatStartsLateStartsAsLateInTheCopy() async throws {
+        let fixture = try MonoFixture()
+        defer { fixture.remove() }
+        // The tone, half a second into a movie.
+        let tone = AVURLAsset(url: fixture.url)
+        let toneTrack = try #require(try await tone.loadTracks(withMediaType: .audio).first)
+        let composition = AVMutableComposition()
+        let track = try #require(composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid))
+        try track.insertTimeRange(try await toneTrack.load(.timeRange), of: toneTrack, at: seconds(0.5))
+        let late = fixture.folder.appending(path: "late.mov")
+        let session = try #require(AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough))
+        try await session.export(to: late, as: .mov)
+
+        let copy = fixture.folder.appending(path: "late-stereo.m4a")
+        try await DerivedMediaGenerator.make(.stereoAudio, from: late, to: copy)
+        let original = try #require(try await AVURLAsset(url: late).loadTracks(withMediaType: .audio).first)
+        let stereo = try #require(try await AVURLAsset(url: copy).loadTracks(withMediaType: .audio).first)
+        let (originalRange, stereoRange) = (try await original.load(.timeRange), try await stereo.load(.timeRange))
+        #expect(abs(stereoRange.end.seconds - originalRange.end.seconds) < 0.02)
+        let audio = try await RenderedAudio.read(AVURLAsset(url: copy))
+        #expect(audio.rms(\.left, 0, 0.45) < 1e-4)
+        #expect(audio.rms(\.left, 0.6, 2.4) > 0.1)
+    }
 }

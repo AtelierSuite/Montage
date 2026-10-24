@@ -182,13 +182,13 @@ public enum DerivedMediaGenerator {
         guard reader.startReading(), writer.startWriting() else {
             throw Failure.failed(reader.error ?? writer.error)
         }
+        // From the start of the media, so sound that starts late in it
+        // starts as late in the copy.
+        writer.startSession(atSourceTime: .zero)
         var started = false
         while let buffer = output.copyNextSampleBuffer() {
             try Task.checkCancellation()
-            if !started {
-                writer.startSession(atSourceTime: buffer.presentationTimeStamp)
-                started = true
-            }
+            started = true
             while !input.isReadyForMoreMediaData {
                 try await Task.sleep(for: .milliseconds(5))
             }
