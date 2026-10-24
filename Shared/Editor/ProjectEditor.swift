@@ -52,6 +52,28 @@ final class ProjectEditor {
         apply(project, undoName: actionName)
     }
 
+    /// Makes a change as a drag goes, such as a slider's, without an undo
+    /// step or a save for every move. `endContinuousChange` makes the whole
+    /// drag one undo step.
+    func changeContinuously(_ change: (inout Project) -> Void) {
+        var project = self.project
+        change(&project)
+        guard project != self.project else { return }
+        if continuousChangeStart == nil { continuousChangeStart = self.project }
+        self.project = project
+    }
+
+    /// Ends a drag's change, as one undo step from where it began.
+    func endContinuousChange(_ actionName: String) {
+        guard let start = continuousChangeStart else { return }
+        continuousChangeStart = nil
+        guard project != start else { return }
+        apply(project, undoName: actionName, previous: start)
+    }
+
+    /// The project as it was when a continuous change began.
+    @ObservationIgnored private var continuousChangeStart: Project?
+
     /// Puts in a project read from outside, such as on revert, without an
     /// undo step: the history it would undo to is gone.
     func replace(with project: Project) {
@@ -64,9 +86,9 @@ final class ProjectEditor {
         playbackController?.invalidate()
     }
 
-    private func apply(_ project: Project, undoName: String) {
-        let previous = self.project
-        self.project = project
+    private func apply(_ project: Project, undoName: String, previous: Project? = nil) {
+        let previous = previous ?? self.project
+        if project != self.project { self.project = project }
         if let undoManager {
             undoManager.registerUndo(withTarget: self) { editor in
                 MainActor.assumeIsolated { editor.apply(previous, undoName: undoName) }
