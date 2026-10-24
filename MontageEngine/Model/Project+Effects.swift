@@ -22,11 +22,16 @@ extension Project {
     }
 
     /// Moves an effect earlier (negative) or later (positive) in the order
-    /// the clip applies them, stopping at either end.
+    /// the clip applies them, stopping at either end. It's moved past as
+    /// many effects on the same thing, picture or sound, as the offset says;
+    /// the others in between don't change what it does, and aren't counted.
     public mutating func moveEffect(_ effectID: Effect.ID, ofClip clipID: Clip.ID, by offset: Int) {
         changeEffects(ofClip: clipID) { effects in
             guard let index = effects.firstIndex(where: { $0.id == effectID }) else { return }
-            let destination = min(max(index + offset, 0), effects.count - 1)
+            let isVideo = effects[index].kind.isVideo
+            let alike = effects.indices.filter { effects[$0].kind.isVideo == isVideo }
+            guard let place = alike.firstIndex(of: index) else { return }
+            let destination = alike[min(max(place + offset, 0), alike.count - 1)]
             effects.insert(effects.remove(at: index), at: destination)
         }
     }

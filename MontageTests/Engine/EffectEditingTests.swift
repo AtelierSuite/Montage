@@ -34,6 +34,20 @@ struct EffectEditingTests {
         #expect(effects.map(\.id) == [correction.id])
     }
 
+    @Test func movesPastEffectsOnTheSameThing() throws {
+        var (project, clipID) = project()
+        let correction = Effect(.colorCorrection(ColorCorrection()))
+        let gain = Effect(.gain(Gain()))
+        let mosaic = Effect(.mosaic(Mosaic()))
+        for effect in [correction, gain, mosaic] {
+            project.addEffect(effect, toClip: clipID)
+        }
+        project.moveEffect(mosaic.id, ofClip: clipID, by: -1)
+        #expect(try #require(project.clip(id: clipID)).clip.effects.map(\.id) == [mosaic.id, correction.id, gain.id])
+        project.moveEffect(mosaic.id, ofClip: clipID, by: 1)
+        #expect(try #require(project.clip(id: clipID)).clip.effects.map(\.id) == [correction.id, mosaic.id, gain.id])
+    }
+
     @Test func setsAValueThroughoutUntilKeyframed() {
         var value = Animatable(0.0)
         value.set(2, at: oneSecond)
