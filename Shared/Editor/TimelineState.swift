@@ -40,8 +40,8 @@ final class TimelineState {
     var editedTextClipID: Clip.ID?
     /// The last tap on the preview's picture, to tell a double tap by.
     @ObservationIgnored var lastPictureTap: PictureTap?
-    /// Whether media from the library is being dragged, for the editor to
-    /// give the timeline room to take it.
+    /// Whether media dragged from the library has been taken out of it, for
+    /// the editor to give the timeline room to take it.
     var isDraggingMedia = false
 
     /// How far the timeline zooms in and out.
