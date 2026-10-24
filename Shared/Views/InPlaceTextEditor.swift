@@ -101,6 +101,19 @@ struct TextDisplay: Equatable {
         ]
     }
 
+    /// Tagged words, in a text view's storage, made to look so where they
+    /// are, so the selection and any word being composed stay.
+    func restyle(_ storage: NSMutableAttributedString, formattings: [TextRun.Formatting]) {
+        let whole = NSRange(location: 0, length: storage.length)
+        var pieces: [(NSRange, Int)] = []
+        storage.enumerateAttribute(TextContent.formattingAttribute, in: whole) { value, range, _ in
+            pieces.append((range, (value as? Int).flatMap { formattings.indices.contains($0) ? $0 : nil } ?? 0))
+        }
+        storage.beginEditing()
+        for (range, tag) in pieces { storage.setAttributes(attributes(for: formattings[tag], tag: tag), range: range) }
+        storage.endEditing()
+    }
+
     /// Tagged words, as `TextContent.tagged()` gives them, made to look so.
     func styled(_ string: NSAttributedString, formattings: [TextRun.Formatting]) -> NSAttributedString {
         let styled = NSMutableAttributedString(attributedString: string)
@@ -148,14 +161,20 @@ struct InPlaceTextView: NSViewRepresentable {
     func updateNSView(_ view: NSTextView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
+        // Left alone while a word is being composed, as with an input method,
+        // which a reload would throw away; the next update catches up.
+        guard !view.hasMarkedText() else { return }
         // Words or formatting changed from elsewhere, such as the inspector,
-        // or a new look.
-        if coordinator.needsReload(for: text, display: display) {
+        // or only a new look, which is put on the words as they are.
+        if coordinator.wordsChanged(text) {
             let selection = view.selectedRange()
             coordinator.load(into: view)
             let length = view.string.utf16.count
             view.setSelectedRange(NSRange(location: min(selection.location, length),
                                           length: min(selection.length, max(0, length - selection.location))))
+        } else if display != coordinator.display, let storage = view.textStorage {
+            coordinator.restyle(storage)
+            view.typingAttributes = coordinator.restyled(view.typingAttributes)
         }
         coordinator.centre(view)
     }
@@ -188,8 +207,21 @@ struct InPlaceTextView: NSViewRepresentable {
 
         /// Whether the words or their formatting are no longer what the view
         /// shows, as after formatting from the inspector.
-        func needsReload(for text: TextContent, display: TextDisplay) -> Bool {
-            text.runs != synced || display != self.display
+        func wordsChanged(_ text: TextContent) -> Bool {
+            text.runs != synced
+        }
+
+        /// Puts the new look on the words in place, keeping the selection.
+        func restyle(_ storage: NSMutableAttributedString) {
+            display = parent.display
+            parent.display.restyle(storage, formattings: formattings)
+        }
+
+        /// Typing attributes in the new look, for the formatting they're
+        /// tagged with.
+        func restyled(_ attributes: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {
+            let tag = (attributes[TextContent.formattingAttribute] as? Int).flatMap { formattings.indices.contains($0) ? $0 : nil } ?? 0
+            return parent.display.attributes(for: formattings[tag], tag: tag)
         }
 
         private func sync(_ string: NSAttributedString) {
@@ -345,12 +377,16 @@ struct InPlaceTextView: UIViewRepresentable {
     func updateUIView(_ view: UITextView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
-        if coordinator.needsReload(for: text, display: display) {
+        guard view.markedTextRange == nil else { return }
+        if coordinator.wordsChanged(text) {
             let selection = view.selectedRange
             coordinator.load(into: view)
             let length = (view.text as NSString).length
             view.selectedRange = NSRange(location: min(selection.location, length),
                                          length: min(selection.length, max(0, length - selection.location)))
+        } else if display != coordinator.display {
+            coordinator.restyle(view.textStorage)
+            view.typingAttributes = coordinator.restyled(view.typingAttributes)
         }
         coordinator.centre(view)
     }
@@ -381,8 +417,21 @@ struct InPlaceTextView: UIViewRepresentable {
 
         /// Whether the words or their formatting are no longer what the view
         /// shows, as after formatting from the inspector.
-        func needsReload(for text: TextContent, display: TextDisplay) -> Bool {
-            text.runs != synced || display != self.display
+        func wordsChanged(_ text: TextContent) -> Bool {
+            text.runs != synced
+        }
+
+        /// Puts the new look on the words in place, keeping the selection.
+        func restyle(_ storage: NSMutableAttributedString) {
+            display = parent.display
+            parent.display.restyle(storage, formattings: formattings)
+        }
+
+        /// Typing attributes in the new look, for the formatting they're
+        /// tagged with.
+        func restyled(_ attributes: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {
+            let tag = (attributes[TextContent.formattingAttribute] as? Int).flatMap { formattings.indices.contains($0) ? $0 : nil } ?? 0
+            return parent.display.attributes(for: formattings[tag], tag: tag)
         }
 
         private func sync(_ string: NSAttributedString) {
