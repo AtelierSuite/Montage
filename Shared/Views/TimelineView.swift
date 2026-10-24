@@ -96,7 +96,9 @@ struct TimelineView: View {
         .background { shortcuts }
         #endif
         .task(id: thumbnailRequests) { await loadThumbnails() }
-        .task(id: waveformRequests) { await loadWaveforms() }
+        // Again once missing media turns up, to read the waveforms that
+        // couldn't be read before.
+        .task(id: WaveformRequests(media: waveformRequests, missing: editor.missingMediaIDs)) { await loadWaveforms() }
         #if os(iOS)
         .sensoryFeedback(.impact(weight: .medium), trigger: pickUps)
         .sensoryFeedback(.alignment, trigger: drag?.snap?.point)
@@ -489,6 +491,11 @@ struct TimelineView: View {
         }
     }
 
+    private struct WaveformRequests: Equatable {
+        var media: [MediaItem]
+        var missing: Set<MediaItem.ID>
+    }
+
     /// The media with sound whose clips show a waveform: those on audio
     /// tracks, and videos whose sound is still attached.
     private var waveformRequests: [MediaItem] {
@@ -510,6 +517,12 @@ struct TimelineView: View {
             guard let url = editor.mediaResolver.url(for: item) else { continue }
             let peaks = await editor.waveforms.waveform(for: item, at: url)
             guard !Task.isCancelled else { return }
+            // One that couldn't be read is tried again next time.
+            guard let peaks else {
+                waveforms[item.id] = nil
+                waveformSources[item.id] = nil
+                continue
+            }
             waveformSources[item.id] = item
             waveforms[item.id] = peaks
         }
