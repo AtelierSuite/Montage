@@ -131,6 +131,8 @@ struct TimelineCanvas: View {
             // Kept in sight at the leading edge when the clip's start is
             // scrolled away.
             var labelX = max(rect.minX, visible.lowerBound) + 6
+            // Clear of a selected clip's start handle.
+            if selected.contains(clip.id) { labelX = max(labelX, rect.minX + min(Self.handleWidth, rect.width / 3) + 4) }
             layer.addFilter(.shadow(color: .black.opacity(0.6), radius: 1.5))
             // A video whose sound has been detached says so.
             if clip.isAudioDetached {
