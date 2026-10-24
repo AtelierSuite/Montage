@@ -120,7 +120,8 @@ struct AVIMuxer {
 
     mutating func appendVideoFrame(_ frame: Data, isKeyframe: Bool) throws {
         try checkWriting()
-        try flushAudio(final: false, forFramesUpTo: framesWritten + 1)
+        // The audio that plays with this frame goes just before it.
+        try flushAudio(.through(frames: framesWritten + 1))
         try writeChunk(stream: Self.videoStream, payload: frame, isKeyframe: isKeyframe, duration: 1)
     }
 
@@ -129,12 +130,12 @@ struct AVIMuxer {
         guard let audio else { throw AVIWriterError.unsupportedMedia }
         guard pcm.count % audio.blockAlign == 0 else { throw AVIWriterError.unsupportedMedia }
         pendingAudio.append(pcm)
-        try flushAudio(final: false, forFramesUpTo: framesWritten)
+        try flushAudio(.overflow)
     }
 
     mutating func finish() throws {
         try checkWriting()
-        try flushAudio(final: true, forFramesUpTo: framesWritten)
+        try flushAudio(.all)
         try closeSegment()
         try handle.seek(toOffset: 0)
         try write(makeHeader())
@@ -160,21 +161,34 @@ struct AVIMuxer {
         return max(1, Int(Double(audio.sampleRate) * Self.audioChunkDuration)) * audio.blockAlign
     }
 
-    /// Writes the audio that plays up to the end of the given frame, and
-    /// anything more than a chunk ahead of it, so audio stays near the video
-    /// it plays with whichever arrives first. Finally, writes everything left.
-    private mutating func flushAudio(final: Bool, forFramesUpTo frames: Int) throws {
+    private enum AudioFlush {
+        /// Only what's run more than a chunk ahead, keeping what's held back
+        /// bounded when audio arrives well before the video.
+        case overflow
+        /// Also the audio that plays up to the end of this many frames.
+        case through(frames: Int)
+        /// Everything left.
+        case all
+    }
+
+    /// Writes held-back audio, in chunks of up to `audioChunkLimit`.
+    private mutating func flushAudio(_ flush: AudioFlush) throws {
         guard let audio, !pendingAudio.isEmpty else { return }
         let limit = audioChunkLimit
         let rate = video.frameRate
-        let dueSamples = (frames * audio.sampleRate * Int(rate.denominator) + Int(rate.numerator) - 1) / Int(rate.numerator)
-        let dueBytes = dueSamples * audio.blockAlign
+        let dueBytes = switch flush {
+        case .overflow: 0
+        case .through(let frames):
+            (frames * audio.sampleRate * Int(rate.denominator) + Int(rate.numerator) - 1) / Int(rate.numerator)
+                * audio.blockAlign
+        case .all: Int.max
+        }
         var written = streams[Self.audioStream].length * audio.blockAlign
 
         while !pendingAudio.isEmpty {
             let count: Int
-            if final || pendingAudio.count > 2 * limit {
-                count = min(limit, pendingAudio.count)
+            if pendingAudio.count > 2 * limit {
+                count = limit
             } else if written < dueBytes {
                 count = min(limit, pendingAudio.count, dueBytes - written)
             } else {
