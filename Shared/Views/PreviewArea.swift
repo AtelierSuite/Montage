@@ -56,6 +56,7 @@ struct PreviewArea: View {
                         )
                     }
                 }
+                .overlay { ScreenshotStill(playback: editor.playback) }
                 .overlay {
                     if showsPlaybackOverlay && !hidesPreviewPicture {
                         PlaybackOverlay(playback: editor.playback, isShown: $showsControls) {
