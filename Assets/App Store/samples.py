@@ -87,8 +87,12 @@ def probe(file_name):
     streams = info["streams"]
     video = next((s for s in streams if s["codec_type"] == "video"), None)
     audio = next((s for s in streams if s["codec_type"] == "audio"), None)
+    # The video's own length where there is video: the container's runs to the
+    # end of the longest stream, which in an MP4 is often the audio, a few
+    # milliseconds past where AVFoundation ends the file.
+    duration = video["duration"] if video and "duration" in video else info["format"]["duration"]
     metadata = {
-        "duration": time(Fraction(info["format"]["duration"]).limit_denominator(TIMESCALE)),
+        "duration": time(Fraction(duration).limit_denominator(TIMESCALE)),
         "naturalSize": [0, 0], "rotation": 0, "nominalFrameRate": 0, "isVariableFrameRate": False,
         "audioChannelCount": 0, "audioSampleRate": 0,
     }
