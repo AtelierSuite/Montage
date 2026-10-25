@@ -42,10 +42,9 @@ public enum ProjectInterchange {
         // A Resolve project or timeline is a ZIP archive of XML, not XML
         // itself. It's told from other zipped projects by its project.xml,
         // so check for it before any other reader claims an archive.
-        if ResolveZIPArchive.looksLikeArchive(data), DRPImporter.isResolveArchive(data) {
-            return try DRPImporter.read(data, baseURL: baseURL)
-        }
-        if ResolveZIPArchive.looksLikeArchive(data) { return try DRPImporter.read(data, baseURL: baseURL) }
+        if DRPImporter.isResolveArchive(data) { return try DRPImporter.read(data, baseURL: baseURL) }
+        // Any other archive: Resolve's reader says why it can't be read.
+        if ZipArchive.hasSignature(data) { return try DRPImporter.read(data, baseURL: baseURL) }
         let root = try MarkupElement.parse(data)
         switch root.name {
         case "fcpxml": return try FCPXMLImporter.read(root, baseURL: baseURL)

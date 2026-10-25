@@ -204,10 +204,8 @@ struct DRPTestBuilder {
     }
 
     func archive() -> Data {
-        var writer = ZIPTestWriter()
-        for (name, contents) in entries.sorted(by: { $0.key < $1.key }) {
-            writer.add(name, contents)
-        }
-        return writer.archive()
+        let files = entries.sorted { $0.key < $1.key }.map { TestZip.File($0.key, $0.value, deflated: true) }
+        // Writing to memory can't fail.
+        return try! TestZip.archive(files)
     }
 }

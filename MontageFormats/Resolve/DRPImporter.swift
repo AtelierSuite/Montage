@@ -37,7 +37,7 @@ struct DRPImporter {
     /// FCPXML, until real exports of them have been tried.
     static let knownProjectVersions: Set<Int> = [14, 15, 17]
 
-    private let archive: ResolveZIPArchive
+    private let archive: ZipArchive
     private let baseURL: URL?
     private var media = ImportedMedia()
     private var assembler = TimelineAssembler()
@@ -56,9 +56,9 @@ struct DRPImporter {
     private var importedAnyClip = false
 
     static func read(_ data: Data, baseURL: URL?) throws -> ImportedProject {
-        let archive: ResolveZIPArchive
+        let archive: ZipArchive
         do {
-            archive = try ResolveZIPArchive(data)
+            archive = try ZipArchive(data: data)
         } catch {
             throw ResolveProjectError.damaged
         }
@@ -66,7 +66,7 @@ struct DRPImporter {
         return try importer.run()
     }
 
-    private init(archive: ResolveZIPArchive, baseURL: URL?) {
+    private init(archive: ZipArchive, baseURL: URL?) {
         self.archive = archive
         self.baseURL = baseURL
     }
@@ -75,9 +75,9 @@ struct DRPImporter {
     /// timeline export is, with a `project.xml` at its root beside the
     /// media pool or timelines.
     static func isResolveArchive(_ data: Data) -> Bool {
-        guard let archive = try? ResolveZIPArchive(data) else { return false }
-        return archive.entry(named: "project.xml") != nil
-            && archive.entries.contains { $0.name.hasPrefix("SeqContainer") || $0.name.hasPrefix("MediaPool/") }
+        guard ZipArchive.hasSignature(data), let archive = try? ZipArchive(data: data) else { return false }
+        return archive.entry(at: "project.xml") != nil
+            && archive.entries.contains { $0.path.hasPrefix("SeqContainer") || $0.path.hasPrefix("MediaPool/") }
     }
 
     // MARK: - Version
@@ -95,9 +95,23 @@ struct DRPImporter {
         return (value("DbAppVer"), value("DbPrjVer").flatMap { Int($0.trimmingCharacters(in: .whitespaces)) })
     }
 
-    private func xml(_ name: String) throws -> MarkupElement {
+    /// Larger than any project's XML; refused beyond it, so a small archive
+    /// can't expand to fill memory.
+    static let maximumEntrySize = 512 * 1024 * 1024
+
+    /// An entry's contents; nil if there's no such entry.
+    private func contents(of path: String) throws -> Data? {
+        guard let entry = archive.entry(at: path) else { return nil }
         do {
-            return try MarkupElement.parse(try archive.contents(of: name))
+            return try archive.data(for: entry, limit: Self.maximumEntrySize)
+        } catch {
+            throw ResolveProjectError.damaged
+        }
+    }
+
+    private func xml(_ path: String) throws -> MarkupElement {
+        do {
+            return try MarkupElement.parse(try contents(of: path) ?? Data())
         } catch {
             throw ResolveProjectError.damaged
         }
@@ -106,13 +120,7 @@ struct DRPImporter {
     // MARK: - Reading
 
     private mutating func run() throws -> ImportedProject {
-        guard archive.entry(named: "project.xml") != nil else { throw ResolveProjectError.notAProject }
-        let projectData: Data
-        do {
-            projectData = try archive.contents(of: "project.xml")
-        } catch {
-            throw ResolveProjectError.damaged
-        }
+        guard let projectData = try contents(of: "project.xml") else { throw ResolveProjectError.notAProject }
         let version = Self.version(of: projectData)
         let project: MarkupElement
         do {
@@ -139,14 +147,14 @@ struct DRPImporter {
             }
         }
         for entry in archive.entries where !entry.isDirectory {
-            if entry.name.hasPrefix("MediaPool/") && entry.name.hasSuffix("MpFolder.xml") {
-                readBin(try xml(entry.name))
+            if entry.path.hasPrefix("MediaPool/") && entry.path.hasSuffix("MpFolder.xml") {
+                readBin(try xml(entry.path))
             }
         }
         for entry in archive.entries where !entry.isDirectory {
-            let components = entry.name.split(separator: "/")
-            if components.contains(where: { $0.hasPrefix("SeqContainer") }) && entry.name.hasSuffix(".xml") {
-                readContainer(try xml(entry.name))
+            let components = entry.path.split(separator: "/")
+            if components.contains(where: { $0.hasPrefix("SeqContainer") }) && entry.path.hasSuffix(".xml") {
+                readContainer(try xml(entry.path))
             }
         }
 

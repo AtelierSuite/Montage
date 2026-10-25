@@ -152,3 +152,13 @@ enum ResolveBlobWriter {
         return keyedDictionary([("BlobData", .bytes(envelope(list)))])
     }
 }
+
+extension Data {
+    fileprivate mutating func appendDRP<Value: FixedWidthInteger>(littleEndian value: Value) {
+        Swift.withUnsafeBytes(of: value.littleEndian) { append(contentsOf: $0) }
+    }
+
+    fileprivate mutating func appendDRP<Value: FixedWidthInteger>(bigEndian value: Value) {
+        Swift.withUnsafeBytes(of: value.bigEndian) { append(contentsOf: $0) }
+    }
+}

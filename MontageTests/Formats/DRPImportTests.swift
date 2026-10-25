@@ -180,10 +180,9 @@ struct DRPRefusalTests {
         #expect(ResolveProjectError.damaged.errorDescription != ResolveProjectError.notAProject.errorDescription)
     }
 
-    @Test func refusesArchivesThatArentProjects() {
-        var other = ZIPTestWriter()
-        other.add("readme.txt", "hello")
-        #expect(throws: ResolveProjectError.notAProject) { try DRPImporter.read(other.archive(), baseURL: nil) }
+    @Test func refusesArchivesThatArentProjects() throws {
+        let other = try TestZip.archive([TestZip.File("readme.txt", "hello")])
+        #expect(throws: ResolveProjectError.notAProject) { try DRPImporter.read(other, baseURL: nil) }
         var builder = DRPTestBuilder()
         builder.overrides["project.xml"] = #"<?xml version="1.0"?><!--DbAppVer="19.1.4.0011" DbPrjVer="14"--><Something/>"#
         #expect(throws: ResolveProjectError.notAProject) { try read(builder) }
@@ -258,11 +257,9 @@ struct DRPInterchangeTests {
         #expect(imported.report.format == .drp)
     }
 
-    @Test func tellsResolveArchivesFromOtherArchives() {
-        var other = ZIPTestWriter()
-        other.add("projectData", "{}")
-        other.add("project.xml", "<other/>")
-        #expect(!DRPImporter.isResolveArchive(other.archive()))
+    @Test func tellsResolveArchivesFromOtherArchives() throws {
+        let other = try TestZip.archive([TestZip.File("projectData", "{}"), TestZip.File("project.xml", "<other/>")])
+        #expect(!DRPImporter.isResolveArchive(other))
         #expect(!DRPImporter.isResolveArchive(Data("PK\u{3}\u{4}".utf8)))
         #expect(DRPImporter.isResolveArchive(DRPTestBuilder().archive()))
     }
