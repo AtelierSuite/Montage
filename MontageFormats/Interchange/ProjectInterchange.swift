@@ -13,8 +13,9 @@ extension UTType {
 /// FCPXML, and Premiere Pro and Final Cut Pro 7 through Final Cut Pro 7 XML.
 public enum ProjectInterchange {
     /// The kinds of file a project can be imported from. Final Cut Pro 7 XML
-    /// has no type of its own, so any XML file is offered.
-    public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle, .xml]
+    /// has no type of its own, so any XML file is offered. LumaFusion
+    /// packages are imported with `importLumaFusionPackage`.
+    public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle, .xml, .lumaFusionPackage]
 
     // MARK: - Importing
 
