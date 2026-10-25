@@ -17,6 +17,10 @@ public struct ImportedProject: Sendable {
     /// Where each media item's file was, as the file said: where to look
     /// for it, or what to tell the user when it isn't there.
     public var mediaSources: [MediaItem.ID: URL]
+    /// Reads the file again once its media has been found, for formats
+    /// that need something only the media says, such as an EDL's frame
+    /// rate. `ProjectInterchange.gatherMedia` calls it last.
+    var conformToMedia: (@Sendable (ImportedProject) -> ImportedProject)?
 }
 
 /// The media an importer comes across, one item for each file however many

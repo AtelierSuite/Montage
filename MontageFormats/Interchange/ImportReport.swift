@@ -70,12 +70,17 @@ public struct ImportReport: Equatable, Sendable {
         /// A compound or multicam clip's own settings, where its clips have
         /// settings of their own that they keep instead.
         case nestedSettings
+        /// An EDL's timecode, read at a frame rate it doesn't say, guessed.
+        case frameRateAssumed(String)
+        /// An EDL's timecode, read at the frame rate of its media.
+        case frameRateFromMedia(String)
 
         public var category: Category {
             switch self {
             case .unsupportedEffect: .unsupportedEffect
             case .missingMedia: .missingMedia
-            case .transition, .movedToNewTrack, .uneven, .nestedSettings, .speedChange, .titleTemplate: .changed
+            case .transition, .movedToNewTrack, .uneven, .nestedSettings, .speedChange, .titleTemplate,
+                 .frameRateAssumed, .frameRateFromMedia: .changed
             default: .notImported
             }
         }
@@ -116,6 +121,10 @@ public struct ImportReport: Equatable, Sendable {
                 String(format: String(localized: "Interchange.Issue.Uneven", bundle: #bundle), name)
             case .nestedSettings:
                 String(localized: "Interchange.Issue.NestedSettings", bundle: #bundle)
+            case .frameRateAssumed(let rate):
+                String(format: String(localized: "Interchange.Issue.FrameRateAssumed", bundle: #bundle), rate)
+            case .frameRateFromMedia(let rate):
+                String(format: String(localized: "Interchange.Issue.FrameRateFromMedia", bundle: #bundle), rate)
             }
         }
     }
@@ -146,12 +155,15 @@ public enum InterchangeFormat: String, Sendable {
     case fcpxml
     /// Final Cut Pro 7's XML, also written by Premiere Pro and Resolve.
     case xmeml
+    /// A CMX 3600 edit decision list, which most editors write.
+    case edl
 
     /// The format's name, for the report.
     public var displayName: String {
         switch self {
         case .fcpxml: String(localized: "Interchange.Format.FCPXML", bundle: #bundle)
         case .xmeml: String(localized: "Interchange.Format.XMEML", bundle: #bundle)
+        case .edl: String(localized: "Interchange.Format.EDL", bundle: #bundle)
         }
     }
 }

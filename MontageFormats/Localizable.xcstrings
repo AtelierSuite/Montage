@@ -262,6 +262,35 @@
         }
       }
     },
+    "Interchange.Format.EDL" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        }
+      }
+    },
     "Interchange.Format.FCPXML" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -403,6 +432,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "片段已關閉，因此被略去。"
+          }
+        }
+      }
+    },
+    "Interchange.Issue.FrameRateAssumed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLs don’t record a frame rate, so the timecode was read at %@ fps. If the project was at another rate, its cuts may be off."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLにはフレームレートが記録されていないため、タイムコードは%@ fpsとして読み込まれました。プロジェクトが別のフレームレートだった場合、カットの位置がずれることがあります。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDL 不记录帧速率，因此时间码按 %@ fps 读取。如果项目使用其他帧速率，剪切点可能会有偏差。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDL 不會記錄影格速率，因此時間碼以 %@ fps 讀取。如果專案使用其他影格速率，剪接點可能會有偏差。"
+          }
+        }
+      }
+    },
+    "Interchange.Issue.FrameRateFromMedia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLs don’t record a frame rate, so the timecode was read at %@ fps, the frame rate of the media."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLにはフレームレートが記録されていないため、タイムコードはメディアのフレームレートである%@ fpsとして読み込まれました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDL 不记录帧速率，因此时间码按媒体的帧速率 %@ fps 读取。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDL 不會記錄影格速率，因此時間碼以媒體的影格速率 %@ fps 讀取。"
           }
         }
       }
