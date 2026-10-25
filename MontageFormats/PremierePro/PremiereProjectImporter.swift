@@ -37,8 +37,10 @@ struct PremiereProjectImporter {
     private var nesting: Set<String> = []
 
     /// Reads a project, gzipped as Premiere saves it or not.
-    static func read(_ data: Data, baseURL: URL?) throws -> ImportedProject {
-        let graph = try PremiereObjectGraph.read(data) { PremiereProject.supportedVersions.contains($0) }
+    static func read(
+        _ data: Data, baseURL: URL?, versions: ClosedRange<Int> = PremiereProject.supportedVersions
+    ) throws -> ImportedProject {
+        let graph = try PremiereObjectGraph.read(data) { versions.contains($0) }
         var importer = PremiereProjectImporter(graph: graph, baseURL: baseURL)
         return try importer.run()
     }
