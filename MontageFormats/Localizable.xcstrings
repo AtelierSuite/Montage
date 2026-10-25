@@ -262,6 +262,35 @@
         }
       }
     },
+    "Interchange.Format.AAF" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AAF"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AAF"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AAF"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AAF"
+          }
+        }
+      }
+    },
     "Interchange.Format.FCPXML" : {
       "extractionState" : "manual",
       "localizations" : {

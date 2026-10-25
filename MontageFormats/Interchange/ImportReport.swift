@@ -146,12 +146,16 @@ public enum InterchangeFormat: String, Sendable {
     case fcpxml
     /// Final Cut Pro 7's XML, also written by Premiere Pro and Resolve.
     case xmeml
+    /// The Advanced Authoring Format, from Avid Media Composer, Premiere Pro
+    /// and Resolve.
+    case aaf
 
     /// The format's name, for the report.
     public var displayName: String {
         switch self {
         case .fcpxml: String(localized: "Interchange.Format.FCPXML", bundle: #bundle)
         case .xmeml: String(localized: "Interchange.Format.XMEML", bundle: #bundle)
+        case .aaf: String(localized: "Interchange.Format.AAF", bundle: #bundle)
         }
     }
 }

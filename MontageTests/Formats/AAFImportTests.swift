@@ -1,0 +1,394 @@
+import CoreGraphics
+import CoreMedia
+import Foundation
+import MontageEngine
+@testable import MontageFormats
+import Testing
+
+private typealias F = AAFTestFile
+
+private func frames(_ count: Int64, _ rate: Int32 = 25) -> CMTime {
+    CMTime(value: count, timescale: rate)
+}
+
+private let picture = AAFDefinition.picture
+private let sound = AAFDefinition.sound
+
+private let alphaMaster = F.mobID(1), alphaFile = F.mobID(2)
+private let bravoMaster = F.mobID(3), bravoFile = F.mobID(4)
+private let timelineID = F.mobID(9)
+
+/// Alpha and Bravo, picture and sound files, each with a master mob.
+private func standardMedia() -> [AAFTestObject] {
+    F.media(master: alphaMaster, file: alphaFile, name: "Alpha", url: "file:///Volumes/Media/Alpha.mov", length: 500)
+        + F.media(master: bravoMaster, file: bravoFile, name: "Bravo", url: "file:///Volumes/Media/Bravo.mov", length: 500)
+}
+
+private func timeline(_ slots: [AAFTestObject], name: String = "Cut", id: MobID = timelineID, topLevel: Bool = true)
+    -> AAFTestObject {
+    let mob = F.mob(AAFClass.compositionMob, id: id, name: name, slots: slots)
+    if topLevel { mob.set(AAFProperty.ID.usageCode, auid: AAFDefinition.topLevelUsage) }
+    return mob
+}
+
+private func read(_ file: AAFTestFile, sectorSize: Int = 4096) throws -> ImportedProject {
+    try AAFImporter.read(file.data(sectorSize: sectorSize), baseURL: nil)
+}
+
+struct AAFImportTests {
+    @Test(arguments: [512, 4096])
+    func readsClipsGapsAndMedia(sectorSize: Int) throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [
+                F.sourceClip(picture, length: 50, start: 10, mob: alphaMaster, slot: 1),
+                F.filler(picture, length: 25),
+                F.sourceClip(picture, length: 40, start: 100, mob: bravoMaster, slot: 1),
+            ])),
+            F.timelineSlot(2, F.sequence(sound, [
+                F.sourceClip(sound, length: 50, start: 10, mob: alphaMaster, slot: 2),
+            ])),
+        ])]
+        let imported = try read(file, sectorSize: sectorSize)
+        #expect(imported.name == "Cut")
+        #expect(imported.project.settings.frameDuration == frames(1))
+        #expect(imported.project.settings.renderSize == CGSize(width: 1920, height: 1080))
+        #expect(imported.project.tracks.map(\.kind) == [.video])
+
+        let alpha = try #require(imported.clip("Alpha.mov", on: .video)?.clip)
+        #expect(alpha.timelineStart == .zero)
+        #expect(alpha.sourceRange == CMTimeRange(start: frames(10), duration: frames(50)))
+        // Its sound, in step, plays with it.
+        #expect(!alpha.isAudioDetached)
+        let bravo = try #require(imported.clip("Bravo.mov", on: .video)?.clip)
+        #expect(bravo.timelineStart == frames(75))
+        #expect(bravo.sourceRange == CMTimeRange(start: frames(100), duration: frames(40)))
+        #expect(bravo.isAudioDetached)
+
+        let alphaItem = try #require(imported.project.media.first { $0.name == "Alpha.mov" })
+        #expect(alphaItem.kind == .video)
+        #expect(alphaItem.metadata.duration == frames(500))
+        #expect(alphaItem.metadata.hasAudio)
+        #expect(imported.mediaSources[alphaItem.id] == URL(fileURLWithPath: "/Volumes/Media/Alpha.mov"))
+        #expect(imported.report.isEmpty)
+    }
+
+    @Test func keepsSoundOutOfStepOnItsOwnTrack() throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 50, start: 10, mob: alphaMaster)])),
+            F.timelineSlot(2, F.sequence(sound, [
+                F.filler(sound, length: 5),
+                F.sourceClip(sound, length: 50, start: 10, mob: alphaMaster, slot: 2),
+            ])),
+            // The other channel, the same file: one clip plays them both.
+            F.timelineSlot(3, F.sequence(sound, [
+                F.filler(sound, length: 5),
+                F.sourceClip(sound, length: 50, start: 10, mob: alphaMaster, slot: 2),
+            ])),
+        ])]
+        let imported = try read(file)
+        #expect(imported.project.tracks.map(\.kind) == [.video, .audio])
+        #expect(imported.clip("Alpha.mov", on: .video)?.clip.isAudioDetached == true)
+        let audio = try #require(imported.clip("Alpha.mov", on: .audio)?.clip)
+        #expect(audio.timelineStart == frames(5))
+        #expect(imported.clips(of: "Alpha.mov").count == 2)
+    }
+
+    @Test func cutsTransitionsHalfwayThrough() throws {
+        var file = F()
+        file.operationDefinitions = [F.definition(AUID("0d010101-0101-1c00-060e-2b3402060101"),
+                                                  id: AAFDefinition.videoDissolve, name: "Cross Dissolve")]
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [
+                F.sourceClip(picture, length: 50, start: 10, mob: alphaMaster),
+                F.transition(picture, length: 10, cutPoint: 5),
+                F.sourceClip(picture, length: 40, start: 100, mob: bravoMaster),
+            ])),
+        ])]
+        let imported = try read(file)
+        #expect(imported.project.tracks.count == 1)
+        let clips = imported.project.tracks[0].clips
+        #expect(clips.count == 2)
+        #expect(clips[0].timelineRange == CMTimeRange(start: .zero, duration: frames(45)))
+        #expect(clips[1].timelineStart == frames(45))
+        #expect(clips[1].sourceRange == CMTimeRange(start: frames(105), duration: frames(35)))
+        #expect(imported.issues(.changed) == [.transition(name: "Cross Dissolve")])
+    }
+
+    @Test func playsSpeedChangesAtNormalSpeed() throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [
+                F.operationGroup(picture, length: 40, operation: AAFDefinition.videoSpeedControl,
+                                 inputs: [F.sourceClip(picture, length: 20, start: 0, mob: alphaMaster)],
+                                 parameters: [F.constant(AAFDefinition.speedRatio, rational: 1, 2)]),
+                // At its own speed, it's left as it is.
+                F.operationGroup(picture, length: 10, operation: AAFDefinition.videoSpeedControl,
+                                 inputs: [F.sourceClip(picture, length: 10, start: 0, mob: bravoMaster)],
+                                 parameters: [F.constant(AAFDefinition.speedRatio, rational: 1, 1)]),
+            ])),
+        ])]
+        let imported = try read(file)
+        let alpha = try #require(imported.clip("Alpha.mov")?.clip)
+        #expect(alpha.sourceRange == CMTimeRange(start: .zero, duration: frames(40)))
+        #expect(imported.clip("Bravo.mov")?.clip.timelineStart == frames(40))
+        #expect(imported.report.items.map(\.issue) == [.speedChange])
+        #expect(imported.report.items.first?.clipName == "Alpha")
+    }
+
+    @Test func readsVolumeAndPan() throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(sound, [
+                F.operationGroup(sound, length: 40, operation: AAFDefinition.monoAudioGain,
+                                 inputs: [F.sourceClip(sound, length: 40, mob: alphaMaster, slot: 2)],
+                                 parameters: [F.constant(AAFDefinition.amplitude, rational: 1, 2)]),
+                F.operationGroup(sound, length: 40, operation: AAFDefinition.monoAudioPan,
+                                 inputs: [F.sourceClip(sound, length: 40, mob: bravoMaster, slot: 2)],
+                                 parameters: [F.constant(AAFDefinition.pan, rational: 1, 1)]),
+            ])),
+        ])]
+        let imported = try read(file)
+        #expect(imported.clip("Alpha.mov", on: .audio)?.clip.volume.value == 0.5)
+        let bravo = try #require(imported.clip("Bravo.mov", on: .audio)?.clip)
+        guard case .pan(let pan)? = bravo.effects.first?.kind else {
+            Issue.record("Expected a pan")
+            return
+        }
+        #expect(pan.position.value == 1)
+        #expect(imported.report.isEmpty)
+    }
+
+    @Test func keepsOtherEffectsTurnedOff() throws {
+        let blur = AUID("11111111-2222-3333-4444-555555555555")
+        var file = F()
+        file.operationDefinitions = [F.definition(AUID("0d010101-0101-1c00-060e-2b3402060101"), id: blur, name: "Blur")]
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [
+                F.operationGroup(picture, length: 40, operation: blur,
+                                 inputs: [F.sourceClip(picture, length: 40, mob: alphaMaster)]),
+                // An effect with nothing in it makes its own picture.
+                F.operationGroup(picture, length: 10, operation: blur, inputs: []),
+            ])),
+        ])]
+        let imported = try read(file)
+        let alpha = try #require(imported.clip("Alpha.mov")?.clip)
+        #expect(alpha.effects.count == 1)
+        #expect(alpha.effects.first?.isEnabled == false)
+        guard case .unsupported(let effect)? = alpha.effects.first?.kind else {
+            Issue.record("Expected an unsupported effect")
+            return
+        }
+        #expect(effect.format == "aaf")
+        #expect(effect.name == "Blur")
+        #expect(imported.issues(.unsupportedEffect) == [.unsupportedEffect(name: "Blur")])
+        #expect(imported.issues(.notImported) == [.generator(name: "Blur")])
+    }
+
+    @Test func readsMarkers() throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 100, mob: alphaMaster)])),
+            F.eventSlot(1000, F.sequence(AUID("01030201-1000-0000-060e-2b3404010101"), [
+                F.marker(at: 50, comment: nil, descriptive: false),
+                F.marker(at: 30, comment: "Check focus"),
+            ])),
+        ])]
+        let imported = try read(file)
+        #expect(imported.project.markers.map(\.time) == [frames(30), frames(50)])
+        #expect(imported.project.markers.map(\.name) == ["Check focus", ""])
+    }
+
+    @Test func leavesMediaWithoutALocatorToBeRelinked() throws {
+        var file = F()
+        file.mobs = F.media(master: alphaMaster, file: alphaFile, name: "Interview", url: nil, length: 300) + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 30, start: 5, mob: alphaMaster)])),
+        ])]
+        let imported = try read(file)
+        let clip = try #require(imported.clip("Interview")?.clip)
+        #expect(clip.sourceRange.start == frames(5))
+        #expect(imported.mediaSources.isEmpty)
+    }
+
+    @Test func convertsBetweenEditRates() throws {
+        var file = F()
+        // Sound counted in samples, cut on an NTSC timeline.
+        file.mobs = F.media(master: alphaMaster, file: alphaFile, name: "Sound", url: "file:///Media/sound.wav",
+                            length: 480_000, rate: (48000, 1), picture: false)
+            + [timeline([
+                F.timelineSlot(1, rate: (30000, 1001), F.sequence(sound, [
+                    F.filler(sound, length: 30),
+                    F.sourceClip(sound, length: 60, start: 30, mob: alphaMaster, slot: 1),
+                ])),
+            ])]
+        let imported = try read(file)
+        let clip = try #require(imported.clip("sound.wav", on: .audio)?.clip)
+        #expect(clip.timelineStart == CMTime(value: 1001, timescale: 1000))
+        #expect(clip.sourceRange == CMTimeRange(start: CMTime(value: 1001, timescale: 1000),
+                                                duration: CMTime(value: 2002, timescale: 1000)))
+        let item = try #require(imported.project.media.first)
+        #expect(item.kind == .audio)
+        #expect(item.metadata.duration == CMTime(value: 10, timescale: 1))
+    }
+
+    @Test func followsOriginsAndSourceMobChains() throws {
+        // Master → file mob without a locator → import source with one,
+        // whose slot starts an hour in, at its timecode.
+        let importMob = F.mobID(5)
+        let descriptor = AAFTestObject(AAFClass.importDescriptor).vector(AAFProperty.ID.locators, [
+            AAFTestObject(AAFClass.networkLocator).set(AAFProperty.ID.urlString, string: "file:///Media/Original.mov"),
+        ])
+        let original = F.mob(AAFClass.sourceMob, id: importMob, name: "Original", slots: [
+            F.timelineSlot(1, origin: 90_000, F.sourceClip(picture, length: 100_000, mob: nil, slot: 0)),
+        ]).strong(AAFProperty.ID.essenceDescription, descriptor)
+        let fileMob = F.mob(AAFClass.sourceMob, id: alphaFile, name: "Transcode", slots: [
+            F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 500, start: 0, mob: importMob)])),
+        ]).strong(AAFProperty.ID.essenceDescription, AAFTestObject(AAFClass.cdciDescriptor))
+        let master = F.mob(AAFClass.masterMob, id: alphaMaster, name: "Shot", slots: [
+            F.timelineSlot(1, F.sequence(picture, [
+                F.filler(picture, length: 100),
+                F.sourceClip(picture, length: 500, start: 0, mob: alphaFile),
+            ])),
+        ])
+        var file = F()
+        file.mobs = [master, fileMob, original, timeline([
+            F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 20, start: 110, mob: alphaMaster)])),
+        ])]
+        let imported = try read(file)
+        let clip = try #require(imported.clip("Original.mov")?.clip)
+        // 110 into the master is 10 into the file, 90,010 into the original.
+        #expect(clip.sourceRange.start == frames(90_010))
+        let item = try #require(imported.project.media.first)
+        #expect(imported.mediaSources[item.id]?.path == "/Media/Original.mov")
+    }
+
+    @Test func readsNestedCompositions() throws {
+        let nestedID = F.mobID(10)
+        var file = F()
+        file.mobs = standardMedia() + [
+            // Neither is marked top-level: the one nothing uses is.
+            timeline([
+                F.timelineSlot(1, F.sequence(picture, [
+                    F.sourceClip(picture, length: 50, start: 0, mob: alphaMaster),
+                    F.sourceClip(picture, length: 100, start: 0, mob: bravoMaster),
+                ])),
+            ], name: "Nest", id: nestedID, topLevel: false),
+            timeline([
+                F.timelineSlot(1, F.sequence(picture, [
+                    F.filler(picture, length: 10),
+                    F.sourceClip(picture, length: 30, start: 40, mob: nestedID, slot: 1),
+                ])),
+            ], name: "Main", topLevel: false),
+        ]
+        let imported = try read(file)
+        #expect(imported.name == "Main")
+        let alpha = try #require(imported.clip("Alpha.mov")?.clip)
+        #expect(alpha.timelineRange == CMTimeRange(start: frames(10), duration: frames(10)))
+        #expect(alpha.sourceRange.start == frames(40))
+        let bravo = try #require(imported.clip("Bravo.mov")?.clip)
+        #expect(bravo.timelineRange == CMTimeRange(start: frames(20), duration: frames(20)))
+        #expect(bravo.sourceRange.start == .zero)
+        #expect(imported.report.isEmpty)
+    }
+
+    @Test func importsTheFirstOfSeveralTimelines() throws {
+        var file = F()
+        file.mobs = standardMedia() + [
+            timeline([F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 5, mob: alphaMaster)]))],
+                     name: "First"),
+            timeline([F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 5, mob: bravoMaster)]))],
+                     name: "Second", id: F.mobID(11)),
+        ]
+        let imported = try read(file)
+        #expect(imported.name == "First")
+        #expect(imported.issues(.notImported) == [.otherTimelines(count: 1)])
+    }
+
+    @Test func readsApplicationsOwnSubclasses() throws {
+        let customClip = AUID("a0000000-0000-0000-0000-000000000001")
+        let clip = F.sourceClip(picture, length: 30, mob: alphaMaster)
+        clip.classID = customClip
+        var file = F()
+        file.classDefinitions = [(customClip, AAFClass.sourceClip)]
+        file.mobs = standardMedia() + [timeline([F.timelineSlot(1, F.sequence(picture, [clip]))])]
+        #expect(try read(file).clip("Alpha.mov") != nil)
+    }
+
+    @Test func refusesFilesWithoutATimeline() throws {
+        var file = F()
+        file.mobs = standardMedia()
+        #expect(throws: InterchangeError.noTimeline) { try read(file) }
+    }
+
+    // MARK: - Damaged files
+
+    @Test func stopsAtCompositionsAndChainsThatLoop() throws {
+        let loopID = F.mobID(12)
+        var file = F()
+        file.mobs = [
+            // A master mob and a source mob that refer to each other.
+            F.mob(AAFClass.masterMob, id: alphaMaster, name: "Loop", slots: [
+                F.timelineSlot(1, F.sourceClip(picture, length: 10, mob: alphaFile)),
+            ]),
+            F.mob(AAFClass.sourceMob, id: alphaFile, name: "Back", slots: [
+                F.timelineSlot(1, F.sourceClip(picture, length: 10, mob: alphaMaster)),
+            ]),
+            // A composition that uses itself.
+            timeline([F.timelineSlot(1, F.sequence(picture, [
+                F.sourceClip(picture, length: 10, mob: alphaMaster),
+                F.sourceClip(picture, length: 10, mob: loopID),
+            ]))], name: "Loop", id: loopID),
+        ]
+        let imported = try read(file)
+        #expect(imported.project.tracks.flatMap(\.clips).count == 1)
+    }
+
+    @Test func survivesHugeNumbers() throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, rate: (1, Int32.max), F.sequence(picture, [
+                F.sourceClip(picture, length: .max, start: .max, mob: alphaMaster),
+                F.filler(picture, length: .max),
+                F.transition(picture, length: .max, cutPoint: .min),
+                F.sourceClip(picture, length: .max, start: .min, mob: bravoMaster),
+            ])),
+            F.timelineSlot(2, rate: (0, 0), F.sequence(picture, [F.sourceClip(picture, length: 10, mob: alphaMaster)])),
+            F.timelineSlot(3, rate: (-25, 1), F.sequence(sound, [F.sourceClip(sound, length: -10, mob: alphaMaster)])),
+        ])]
+        _ = try read(file)
+    }
+
+    @Test func refusesCompoundFilesThatArentAAF() {
+        var writer = CompoundFileTestWriter()
+        writer.root.add(.init(stream: "WordDocument", contents: Data(repeating: 1, count: 100)))
+        #expect(throws: InterchangeError.unsupportedFormat) { try AAFImporter.read(writer.data(), baseURL: nil) }
+    }
+
+    @Test func survivesDamagedFiles() throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [
+                F.sourceClip(picture, length: 50, start: 10, mob: alphaMaster),
+                F.transition(picture, length: 10, cutPoint: 5),
+                F.sourceClip(picture, length: 40, start: 100, mob: bravoMaster),
+            ])),
+        ])]
+        let data = file.data(sectorSize: 512)
+        for length in stride(from: 0, to: data.count, by: 211) {
+            _ = try? AAFImporter.read(data.prefix(length), baseURL: nil)
+        }
+        var generator = SeededGenerator(seed: 42)
+        for _ in 0..<300 {
+            var damaged = data
+            for _ in 0..<8 {
+                damaged[Int.random(in: 0..<damaged.count, using: &generator)] = UInt8.random(in: 0...255, using: &generator)
+            }
+            do {
+                _ = try AAFImporter.read(damaged, baseURL: nil)
+            } catch {
+                #expect(error is InterchangeError)
+            }
+        }
+    }
+}
