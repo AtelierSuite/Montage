@@ -35,6 +35,9 @@ struct AAFImporter {
     /// The media each source mob became, by its ID.
     private var mediaItems: [MobID: MediaItem] = [:]
     private var hasRenderSize = false
+    /// The master mob being imported, when there's no composition: its
+    /// name is the name of the media it plays.
+    private var currentMasterName: String?
 
     /// Past this, nesting is taken to loop.
     private static let maximumDepth = 32
@@ -103,10 +106,21 @@ struct AAFImporter {
         }
 
         let timelines = topLevelCompositions(allMobs)
-        guard let composition = timelines.first else { throw InterchangeError.noTimeline }
-        if timelines.count > 1 { report.add(.otherTimelines(count: timelines.count - 1)) }
-
-        importComposition(composition)
+        let composition: AAFObject
+        if let first = timelines.first {
+            composition = first
+            if timelines.count > 1 { report.add(.otherTimelines(count: timelines.count - 1)) }
+            importComposition(composition)
+        } else {
+            // Clips exported from a bin, with no sequence: one after another.
+            let masters = allMobs.filter { $0.isKind(of: AAFClass.masterMob) }
+            guard let first = masters.first else { throw InterchangeError.noTimeline }
+            composition = first
+            var start = CMTime.zero
+            for master in masters {
+                start = importComposition(master, at: start)
+            }
+        }
 
         var project = Project(settings: settings, media: media.items)
         project.tracks = assembleTracks()
@@ -161,11 +175,17 @@ struct AAFImporter {
 
     // MARK: - Timeline
 
-    private mutating func importComposition(_ composition: AAFObject) {
+    /// A mob's timeline slots, from `start` on the timeline; returns where
+    /// the longest of them ends.
+    @discardableResult
+    private mutating func importComposition(_ composition: AAFObject, at start: CMTime = .zero) -> CMTime {
         var videoLanes = 0
         var audioLanes = 0
+        var end = start
         var compositions: Set<MobID> = []
         if let id = composition.mobID(AAFProperty.ID.mobID) { compositions.insert(id) }
+        currentMasterName = composition.isKind(of: AAFClass.masterMob) ? composition.string(AAFProperty.ID.mobName) : nil
+        defer { currentMasterName = nil }
 
         for slot in composition.strongReferences(AAFProperty.ID.slots) {
             guard let segment = slot.strongReference(AAFProperty.ID.segment) else { continue }
@@ -194,10 +214,12 @@ struct AAFImporter {
                 // Timecode, edge code and the like.
                 continue
             }
-            let context = Context(kind: kind, lane: lane, rate: rate, base: .zero, origin: .zero, window: nil,
+            let context = Context(kind: kind, lane: lane, rate: rate, base: start, origin: .zero, window: nil,
                                   compositions: compositions)
             importSegment(segment, at: 0, context: context, depth: 0)
+            if let length = Self.time(Self.length(of: segment), rate) { end = max(end, start + length) }
         }
+        return end
     }
 
     /// Whether a component carries picture or sound, by its data definition.
@@ -363,7 +385,7 @@ struct AAFImporter {
         var slotID = slotID
         var offset = offset
         var visited: Set<Int> = []
-        var masterName: String?
+        var masterName = currentMasterName
         var fallback: (mob: AAFObject, start: CMTime)?
 
         for _ in 0..<Self.maximumDepth {

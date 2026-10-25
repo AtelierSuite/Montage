@@ -317,9 +317,24 @@ struct AAFImportTests {
     }
 
     @Test func refusesFilesWithoutATimeline() throws {
+        #expect(throws: InterchangeError.noTimeline) { try read(F()) }
+    }
+
+    // MARK: - As real applications write them
+
+    /// Clips exported from a bin, with no sequence, as Media Composer does.
+    @Test func readsMasterMobsOneAfterAnother() throws {
         var file = F()
-        file.mobs = standardMedia()
-        #expect(throws: InterchangeError.noTimeline) { try read(file) }
+        file.mobs = F.media(master: alphaMaster, file: alphaFile, name: "Alpha", url: nil, length: 50)
+            + F.media(master: bravoMaster, file: bravoFile, name: "Bravo", url: nil, length: 30)
+        let imported = try read(file)
+        #expect(imported.name == "Alpha")
+        let alpha = try #require(imported.clip("Alpha", on: .video)?.clip)
+        #expect(alpha.timelineRange == CMTimeRange(start: .zero, duration: frames(50)))
+        #expect(!alpha.isAudioDetached)
+        let bravo = try #require(imported.clip("Bravo", on: .video)?.clip)
+        #expect(bravo.timelineRange == CMTimeRange(start: frames(50), duration: frames(30)))
+        #expect(imported.report.isEmpty)
     }
 
     // MARK: - Damaged files
