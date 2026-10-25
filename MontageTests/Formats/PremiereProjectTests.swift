@@ -428,6 +428,23 @@ struct PremiereRealProjectRegressionTests {
         #expect(try !PremiereFixtures.read().issues(.changed).contains(.uneven(name: "Scale")))
     }
 
+    @Test func reportsCropInMotion() throws {
+        // A 2025 project wipes a still off with Motion's Crop Right, keyframed.
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: #"<Param Index="5" ObjectRef="616"/>"#,
+                                  with: #"<Param Index="5" ObjectRef="616"/><Param Index="6" ObjectRef="617"/>"#)
+            .replacingOccurrences(of: "<VideoFilterComponent ObjectID=\"620\"", with: """
+                <VideoComponentParam ObjectID="617" ClassID="fe47129e-6c94-4fc0-95d5-c056a517aaf3" Version="10">
+                <Name>Crop Right</Name><ParameterID>10</ParameterID>
+                <StartKeyframe>-91445760000000000,0.,0,0,0,0,0,0</StartKeyframe><IsTimeVarying>true</IsTimeVarying>
+                <Keyframes>508032000000,0.,0,0,0,0,0,0;1016064000000,100.,0,0,0,0,0,0;</Keyframes>
+                </VideoComponentParam>
+                <VideoFilterComponent ObjectID="620"
+                """)
+        #expect(try PremiereFixtures.read(xml).issues(.notImported).contains(.setting(name: "Crop")))
+        #expect(try !PremiereFixtures.read().issues(.notImported).contains(.setting(name: "Crop")))
+    }
+
     @Test func refusesAProjectWithClipsButNoSequence() {
         // Media in the bin and nothing on a timeline, as in a project only
         // imported into.

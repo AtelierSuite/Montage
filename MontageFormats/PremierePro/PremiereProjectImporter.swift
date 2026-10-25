@@ -447,6 +447,11 @@ struct PremiereProjectImporter {
         if let anchor = point("Anchor Point"), anchor.isAnimated || anchor.value != CGPoint(x: 0.5, y: 0.5) {
             report.add(.setting(name: "Anchor point"), clipName: clipName, time: clip.timelineStart)
         }
+        // Recent releases have crop in Motion, in percent of each edge.
+        let crops = ["Crop Left", "Crop Top", "Crop Right", "Crop Bottom"].compactMap(number)
+        if crops.contains(where: { $0.isAnimated || $0.value != 0 }) {
+            report.add(.setting(name: "Crop"), clipName: clipName, time: clip.timelineStart)
+        }
     }
 
     // MARK: - Markers
