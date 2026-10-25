@@ -4,6 +4,7 @@ import Foundation
 import MontageEngine
 @testable import MontageFormats
 import Testing
+import UniformTypeIdentifiers
 
 /// DaVinci Resolve projects built at test time in the layout open-source
 /// readers have measured on real exports. No real export is read here.
@@ -215,5 +216,29 @@ struct DRPRefusalTests {
         #expect(project.report.items.map(\.issue).contains(.setting(name: "Frame rate")))
         let camera = try #require(project.project.media.first { $0.name == "A001.mov" })
         #expect(project.mediaSources[camera.id] == URL(fileURLWithPath: "/Old/A001.mov"))
+    }
+}
+
+/// A Resolve project read the way the apps read any project file.
+struct DRPInterchangeTests {
+    @Test func readsAProjectFileThroughInterchange() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appending(path: "Synthetic.drp")
+        try DRPTestBuilder().archive().write(to: file)
+        let imported = try ProjectInterchange.read(contentsOf: file)
+        #expect(imported.name == "Edit")
+        #expect(imported.report.format == .drp)
+    }
+
+    @Test func offersResolveProjectsForImport() {
+        #expect(ProjectInterchange.importableTypes.contains(.resolveProject))
+        #expect(UTType.resolveProject.identifier == "com.blackmagic-design.resolve.project")
+    }
+
+    @Test func stillReadsXML() {
+        #expect(throws: InterchangeError.unsupportedFormat) { try ProjectInterchange.read(Data("<html/>".utf8)) }
+        #expect(throws: ResolveProjectError.damaged) { try ProjectInterchange.read(Data("PK\u{3}\u{4}".utf8)) }
     }
 }
