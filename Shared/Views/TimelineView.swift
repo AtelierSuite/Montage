@@ -262,23 +262,25 @@ struct TimelineView: View {
 
     /// Moves clips: after a long press on iOS, where a plain drag scrolls,
     /// and straight away on a Mac, which scrolls by trackpad or wheel.
+    #if os(macOS)
     private func moving(_ layout: TimelineLayout) -> some Gesture {
-        #if os(macOS)
         DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.viewportSpace))
             .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
             .onChanged { value in moveChanged(start: value.startLocation, to: value.location, layout: layout) }
             .onEnded { _ in endDrag() }
-        #else
-        LongPressGesture(minimumDuration: 0.3)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.viewportSpace)))
-            .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
-            .onChanged { value in
-                guard case .second(true, let value?) = value else { return }
-                moveChanged(start: value.startLocation, to: value.location, layout: layout)
-            }
-            .onEnded { _ in endDrag() }
-        #endif
     }
+    #else
+    /// A UIKit recognizer rather than a long press sequenced before a drag,
+    /// which held on to touches the lanes' scroll view should have had, so
+    /// after media was dropped from the library the timeline wouldn't scroll.
+    private func moving(_ layout: TimelineLayout) -> some UIGestureRecognizerRepresentable {
+        LongPressDragGesture(space: Self.viewportSpace) { start, location in
+            moveChanged(start: start, to: location, layout: layout)
+        } ended: {
+            endDrag()
+        }
+    }
+    #endif
 
     /// Follows a move, with both points in the viewport's space. Begun
     /// away from any clip, it draws a selection rectangle instead.
@@ -765,3 +767,43 @@ private struct PlayheadFollower: View {
             }
     }
 }
+
+#if os(iOS)
+/// A long press, then a drag from where it was pressed, reporting where the
+/// press began and where the touch is now, in the named coordinate space.
+/// It ends however the touch does, cancelled included.
+private struct LongPressDragGesture: UIGestureRecognizerRepresentable {
+    let space: String
+    let changed: (_ start: CGPoint, _ location: CGPoint) -> Void
+    let ended: () -> Void
+
+    final class Coordinator {
+        var start = CGPoint.zero
+    }
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
+        let recognizer = UILongPressGestureRecognizer()
+        recognizer.minimumPressDuration = 0.3
+        return recognizer
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UILongPressGestureRecognizer, context: Context) {
+        let location = context.converter.location(in: .named(space))
+        switch recognizer.state {
+        case .began:
+            context.coordinator.start = location
+            changed(location, location)
+        case .changed:
+            changed(context.coordinator.start, location)
+        case .ended, .cancelled, .failed:
+            ended()
+        default:
+            break
+        }
+    }
+}
+#endif
