@@ -16,6 +16,8 @@ struct LibraryView: View {
     /// What a new bin is to hold once it's named.
     @State private var newBinMedia = Set<MediaItem.ID>()
     @State private var binName = ""
+    @AppStorage("Library.Layout") private var layout = LibraryLayout.grid
+    @State private var detailsCache = LibraryDetailsCache()
     #if os(macOS)
     /// The item a Shift-click selects from.
     @State private var selectionAnchor: MediaItem.ID?
@@ -101,7 +103,7 @@ struct LibraryView: View {
             }
         } else {
             VStack(spacing: 0) {
-                LibraryFilterBar(query: $query, renamingBin: $renamingBin) { newBin(with: []) }
+                LibraryFilterBar(query: $query, layout: $layout, renamingBin: $renamingBin) { newBin(with: []) }
                     .padding(.horizontal, Self.gridPadding)
                     .padding(.vertical, 8)
                 if !editor.missingMediaIDs.isEmpty {
@@ -116,7 +118,7 @@ struct LibraryView: View {
                     }
                     .frame(maxHeight: .infinity)
                 } else {
-                    grid
+                    items
                 }
             }
         }
@@ -144,33 +146,23 @@ struct LibraryView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var grid: some View {
+    /// The items, in a grid or a list.
+    private var items: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: Self.minimumCellWidth), spacing: 10)], spacing: 14) {
-                let clipCounts = editor.project.clipCounts
-                ForEach(shownItems) { item in
-                    LibraryCell(
-                        item: item, isSelected: selection.contains(item.id), clipCount: clipCounts[item.id] ?? 0,
-                        isMissing: editor.missingMediaIDs.contains(item.id)
-                    )
-                        .contextMenu { itemMenu(ids(actingOn: item)) }
-                        // Onto the timeline, or onto a bin to file it there.
-                        .draggable(MediaDragPayload(mediaIDs: ordered(ids(actingOn: item))))
-                        .accessibilityAction { select(item) }
-                        .accessibilityAction(named: Text("Library.AddToTimeline")) { addToTimeline(ids(actingOn: item)) }
-                        .accessibilityAction(named: Text("Library.Remove")) { remove(ids(actingOn: item)) }
-                        #if os(macOS)
-                        // A double-click adds to the timeline; its first click has
-                        // already selected.
-                        .onTapGesture(count: 2) { addToTimeline(ids(actingOn: item)) }
-                        .simultaneousGesture(TapGesture().onEnded { select(item) })
-                        #else
-                        // A tap only selects, so a scroll can't add to the timeline by mistake.
-                        .onTapGesture { select(item) }
-                        #endif
+            let clipCounts = editor.project.clipCounts
+            switch layout {
+            case .grid:
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: Self.minimumCellWidth), spacing: 10)], spacing: 14) {
+                    ForEach(shownItems) { item in itemView(item, clipCount: clipCounts[item.id] ?? 0) }
                 }
+                .padding(Self.gridPadding)
+            case .list:
+                LazyVStack(spacing: 2) {
+                    ForEach(shownItems) { item in itemView(item, clipCount: clipCounts[item.id] ?? 0) }
+                }
+                .padding(.horizontal, Self.gridPadding / 2)
+                .padding(.vertical, 8)
             }
-            .padding(Self.gridPadding)
         }
         // A click between the items clears the selection.
         .background {
@@ -183,6 +175,38 @@ struct LibraryView: View {
         .focusEffectDisabled()
         .focused($isGridFocused)
         .onDeleteCommand { remove(selection) }
+        #endif
+    }
+
+    /// An item's cell or row, with what can be done to it.
+    private func itemView(_ item: MediaItem, clipCount: Int) -> some View {
+        let isSelected = selection.contains(item.id)
+        let isMissing = editor.missingMediaIDs.contains(item.id)
+        return Group {
+            switch layout {
+            case .grid:
+                LibraryCell(item: item, isSelected: isSelected, clipCount: clipCount, isMissing: isMissing)
+            case .list:
+                LibraryRow(
+                    item: item, isSelected: isSelected, clipCount: clipCount, isMissing: isMissing,
+                    detailsCache: detailsCache
+                )
+            }
+        }
+        .contextMenu { itemMenu(ids(actingOn: item)) }
+        // Onto the timeline, or onto a bin to file it there.
+        .draggable(MediaDragPayload(mediaIDs: ordered(ids(actingOn: item))))
+        .accessibilityAction { select(item) }
+        .accessibilityAction(named: Text("Library.AddToTimeline")) { addToTimeline(ids(actingOn: item)) }
+        .accessibilityAction(named: Text("Library.Remove")) { remove(ids(actingOn: item)) }
+        #if os(macOS)
+        // A double-click adds to the timeline; its first click has
+        // already selected.
+        .onTapGesture(count: 2) { addToTimeline(ids(actingOn: item)) }
+        .simultaneousGesture(TapGesture().onEnded { select(item) })
+        #else
+        // A tap only selects, so a scroll can't add to the timeline by mistake.
+        .onTapGesture { select(item) }
         #endif
     }
 
@@ -373,7 +397,7 @@ private struct LibraryCell: View {
         .contentShape(.rect(cornerRadius: Self.cornerRadius))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(item.name))
-        .accessibilityValue(Text(accessibilityValue))
+        .accessibilityValue(Text(LibraryItemText.accessibilityValue(of: item, clipCount: clipCount, isMissing: isMissing)))
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
@@ -387,7 +411,6 @@ private struct LibraryCell: View {
                 .padding(4)
                 .background(.black.opacity(0.6), in: .circle)
                 .padding(4)
-                .help(Text("Library.Status.Missing"))
         } else if clipCount > 0 {
             Image(systemName: "checkmark")
                 .font(.caption2.weight(.bold))
@@ -395,7 +418,6 @@ private struct LibraryCell: View {
                 .padding(4)
                 .background(.tint, in: .circle)
                 .padding(4)
-                .help(Text("Library.Status.Used"))
         }
     }
 
@@ -405,8 +427,8 @@ private struct LibraryCell: View {
         Group {
             if item.kind == .image {
                 Image(systemName: "photo")
-            } else if let duration = Self.duration(of: item) {
-                Text(duration.formatted(.time(pattern: duration >= .seconds(3600) ? .hourMinuteSecond : .minuteSecond)))
+            } else if let duration = LibraryItemText.formattedDuration(of: item) {
+                Text(duration)
                     .monospacedDigit()
             }
         }
@@ -417,35 +439,11 @@ private struct LibraryCell: View {
         .background(.black.opacity(0.6), in: .capsule)
         .padding(4)
     }
-
-    private var accessibilityValue: String {
-        let kind = switch item.kind {
-        case .video: String(localized: "Library.Kind.Video")
-        case .audio: String(localized: "Library.Kind.Audio")
-        case .image: String(localized: "Library.Kind.Image")
-        }
-        var parts = [kind]
-        if item.kind != .image, let duration = Self.duration(of: item) {
-            parts.append(duration.formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide)))
-        }
-        if isMissing {
-            parts.append(String(localized: "Library.Status.Missing"))
-        } else {
-            parts.append(clipCount > 0 ? String(localized: "Library.Status.Used") : String(localized: "Library.Status.Unused"))
-        }
-        return parts.joined(separator: ", ")
-    }
-
-    private static func duration(of item: MediaItem) -> Duration? {
-        let seconds = item.metadata.duration.seconds
-        guard seconds.isFinite, seconds > 0 else { return nil }
-        return .milliseconds(Int64((seconds * 1000).rounded()))
-    }
 }
 
 /// A picture of a media item, cropped to fill the space it's given, with its
 /// kind's symbol until the picture's made, and for audio, which has none.
-private struct LibraryThumbnail: View {
+struct LibraryThumbnail: View {
     let item: MediaItem
     @Environment(ProjectEditor.self) private var editor
     @Environment(\.displayScale) private var displayScale

@@ -1,11 +1,13 @@
 import MontageEngine
 import SwiftUI
 
-/// Along the top of the library: the bins to look in, and a menu to filter
-/// by kind and use, sort, and clear out unused media. On the Mac, the search
+/// Along the top of the library: the bins to look in, and a menu to show
+/// the media as a grid or a list, filter by kind and use, sort, and clear
+/// out unused media. On the Mac, the search
 /// field is here too; iOS searches from the navigation bar.
 struct LibraryFilterBar: View {
     @Binding var query: LibraryQuery
+    @Binding var layout: LibraryLayout
     @Environment(ProjectEditor.self) private var editor
     @Binding var renamingBin: MediaBin?
     var onNewBin: () -> Void
@@ -94,6 +96,11 @@ struct LibraryFilterBar: View {
 
     private var filterMenu: some View {
         Menu {
+            Picker("Library.ViewAs", selection: $layout) {
+                Label("Library.ViewAs.Grid", systemImage: "square.grid.2x2").tag(LibraryLayout.grid)
+                Label("Library.ViewAs.List", systemImage: "list.bullet").tag(LibraryLayout.list)
+            }
+            .pickerStyle(.inline)
             Section("Library.Filter.Show") {
                 kindToggle(.video, "Library.Filter.Video")
                 kindToggle(.audio, "Library.Filter.Audio")
