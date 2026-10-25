@@ -29,7 +29,12 @@ public enum ProjectInterchange {
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             file = url.appending(path: "Info.fcpxml", directoryHint: .notDirectory)
         }
-        return try read(try Data(contentsOf: file), baseURL: file.deletingLastPathComponent())
+        var imported = try read(try Data(contentsOf: file), baseURL: file.deletingLastPathComponent())
+        // A timeline with no name of its own takes the file's.
+        if imported.name?.trimmingCharacters(in: .whitespaces).isEmpty ?? true {
+            imported.name = url.deletingPathExtension().lastPathComponent
+        }
+        return imported
     }
 
     /// Reads another editor's project. Media referred to by relative paths

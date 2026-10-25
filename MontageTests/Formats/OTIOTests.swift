@@ -147,6 +147,18 @@ struct OTIOImportTests {
         #expect(read.issues(.notImported).contains(.otherTimelines(count: 1)))
     }
 
+    @Test func namesAnUnnamedTimelineAfterItsFile() throws {
+        let folder = URL.temporaryDirectory.appending(path: "OTIO-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appending(path: "Rough Cut.otio")
+        try ProjectInterchange.otio(for: Project(), named: "", mediaResolver: .none).write(to: file)
+        #expect(try ProjectInterchange.read(contentsOf: file).name == "Rough Cut")
+        // A timeline's own name stays.
+        try Data(contentsOf: InterchangeFixtures.directory.appending(path: "Resolve.otio")).write(to: file)
+        #expect(try ProjectInterchange.read(contentsOf: file).name == "OTIO Sample")
+    }
+
     @Test func refusesWhatIsntOTIO() {
         #expect(throws: InterchangeError.unsupportedFormat) { try ProjectInterchange.read(Data(#"{"name": "x"}"#.utf8)) }
         #expect(throws: InterchangeError.self) { try ProjectInterchange.read(Data(#"{"OTIO_SCHEMA": "#.utf8)) }

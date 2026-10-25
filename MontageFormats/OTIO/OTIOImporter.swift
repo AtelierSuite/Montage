@@ -133,9 +133,9 @@ struct OTIOImporter {
         for marker in markers.sorted(by: { $0.time < $1.time }) {
             project.addMarker(at: marker.time, name: marker.name)
         }
-        return ImportedProject(
-            project: project, report: report, name: timeline["name"] as? String, mediaSources: media.sources
-        )
+        // Resolve and Kdenlive leave the name empty; the file's is used then.
+        let name = (timeline["name"] as? String).flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
+        return ImportedProject(project: project, report: report, name: name, mediaSources: media.sources)
     }
 
     /// The timelines in a file: itself, or those in a collection.
