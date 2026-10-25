@@ -16,8 +16,11 @@ extension UTType {
 public enum ProjectInterchange {
     /// The kinds of file a project can be imported from. Final Cut Pro 7 XML
     /// has no type of its own, so any XML file is offered. LumaFusion
-    /// packages are imported with `importLumaFusionPackage`.
-    public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle, .xml, .lumaFusionPackage, .otio]
+    /// packages are imported with `importLumaFusionPackage`, and OTIO bundles
+    /// with `importOTIOBundle`.
+    public static let importableTypes: [UTType] = [
+        .fcpxml, .fcpxmlBundle, .xml, .lumaFusionPackage, .otio, .otioz, .otiod,
+    ]
 
     // MARK: - Importing
 
