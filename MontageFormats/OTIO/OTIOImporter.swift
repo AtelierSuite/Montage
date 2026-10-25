@@ -241,13 +241,6 @@ struct OTIOImporter {
         }
     }
 
-    /// Effects on a track or stack, which Montage has no place for.
-    private mutating func importCompositionEffects(of composition: Object, at time: CMTime) {
-        for effect in (composition["effects"] as? [Any] ?? []).compactMap({ $0 as? Object }) {
-            report.add(.unsupportedEffect(name: Self.effectName(effect)), clipName: composition["name"] as? String, time: time)
-        }
-    }
-
     private mutating func importMarkers(of item: Object, placement: Placement) {
         for marker in (item["markers"] as? [Any] ?? []).compactMap({ $0 as? Object }) {
             guard let range = OTIOTime.range(marker["marked_range"]) else { continue }
@@ -314,17 +307,22 @@ struct OTIOImporter {
     }
 
     /// OTIO's effects have no parameters of their own, only a name and
-    /// metadata, so none map onto Montage's: changes of speed are reported,
-    /// and anything else is kept on the clip, turned off.
+    /// metadata, so only those whose metadata says what they do map onto
+    /// Montage's: the clip settings Resolve writes as effects. Changes of speed are reported, and anything else
+    /// is kept on the clip, turned off.
     private mutating func importEffects(of item: Object, to clip: inout Clip, isVideo: Bool, clipName: String?) {
         for effect in (item["effects"] as? [Any] ?? []).compactMap({ $0 as? Object }) {
             switch Self.schema(of: effect)?.name {
             case "LinearTimeWarp":
                 let scalar = (effect["time_scalar"] as? NSNumber)?.doubleValue ?? 1
                 if abs(scalar - 1) > 0.000_001 { report.add(.speedChange, clipName: clipName, time: clip.timelineStart) }
-            case "FreezeFrame":
+            case "FreezeFrame", "TimeEffect":
                 report.add(.speedChange, clipName: clipName, time: clip.timelineStart)
             default:
+                if let block = Self.resolveBlock(effect) {
+                    applyResolveBlock(block, to: &clip, clipName: clipName)
+                    continue
+                }
                 let name = Self.effectName(effect)
                 report.add(.unsupportedEffect(name: name), clipName: clipName, time: clip.timelineStart)
                 let parameters = ((effect["metadata"] as? Object) ?? [:]).keys.sorted().map { key in
@@ -335,6 +333,88 @@ struct OTIOImporter {
                     isVideo: isVideo, parameters: parameters, original: Self.text(of: effect)
                 ))))
             }
+        }
+    }
+
+    /// Effects on a track or stack, which Montage has no place for. Resolve's
+    /// blocks of settings left as they were are no loss.
+    private mutating func importCompositionEffects(of composition: Object, at time: CMTime) {
+        for effect in (composition["effects"] as? [Any] ?? []).compactMap({ $0 as? Object }) {
+            if let block = Self.resolveBlock(effect), Self.isNeutral(block) { continue }
+            report.add(.unsupportedEffect(name: Self.effectName(effect)), clipName: composition["name"] as? String, time: time)
+        }
+    }
+
+    // MARK: - Resolve
+
+    /// Resolve writes every block of its inspector (Transform, Cropping,
+    /// Composite, Retime and Scaling, Fairlight's volume and EQ, …) onto
+    /// each clip as an effect named "Resolve Effect", with the block in its
+    /// metadata: what it is, whether it's on, and each parameter beside its
+    /// default.
+    private static func resolveBlock(_ effect: Object) -> Object? {
+        guard let block = (effect["metadata"] as? Object)?["Resolve_OTIO"] as? Object, block["Effect Name"] is String else {
+            return nil
+        }
+        return block
+    }
+
+    private static func parameters(of block: Object) -> [Object] {
+        (block["Parameters"] as? [Any] ?? []).compactMap { $0 as? Object }
+    }
+
+    /// Whether a block changes nothing: it's turned off, or every parameter
+    /// is at its default throughout.
+    private static func isNeutral(_ block: Object) -> Bool {
+        (block["Enabled"] as? Bool) == false || parameters(of: block).allSatisfy(isDefault)
+    }
+
+    private static func isDefault(_ parameter: Object) -> Bool {
+        guard let fallback = parameter["Default Parameter Value"] as? NSObject else { return false }
+        let keyframes = (parameter["Key Frames"] as? Object ?? [:]).values.compactMap { ($0 as? Object)?["Value"] }
+        let values: [Any?] = [parameter["Parameter Value"]] + keyframes
+        return values.allSatisfy { value in
+            guard let value = value as? NSObject else { return value == nil }
+            return value.isEqual(fallback)
+        }
+    }
+
+    /// Takes the settings a Resolve block changes into the clip's: zoom,
+    /// opacity and clip volume. A block left as it was is no loss; one with
+    /// changes that aren't brought in, or that change over time, is reported
+    /// under its own name, such as "Transform".
+    private mutating func applyResolveBlock(_ block: Object, to clip: inout Clip, clipName: String?) {
+        guard !Self.isNeutral(block) else { return }
+        var leftOver = false
+        var zoom: (x: Double?, y: Double?) = (nil, nil)
+        for parameter in Self.parameters(of: block) where !Self.isDefault(parameter) {
+            let id = (parameter["Parameter ID"] as? String ?? "").lowercased()
+            let value = (parameter["Parameter Value"] as? NSNumber)?.doubleValue
+            let isAnimated = !((parameter["Key Frames"] as? Object) ?? [:]).isEmpty
+            guard let value, !isAnimated, !id.contains("dynamic") else {
+                leftOver = true
+                continue
+            }
+            if id.contains("zoom") {
+                if id.hasSuffix("y") { zoom.y = value } else { zoom.x = value }
+            } else if id.contains("opacity") {
+                clip.opacity = Animatable(max(0, min(1, value > 1 ? value / 100 : value)))
+            } else if id.contains("volume") || id.contains("level") || id.hasSuffix("gain") {
+                // Fairlight's levels are in decibels.
+                clip.volume = Animatable(max(0, pow(10, value / 20)))
+            } else {
+                leftOver = true
+            }
+        }
+        if let scale = zoom.x ?? zoom.y {
+            clip.transform.scale = Animatable(scale)
+            if let x = zoom.x, let y = zoom.y, abs(x - y) > 0.0001 {
+                report.add(.uneven(name: "Zoom"), clipName: clipName, time: clip.timelineStart)
+            }
+        }
+        if leftOver {
+            report.add(.unsupportedEffect(name: block["Effect Name"] as? String ?? "Resolve Effect"), clipName: clipName,
+                       time: clip.timelineStart)
         }
     }
 
