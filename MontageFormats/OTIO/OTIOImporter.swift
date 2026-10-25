@@ -382,13 +382,28 @@ struct OTIOImporter {
     }
 
     /// Takes the settings a Resolve block changes into the clip's: zoom,
-    /// opacity and clip volume. A block left as it was is no loss; one with
-    /// changes that aren't brought in, or that change over time, is reported
-    /// under its own name, such as "Transform".
+    /// rotation, opacity and clip volume. A block left as it was is no loss;
+    /// one with changes that aren't brought in (pan and tilt, cropping), or
+    /// that change over time, is reported under its own name, such as
+    /// "Transform".
+    ///
+    /// Zoom is `transformationZoomX` and `transformationZoomY`, 1 for the
+    /// picture fitted to the frame, as Montage's scale is. Rotation is
+    /// `transformationRotationAngle`, in degrees counter-clockwise, which
+    /// Montage turns the other way.
     private mutating func applyResolveBlock(_ block: Object, to clip: inout Clip, clipName: String?) {
         guard !Self.isNeutral(block) else { return }
         var leftOver = false
         var zoom: (x: Double?, y: Double?) = (nil, nil)
+        var isZoomed = false
+        for parameter in Self.parameters(of: block) {
+            // Both zooms, as one alone may be changed.
+            let id = (parameter["Parameter ID"] as? String ?? "").lowercased()
+            guard id.hasPrefix("transformationzoom"), let value = (parameter["Parameter Value"] as? NSNumber)?.doubleValue else {
+                continue
+            }
+            if id.hasSuffix("y") { zoom.y = value } else { zoom.x = value }
+        }
         for parameter in Self.parameters(of: block) where !Self.isDefault(parameter) {
             let id = (parameter["Parameter ID"] as? String ?? "").lowercased()
             let value = (parameter["Parameter Value"] as? NSNumber)?.doubleValue
@@ -397,8 +412,10 @@ struct OTIOImporter {
                 leftOver = true
                 continue
             }
-            if id.contains("zoom") {
-                if id.hasSuffix("y") { zoom.y = value } else { zoom.x = value }
+            if id.hasPrefix("transformationzoom") {
+                isZoomed = true
+            } else if id == "transformationrotationangle" {
+                clip.transform.rotation = Animatable(value == 0 ? 0 : -value)
             } else if id.contains("opacity") {
                 clip.opacity = Animatable(max(0, min(1, value > 1 ? value / 100 : value)))
             } else if id.contains("volume") || id.contains("level") || id.hasSuffix("gain") {
@@ -408,7 +425,7 @@ struct OTIOImporter {
                 leftOver = true
             }
         }
-        if let scale = zoom.x ?? zoom.y {
+        if isZoomed, let scale = zoom.x ?? zoom.y {
             clip.transform.scale = Animatable(scale)
             if let x = zoom.x, let y = zoom.y, abs(x - y) > 0.0001 {
                 report.add(.uneven(name: "Zoom"), clipName: clipName, time: clip.timelineStart)

@@ -78,6 +78,41 @@ struct OTIOEffectTests {
         #expect(abs(shot.volume.value - 0.501) < 0.001)
     }
 
+    /// As Resolve 19 writes a rotated clip: every Transform parameter, the
+    /// changed ones beside their defaults, with no keyframes.
+    @Test func turnsResolvesRotationTheOtherWay() throws {
+        let imported = try read(clipEffects: [
+            resolve("Transform", [
+                parameter("transformationPan", 0.0, default: 0.0, keyframes: [:]),
+                parameter("transformationZoomX", 0.5, default: 1.0, keyframes: [:]),
+                parameter("transformationZoomY", 0.5, default: 1.0, keyframes: [:]),
+                parameter("transformationRotationAngle", 52.21, default: 0.0, keyframes: [:]),
+            ]),
+        ])
+        #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
+        let shot = try clip(imported)
+        #expect(shot.transform.rotation.value == -52.21)
+        #expect(shot.transform.scale.value == 0.5)
+    }
+
+    @Test func reportsAZoomChangedOneWayOnly() throws {
+        let imported = try read(clipEffects: [
+            resolve("Transform", [
+                parameter("transformationZoomX", 1.0, default: 1.0), parameter("transformationZoomY", 1.185, default: 1.0),
+            ]),
+        ])
+        #expect(imported.report.items.map(\.issue) == [.uneven(name: "Zoom")])
+        #expect(try clip(imported).transform.scale.value == 1.0)
+    }
+
+    /// Pan and tilt aren't brought in until a file from Resolve shows what
+    /// they're fractions of.
+    @Test func reportsResolvesPanAndTilt() throws {
+        let imported = try read(clipEffects: [resolve("Transform", [parameter("transformationPan", 0.05, default: 0.0)])])
+        #expect(imported.issues(.unsupportedEffect) == [.unsupportedEffect(name: "Transform")])
+        #expect(try clip(imported).transform.position.value == CGPoint(x: 0.5, y: 0.5))
+    }
+
     @Test func reportsResolveSettingsByTheirOwnNames() throws {
         let imported = try read(clipEffects: [
             resolve("Cropping", [parameter("cropLeft", 10.0, default: 0.0)]),
