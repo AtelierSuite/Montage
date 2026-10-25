@@ -166,7 +166,8 @@ struct ResolveXMEMLQuirkTests {
         ))
         let first = try #require(imported.clip("a.mov")).clip
         #expect(first.timelineRange == CMTimeRange(start: frames(12), duration: frames(96)))
-        #expect(first.sourceRange.start == frames(24))
+        // Its in point counts from the dissolve's start, half of it before the cut.
+        #expect(first.sourceRange.start == frames(36))
         #expect(try #require(imported.clip("b.mov")).clip.timelineStart == frames(120))
     }
 

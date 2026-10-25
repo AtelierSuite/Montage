@@ -151,18 +151,24 @@ struct XMEMLImporter {
         if let id = item["id"], mergedAudio.contains(id) { return }
         let name = item.child("name")?.text
         let clipRate = item.child("rate").map(Self.frameDuration(of:)) ?? placement.rate
-        let sourceIn = frames(item.child("in")?.text, clipRate) ?? .zero
-        let sourceOut = frames(item.child("out")?.text, clipRate) ?? sourceIn
-        let duration = sourceOut - sourceIn
+        let writtenIn = frames(item.child("in")?.text, clipRate) ?? .zero
+        let sourceOut = frames(item.child("out")?.text, clipRate) ?? writtenIn
+        let duration = sourceOut - writtenIn
         // Inside a transition, the start or end is written as -1.
         let start = frames(item.child("start")?.text, placement.rate)
         let end = frames(item.child("end")?.text, placement.rate)
         // Between two transitions, Final Cut 7 and Premiere count a clip
-        // from where the first starts, its overlap included. Resolve counts
-        // only what plays from cut to cut, so a clip exactly that long
-        // starts at the first cut.
+        // from where the first starts, its overlap included. Resolve gives
+        // it only the length it plays from cut to cut, but still counts its
+        // in point from where the first transition starts; its sound,
+        // written without the transition, shows it. Such a clip starts at
+        // the first cut, that far into its media.
         var inside = transitionStart
-        if let (previous, next) = cuts, start == nil, end == nil, next - previous == duration { inside = previous }
+        var sourceIn = writtenIn
+        if let (previous, next) = cuts, let transitionStart, start == nil, end == nil, next - previous == duration {
+            inside = previous
+            sourceIn = writtenIn + (previous - transitionStart)
+        }
         guard let sequenceStart = start ?? end.map({ $0 - duration }) ?? inside, duration > .zero else { return }
         let timelineStart = placement.timeline(sequenceStart)
 
