@@ -117,6 +117,12 @@ public enum ProjectInterchange {
         FCPXMLExporter(project: project, name: name, mediaResolver: mediaResolver).document()
     }
 
+    /// The project as an OpenTimelineIO file, for DaVinci Resolve, Premiere
+    /// Pro and other apps that read OTIO.
+    public static func otio(for project: Project, named name: String, mediaResolver: MediaResolver) -> Data {
+        OTIOExporter(project: project, name: name, mediaResolver: mediaResolver).document()
+    }
+
     /// The clips FCPXML can't carry, which are left out: shapes, which have
     /// no generator of Final Cut's to map to, and text with no words, which
     /// Final Cut would fill with its title's own. Other text goes out as
