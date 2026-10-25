@@ -7,6 +7,8 @@ import SwiftUI
 /// with the clip it was on and where.
 struct ImportReportView: View {
     let report: ImportReport
+    /// The imported timeline's name, or the document's: see `ImportReport.title`.
+    let title: String
     /// The project's frames, to say where things were as timecode.
     let frames: FrameTime
     let dismiss: () -> Void
@@ -39,7 +41,7 @@ struct ImportReportView: View {
             .listStyle(.inset)
             .frame(minWidth: 480, minHeight: 360)
             #endif
-            .navigationTitle("ImportReport.Title")
+            .navigationTitle(title)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("ImportReport.Done", action: dismiss)

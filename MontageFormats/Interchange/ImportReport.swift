@@ -138,6 +138,15 @@ public struct ImportReport: Equatable, Sendable {
     mutating func add(_ issue: Issue, clipName: String? = nil, time: CMTime? = nil) {
         items.append(Item(issue, clipName: clipName, time: time))
     }
+
+    /// What to title the report with: the imported timeline's name, or, for
+    /// a timeline with none, the name of the document it was imported into.
+    public static func title(timelineName: String?, documentName: String) -> String {
+        guard let name = timelineName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+            return documentName
+        }
+        return name
+    }
 }
 
 /// The interchange formats Montage reads.

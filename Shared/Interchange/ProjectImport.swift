@@ -17,6 +17,8 @@ final class ProjectImport {
     private(set) var isImporting = false
     /// What the last import couldn't bring across, until it's been shown.
     var report: ImportReport?
+    /// The name of the timeline the last import read, if it had one.
+    private(set) var importedName: String?
     /// Why the last import failed, until it's been shown.
     var failure: String?
 
@@ -57,6 +59,7 @@ final class ProjectImport {
             do {
                 let imported = try await Self.read(url, store: store, takenPaths: takenPaths)
                 editor.replaceContents(with: imported.project)
+                importedName = imported.name
                 report = imported.report
             } catch {
                 let error = error as NSError

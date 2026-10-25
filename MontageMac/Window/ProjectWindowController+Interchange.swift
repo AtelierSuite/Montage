@@ -60,10 +60,17 @@ extension ProjectWindowController {
         } else if let report = projectImport.report {
             projectImport.report = nil
             var sheet: NSViewController?
+            let title = ImportReport.title(
+                timelineName: projectImport.importedName,
+                documentName: (document as? NSDocument)?.displayName ?? String(localized: "Export.Untitled")
+            )
             let view = ImportReportView(
-                report: report, frames: FrameTime(frameDuration: editor.project.settings.frameDuration)
+                report: report, title: title, frames: FrameTime(frameDuration: editor.project.settings.frameDuration)
             ) { if let sheet { sheet.presentingViewController?.dismiss(sheet) } }
             let controller = NSHostingController(rootView: view)
+            // A sheet's window takes its title from the controller, not
+            // the view's navigation title, and is "Untitled" without one.
+            controller.title = title
             sheet = controller
             contentViewController?.presentAsSheet(controller)
         }
