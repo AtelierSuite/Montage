@@ -145,10 +145,13 @@ private struct AddActions: View {
             AddLayerMenu {
                 Image(systemName: "plus")
                     .font(.system(size: 17))
-                    .frame(width: 42, height: 44)
+                    .frame(width: 44, height: 44)
                     .contentShape(.circle)
                     .foregroundStyle(.primary)
             }
+            // Plain, so the menu doesn't tint its label like the other buttons.
+            .menuStyle(.button)
+            .buttonStyle(.plain)
             .accessibilityLabel(Text("Add.Menu"))
         }
     }
