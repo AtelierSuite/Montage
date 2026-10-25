@@ -24,7 +24,8 @@ import SwiftUI
 ///   ripple deletes, N turns snapping on and off, and + and - zoom.
 ///
 /// Drags snap to the playhead, markers and clip edges, showing a line where
-/// they've snapped.
+/// they've snapped. Taken near either end of the part in sight, a move or
+/// trim scrolls the lanes along, faster the nearer the edge.
 struct TimelineView: View {
     @Environment(ProjectEditor.self) private var editor
     @Environment(\.displayScale) private var displayScale
@@ -34,6 +35,12 @@ struct TimelineView: View {
     private let trailingRoom = 120.0
     /// The lanes' coordinate space, that every gesture's location is in.
     private static let space = "Timeline.Lanes"
+    /// The space of the part of the lanes in sight, which stays put as they
+    /// scroll. Drags that scroll the lanes along are measured in it, so a
+    /// finger held still stays still in it, and turned into the lanes' space
+    /// through `scrollOffset`.
+    private static let viewportSpace = "Timeline.Viewport"
+    private static let autoScroll = TimelineAutoScroll()
 
     /// The size of the visible part of the lanes.
     @State private var viewport = CGSize.zero
@@ -41,6 +48,11 @@ struct TimelineView: View {
     /// How far the lanes are scrolled along.
     @State private var scrollOffset = 0.0
     @State private var drag: TimelineDrag?
+    /// Where the pointer of a move or trim is, in the viewport's space, for
+    /// scrolling to follow it while it's held near an edge.
+    @State private var dragPointer: CGPoint?
+    /// Whether the pointer is near enough an edge to scroll the lanes along.
+    @State private var isAutoScrolling = false
     /// Whether a move or trim gesture is under way. It goes back to false
     /// however the gesture stops, including when the system cancels it
     /// without ending it, so the drag never outlives it.
@@ -72,6 +84,8 @@ struct TimelineView: View {
                 // A drag that moves clips or trims them doesn't scroll too.
                 .scrollDisabled(drag != nil)
                 .onScrollGeometryChange(for: Double.self) { $0.contentOffset.x } action: { scrollOffset = $1 }
+                .coordinateSpace(.named(Self.viewportSpace))
+                .task(id: isAutoScrolling) { await autoScrollWhileNearAnEdge() }
                 .background {
                     PlayheadFollower(
                         pointsPerSecond: layout.pointsPerSecond, visibleRange: scrollOffset...(scrollOffset + viewport.width),
@@ -233,13 +247,13 @@ struct TimelineView: View {
     /// and straight away on a Mac, which scrolls by trackpad or wheel.
     private func moving(_ layout: TimelineLayout) -> some Gesture {
         #if os(macOS)
-        DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.space))
+        DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.viewportSpace))
             .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
             .onChanged { value in moveChanged(start: value.startLocation, to: value.location, layout: layout) }
             .onEnded { _ in endDrag() }
         #else
         LongPressGesture(minimumDuration: 0.3)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space)))
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.viewportSpace)))
             .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
             .onChanged { value in
                 guard case .second(true, let value?) = value else { return }
@@ -249,20 +263,75 @@ struct TimelineView: View {
         #endif
     }
 
+    /// Follows a move, with both points in the viewport's space.
     private func moveChanged(start: CGPoint, to location: CGPoint, layout: TimelineLayout) {
         if drag == nil {
             focus()
-            guard let move = TimelineDrag.move(at: start, layout: layout, editor: editor) else { return }
+            guard let move = TimelineDrag.move(at: lanePoint(start), layout: layout, editor: editor) else { return }
             drag = move
             pickUps += 1
         }
-        drag?.update(to: location, editor: editor)
+        dragged(to: location)
     }
 
     private func endDrag() {
+        dragPointer = nil
+        isAutoScrolling = false
         guard drag != nil else { return }
         drag = nil
         editor.endGesture()
+    }
+
+    // MARK: - Scrolling while dragging
+
+    /// A point in the viewport's space, in the lanes' space.
+    private func lanePoint(_ point: CGPoint) -> CGPoint {
+        CGPoint(x: point.x + scrollOffset, y: point.y)
+    }
+
+    /// Follows the pointer of a move or trim to a point in the viewport's
+    /// space, scrolling the lanes along while it's near either end.
+    private func dragged(to point: CGPoint) {
+        dragPointer = point
+        followDragPointer()
+        let isNearAnEdge = Self.autoScroll.speed(atX: point.x, visible: 0...viewport.width) != 0
+        if isNearAnEdge != isAutoScrolling { isAutoScrolling = isNearAnEdge }
+    }
+
+    /// Brings the drag up to where its pointer is over the lanes, as they
+    /// scroll under it.
+    private func followDragPointer() {
+        guard let dragPointer else { return }
+        drag?.update(to: lanePoint(dragPointer), editor: editor)
+    }
+
+    /// Scrolls the lanes along, a step each frame, while the pointer of a
+    /// drag is held near either end, moving what's being dragged with them.
+    /// Moving clips past the end makes room for them as they go.
+    private func autoScrollWhileNearAnEdge() async {
+        guard isAutoScrolling else { return }
+        let clock = ContinuousClock()
+        var last = clock.now
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(16))
+            guard !Task.isCancelled, let dragPointer, viewport.width > 0 else { return }
+            let now = clock.now
+            // No more than a tenth of a second at once, should a frame be
+            // late, so it never jumps.
+            let elapsed = min((now - last) / .seconds(1), 0.1)
+            last = now
+            let speed = Self.autoScroll.speed(atX: dragPointer.x, visible: 0...viewport.width)
+            let layout = TimelineLayout(project: editor.project, pointsPerSecond: editor.timeline.pointsPerSecond)
+            let offset = TimelineAutoScroll.offset(
+                from: scrollOffset, speed: speed, elapsed: elapsed, maximumOffset: contentWidth(layout) - viewport.width
+            )
+            guard offset != scrollOffset else { continue }
+            // Kept now rather than when the scroll view reports it, so the
+            // next step and the drag go on from here.
+            scrollOffset = offset
+            scrollPosition.scrollTo(x: offset)
+            followDragPointer()
+        }
     }
 
     // MARK: - Dropping
@@ -317,15 +386,17 @@ struct TimelineView: View {
             #endif
             .offset(x: x, y: rect.minY)
             .gesture(
-                DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
+                DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.viewportSpace))
                     .updating($isDragGestureActive) { _, isActive, _ in isActive = true }
                     .onChanged { value in
                         if drag == nil {
                             focus()
                             if !editor.timeline.selectedClipIDs.contains(id) { editor.select(id) }
-                            drag = TimelineDrag.trim(id, edge: edge, at: value.startLocation, layout: layout, editor: editor)
+                            drag = TimelineDrag.trim(
+                                id, edge: edge, at: lanePoint(value.startLocation), layout: layout, editor: editor
+                            )
                         }
-                        drag?.update(to: value.location, editor: editor)
+                        dragged(to: value.location)
                     }
                     .onEnded { _ in endDrag() }
             )
