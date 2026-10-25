@@ -209,7 +209,9 @@ struct PremiereProjectImporter {
         // in and out points are written as if at that speed.
         func source(_ name: String) -> Int64 {
             let raw = PremiereProject.ticks(clip?.child(name)?.text) ?? 0
-            return speed != 0 && speed != 1 ? Int64(Double(raw) / abs(speed)) : raw
+            guard speed != 0, speed != 1 else { return raw }
+            let scaled = Double(raw) / abs(speed)
+            return scaled.isFinite && abs(scaled) < 9e18 ? Int64(scaled) : raw
         }
         return TrackItem(
             id: object["ObjectID"] ?? object["ObjectUID"] ?? UUID().uuidString, object: object,
@@ -224,8 +226,10 @@ struct PremiereProjectImporter {
         _ item: TrackItem, kind: Track.Kind, lane: Int, placement: Placement, audioItems: [TrackItem]
     ) {
         guard !merged.contains(item.id) else { return }
-        let duration = PremiereProject.time(item.end - item.start)
-        guard duration > .zero else { return }
+        // Past what a count of ticks can hold, the times are nonsense.
+        let (length, overflow) = item.end.subtractingReportingOverflow(item.start)
+        guard !overflow, length > 0, !item.inPoint.addingReportingOverflow(length).overflow else { return }
+        let duration = PremiereProject.time(length)
         let sourceIn = PremiereProject.time(item.inPoint)
         let timelineStart = placement.timeline(PremiereProject.time(item.start))
         let components = components(of: item)
@@ -233,7 +237,7 @@ struct PremiereProjectImporter {
         // A clip's markers are its media's, wherever they fall; only those
         // within the part used are on the timeline.
         for marker in markers(item.clip?.descendant("MarkerOwner", "Markers"))
-        where marker.ticks >= item.inPoint && marker.ticks < item.inPoint + (item.end - item.start) {
+        where marker.ticks >= item.inPoint && marker.ticks < item.inPoint + length {
             report.add(.marker(name: marker.name), clipName: item.name,
                        time: timelineStart + (PremiereProject.time(marker.ticks) - sourceIn))
         }
