@@ -13,6 +13,9 @@ struct TextInspector: View {
     /// Whether the words are being typed, which is one undo step until the
     /// box is left.
     @FocusState private var isTyping: Bool
+    /// Whether the wrap width is being dragged, so each move isn't an undo
+    /// step.
+    @State private var isDraggingWrapWidth = false
     @State private var isNamingPreset = false
     @State private var presetName = ""
     private var presets: TextPresetLibrary { TextPresetLibrary.shared }
@@ -62,7 +65,17 @@ struct TextInspector: View {
             ParameterSlider("Inspector.Text.LetterSpacing", editing.parameter(\.textContent.style.letterSpacing), in: -20...100,
                             format: ParameterFormat.whole)
             LabeledContent("Inspector.Text.WrapWidth") {
-                Slider(value: editing.binding(\.textContent.style.wrapWidth), in: 0.1...1)
+                Slider(value: Binding {
+                    style.wrapWidth
+                } set: { width in
+                    editing.editor.changeClip(editing.clip.id, continuously: isDraggingWrapWidth) {
+                        $0.textContent.style.wrapWidth = width
+                    }
+                }, in: 0.1...1) { dragging in
+                    isDraggingWrapWidth = dragging
+                    if !dragging { editing.editor.endClipChange() }
+                }
+                .onDisappear { if isDraggingWrapWidth { editing.editor.endClipChange() } }
             }
         }
         Section("Inspector.Fill") {
