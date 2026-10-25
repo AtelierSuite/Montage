@@ -87,6 +87,22 @@ struct OTIOEffectTests {
         #expect(!imported.issues(.unsupportedEffect).contains(.unsupportedEffect(name: "Resolve Effect")))
     }
 
+    @Test func makesKdenlivesFadesKeyframes() throws {
+        func fade(_ name: String, frames: Double) -> [String: Any] {
+            ["OTIO_SCHEMA": "Effect.1", "name": "", "effect_name": name, "metadata": ["duration": time(frames)]]
+        }
+        // Kdenlive writes fractions of a frame; they're put on the frame.
+        let imported = try read(clipEffects: [
+            fade("fadein", frames: 14.993), fade("fadeout", frames: 30), fade("fade_from_black", frames: 15),
+        ])
+        #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
+        let shot = try clip(imported)
+        #expect(shot.volume.keyframes.map(\.time) == [.zero, seconds(1, 2), seconds(2), seconds(3)])
+        #expect(shot.volume.keyframes.map(\.value) == [0, 1, 1, 0])
+        #expect(shot.opacity.keyframes.map(\.time) == [.zero, seconds(1, 2)])
+        #expect(shot.opacity.keyframes.map(\.value) == [0, 1])
+    }
+
     @Test func reportsAResolveRetimeAsASpeedChange() throws {
         let retime: [String: Any] = ["OTIO_SCHEMA": "TimeEffect.1", "name": "", "effect_name": "",
                                      "metadata": ["Resolve_OTIO": ["Speed Ratio": 0.33]]]

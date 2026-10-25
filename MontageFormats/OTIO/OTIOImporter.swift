@@ -308,7 +308,8 @@ struct OTIOImporter {
 
     /// OTIO's effects have no parameters of their own, only a name and
     /// metadata, so only those whose metadata says what they do map onto
-    /// Montage's: the clip settings Resolve writes as effects. Changes of speed are reported, and anything else
+    /// Montage's: the clip settings Resolve writes as effects, and
+    /// Kdenlive's fades. Changes of speed are reported, and anything else
     /// is kept on the clip, turned off.
     private mutating func importEffects(of item: Object, to clip: inout Clip, isVideo: Bool, clipName: String?) {
         for effect in (item["effects"] as? [Any] ?? []).compactMap({ $0 as? Object }) {
@@ -323,6 +324,7 @@ struct OTIOImporter {
                     applyResolveBlock(block, to: &clip, clipName: clipName)
                     continue
                 }
+                if applyKdenliveFade(effect, to: &clip) { continue }
                 let name = Self.effectName(effect)
                 report.add(.unsupportedEffect(name: name), clipName: clipName, time: clip.timelineStart)
                 let parameters = ((effect["metadata"] as? Object) ?? [:]).keys.sorted().map { key in
@@ -416,6 +418,32 @@ struct OTIOImporter {
             report.add(.unsupportedEffect(name: block["Effect Name"] as? String ?? "Resolve Effect"), clipName: clipName,
                        time: clip.timelineStart)
         }
+    }
+
+    // MARK: - Kdenlive
+
+    /// Kdenlive's fades, by how long they last: `fadein` and `fadeout` of
+    /// the sound, and `fade_from_black` and `fade_to_black` of the picture,
+    /// as keyframes of the clip's volume or opacity. Returns whether the
+    /// effect was one.
+    private func applyKdenliveFade(_ effect: Object, to clip: inout Clip) -> Bool {
+        let kind = (effect["effect_name"] as? String ?? "").lowercased()
+        guard ["fadein", "fadeout", "fade_from_black", "fade_to_black"].contains(kind),
+              let length = OTIOTime.time((effect["metadata"] as? Object)?["duration"]) else { return false }
+        let fade = min(InterchangeTime.conformed(max(length, .zero), to: settings.frameDuration), clip.duration)
+        guard fade > .zero else { return true }
+        let isIn = kind == "fadein" || kind == "fade_from_black"
+        let keyframes = isIn
+            ? [Keyframe(time: .zero, value: 0.0), Keyframe(time: fade, value: 1.0)]
+            : [Keyframe(time: clip.duration - fade, value: 1.0), Keyframe(time: clip.duration, value: 0.0)]
+        func faded(_ parameter: Animatable<Double>) -> Animatable<Double> {
+            let level = parameter.value
+            let kept = parameter.keyframes.filter { old in !keyframes.contains { $0.time == old.time } }
+            let added = keyframes.map { Keyframe(time: $0.time, value: $0.value * level) }
+            return Animatable(level, keyframes: (kept + added).sorted { $0.time < $1.time })
+        }
+        if kind.hasPrefix("fade_") { clip.opacity = faded(clip.opacity) } else { clip.volume = faded(clip.volume) }
+        return true
     }
 
     // MARK: - Media
