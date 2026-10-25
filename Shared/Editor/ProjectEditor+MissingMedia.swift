@@ -1,3 +1,4 @@
+import CoreMedia
 import Foundation
 import MontageEngine
 
@@ -55,7 +56,13 @@ extension ProjectEditor {
     /// confirmed. Each item keeps its name, bin and clips, and takes the new
     /// file's location and what it's like. Whatever was made from the old
     /// files, if anything, is thrown away first, as it isn't of the new ones.
-    func relinkMedia(_ relinks: [MediaItem.ID: (location: MediaLocation, metadata: MediaMetadata)]) async {
+    /// Clips whose source points are in a file's timecode, as an edit
+    /// decision list gives them, are moved onto it by `timecodeStarts`, the
+    /// timecode each new file starts at.
+    func relinkMedia(
+        _ relinks: [MediaItem.ID: (location: MediaLocation, metadata: MediaMetadata)],
+        timecodeStarts: [MediaItem.ID: CMTime] = [:]
+    ) async {
         guard !relinks.isEmpty else { return }
         for id in relinks.keys {
             cacheStore?.removeCache(for: id)
@@ -69,6 +76,9 @@ extension ProjectEditor {
                 guard let relink = relinks[project.media[index].id] else { continue }
                 project.media[index].location = relink.location
                 project.media[index].metadata = relink.metadata
+                if let start = timecodeStarts[project.media[index].id] {
+                    project.alignSourceRanges(of: project.media[index].id, toTimecodeStart: start, duration: relink.metadata.duration)
+                }
             }
         }
         // Done once the relinked media is no longer missing.

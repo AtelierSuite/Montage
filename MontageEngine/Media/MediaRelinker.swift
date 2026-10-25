@@ -72,7 +72,8 @@ public enum MediaRelinker {
         guard probed.kind == item.kind else { return [.kind(expected: item.kind, found: probed.kind)] }
         var differences: [Difference] = []
         let expected = item.metadata, found = probed.metadata
-        if item.kind != .image, expected.duration.isNumeric, found.duration.isNumeric {
+        // No duration is an unknown one, as for media from an edit decision list.
+        if item.kind != .image, expected.duration.isNumeric, expected.duration > .zero, found.duration.isNumeric {
             // Within a frame or so: containers round durations differently.
             let tolerance = expected.nominalFrameRate > 0 ? max(1.5 / expected.nominalFrameRate, 0.05) : 0.05
             if abs(expected.duration.seconds - found.duration.seconds) > tolerance {
