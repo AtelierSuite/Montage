@@ -177,4 +177,15 @@ struct ResolveXMEMLQuirkTests {
         ))
         #expect(try #require(imported.clip("a.mov")).clip.timelineStart == .zero)
     }
+
+    /// Resolve writes a compound clip as a file with no path, and nothing of
+    /// what's inside it.
+    @Test func reportsACompoundClipItLeftOut() throws {
+        let imported = try ProjectInterchange.read(sequence(
+            clip("a.mov", start: 0, end: 48, in: 0, out: 48, path: "file:///a.mov") + clip("E57_OUT", start: 48, end: 96, in: 0, out: 48)
+        ))
+        #expect(imported.project.media.map(\.name) == ["a.mov"])
+        #expect(imported.report.items.contains { $0.issue == .setting(name: "Compound clip") && $0.clipName == "E57_OUT" })
+        #expect(imported.issues(.missingMedia).isEmpty)
+    }
 }
