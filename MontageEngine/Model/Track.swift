@@ -55,6 +55,15 @@ public struct Track: Identifiable, Equatable, Sendable, Codable {
         clips.sort { $0.timelineStart < $1.timelineStart }
     }
 
+    /// Changes every clip in place, then puts the clips back in order once,
+    /// rather than once for each clip as `update` would.
+    mutating func updateEach(_ change: (inout Clip) -> Void) {
+        for index in clips.indices {
+            change(&clips[index])
+        }
+        clips.sort { $0.timelineStart < $1.timelineStart }
+    }
+
     @discardableResult
     public mutating func remove(_ id: Clip.ID) -> Clip? {
         guard let index = clips.firstIndex(where: { $0.id == id }) else { return nil }
