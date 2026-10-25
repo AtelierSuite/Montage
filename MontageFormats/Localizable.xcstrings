@@ -291,6 +291,35 @@
         }
       }
     },
+    "Interchange.Format.PremierePro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Pro project"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Proプロジェクト"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Pro 项目"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Pro 專案"
+          }
+        }
+      }
+    },
     "Interchange.Format.XMEML" : {
       "extractionState" : "manual",
       "localizations" : {
