@@ -225,7 +225,9 @@ struct DRPImporter {
                 item.sequenceID = sequenceID
                 sequences[sequenceID] = sequence
                 item.timelineID = timeline?["DbId"]
-                if let name = timeline?.child("Name")?.text, !name.isEmpty { item.name = name }
+                // The media pool's name is the one Resolve shows; the
+                // timeline's own can be an older one, kept after a rename.
+                if item.name.isEmpty, let name = timeline?.child("Name")?.text { item.name = name }
             }
             for info in Self.streams(of: element) {
                 let isVideo = info.name == "BtVideoInfo"

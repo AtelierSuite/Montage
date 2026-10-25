@@ -34,10 +34,12 @@ struct DRPTestBuilder {
         """
     }
 
+    /// The timeline's own name is an older one, as a real export renamed in
+    /// the media pool has; the media pool's is the one to show.
     private func timelineClip(id: String, timeline: String, sequence sequenceID: String, name: String) -> String {
         """
         <Element><Sm2MpTimelineClip DbId="\(id)"><Name>\(name)</Name><MpFolder>bin-master</MpFolder>\
-        <TimelineSharedHandle><Sm2Timeline DbId="\(timeline)"><Name>\(name)</Name>\
+        <TimelineSharedHandle><Sm2Timeline DbId="\(timeline)"><Name>\(name)-old</Name>\
         <Sequence>\(sequence(id: sequenceID, start: 3600))</Sequence></Sm2Timeline></TimelineSharedHandle>\
         </Sm2MpTimelineClip></Element>
         """
