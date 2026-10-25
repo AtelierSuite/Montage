@@ -85,6 +85,21 @@ struct TimelineLayout {
         return (clip, index)
     }
 
+    /// The clips under a rectangle, such as one dragged out to select them:
+    /// those in the rows it crosses that share some time with it.
+    func clips(under rect: CGRect) -> [(clip: Clip, row: Int)] {
+        let first = max(rowIndex(atY: rect.minY), 0)
+        let last = min(rowIndex(atY: rect.maxY), rows.count - 1)
+        guard first <= last else { return [] }
+        let range = CMTimeRange(
+            start: CMTime(seconds: max(0, seconds(atX: rect.minX)), preferredTimescale: 6000),
+            end: CMTime(seconds: max(0, seconds(atX: rect.maxX)), preferredTimescale: 6000)
+        )
+        return (first...last).flatMap { index in
+            (rows[index].track?.clips(overlapping: range) ?? []).map { ($0, index) }
+        }
+    }
+
     /// Every clip with its row, for drawing the ones in sight.
     func clips(in visible: ClosedRange<Double>) -> [(clip: Clip, row: Int)] {
         rows.enumerated().flatMap { index, row in

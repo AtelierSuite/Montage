@@ -15,6 +15,9 @@ import SwiftUI
 ///   the selection.
 /// - A long press then a drag moves clips, along their tracks and onto
 ///   others; on a Mac, a drag does.
+/// - The same from empty space draws a rectangle that selects the clips it
+///   crosses, adding them to the selection with `selectsMultiple`, Command
+///   or Shift.
 /// - The handles at the ends of selected clips, and of the clip under the
 ///   pointer on a Mac, trim them, in the editor's trim style.
 /// - Pinching zooms about where the pinch is.
@@ -24,8 +27,9 @@ import SwiftUI
 ///   ripple deletes, N turns snapping on and off, and + and - zoom.
 ///
 /// Drags snap to the playhead, markers and clip edges, showing a line where
-/// they've snapped. Taken near either end of the part in sight, a move or
-/// trim scrolls the lanes along, faster the nearer the edge.
+/// they've snapped. Taken near either end of the part in sight, a move, trim
+/// or selection rectangle scrolls the lanes along, faster the nearer the
+/// edge.
 struct TimelineView: View {
     @Environment(ProjectEditor.self) private var editor
     @Environment(\.displayScale) private var displayScale
@@ -53,6 +57,8 @@ struct TimelineView: View {
     @State private var dragPointer: CGPoint?
     /// Whether the pointer is near enough an edge to scroll the lanes along.
     @State private var isAutoScrolling = false
+    /// The selection rectangle being drawn, if one is.
+    @State private var marquee: Marquee?
     /// Whether a move or trim gesture is under way. It goes back to false
     /// however the gesture stops, including when the system cancels it
     /// without ending it, so the drag never outlives it.
@@ -81,15 +87,16 @@ struct TimelineView: View {
                     lanes(layout)
                 }
                 .scrollPosition($scrollPosition)
-                // A drag that moves clips or trims them doesn't scroll too.
-                .scrollDisabled(drag != nil)
+                // A drag that moves clips, trims them or selects them doesn't
+                // scroll too.
+                .scrollDisabled(isDragging)
                 .onScrollGeometryChange(for: Double.self) { $0.contentOffset.x } action: { scrollOffset = $1 }
                 .coordinateSpace(.named(Self.viewportSpace))
                 .task(id: isAutoScrolling) { await autoScrollWhileNearAnEdge() }
                 .background {
                     PlayheadFollower(
                         pointsPerSecond: layout.pointsPerSecond, visibleRange: scrollOffset...(scrollOffset + viewport.width),
-                        isDragging: drag != nil, scrollPosition: $scrollPosition
+                        isDragging: isDragging, scrollPosition: $scrollPosition
                     )
                 }
             }
@@ -187,6 +194,9 @@ struct TimelineView: View {
                 .gesture(scrubbing(layout))
             trimHandles(layout, visible: origin...(origin + canvasWidth))
             TimelineKeyframes(layout: layout, space: Self.space)
+            if let rect = marquee?.rect.intersection(CGRect(x: 0, y: 0, width: width, height: height)), !rect.isNull {
+                MarqueeRectangle(rect: rect)
+            }
         }
         .frame(width: width, height: height, alignment: .topLeading)
         .overlay(alignment: .topLeading) {
@@ -216,7 +226,12 @@ struct TimelineView: View {
 
     /// The clip under the pointer, lit up, unless something's being dragged.
     private var hoveredClipID: Clip.ID? {
-        drag == nil ? hoveredClip : nil
+        isDragging ? nil : hoveredClip
+    }
+
+    /// Whether clips are being moved, trimmed or selected by a rectangle.
+    private var isDragging: Bool {
+        drag != nil || marquee != nil
     }
 
     // MARK: - Selecting
@@ -263,13 +278,19 @@ struct TimelineView: View {
         #endif
     }
 
-    /// Follows a move, with both points in the viewport's space.
+    /// Follows a move, with both points in the viewport's space. Begun
+    /// away from any clip, it draws a selection rectangle instead.
     private func moveChanged(start: CGPoint, to location: CGPoint, layout: TimelineLayout) {
-        if drag == nil {
+        if drag == nil, marquee == nil {
             focus()
-            guard let move = TimelineDrag.move(at: lanePoint(start), layout: layout, editor: editor) else { return }
-            drag = move
-            pickUps += 1
+            let start = lanePoint(start)
+            if let move = TimelineDrag.move(at: start, layout: layout, editor: editor) {
+                drag = move
+                pickUps += 1
+            } else {
+                let extending = editor.timeline.selectsMultiple || Self.isExtendingSelection
+                marquee = Marquee(anchor: start, point: start, base: extending ? editor.timeline.selectedClipIDs : [])
+            }
         }
         dragged(to: location)
     }
@@ -277,9 +298,42 @@ struct TimelineView: View {
     private func endDrag() {
         dragPointer = nil
         isAutoScrolling = false
+        marquee = nil
         guard drag != nil else { return }
         drag = nil
         editor.endGesture()
+    }
+
+    // MARK: - Selecting by rectangle
+
+    /// A selection rectangle being drawn, in the lanes' space, from where it
+    /// began to where the pointer is.
+    private struct Marquee {
+        var anchor: CGPoint
+        var point: CGPoint
+        /// The clips selected before it, that it adds to. Empty unless it's
+        /// extending the selection.
+        var base: Set<Clip.ID>
+
+        var rect: CGRect {
+            CGRect(
+                x: min(anchor.x, point.x), y: min(anchor.y, point.y),
+                width: abs(point.x - anchor.x), height: abs(point.y - anchor.y)
+            )
+        }
+    }
+
+    /// Stretches the selection rectangle to a point in the lanes' space, and
+    /// selects the clips it now crosses. Selecting isn't an edit, so there's
+    /// nothing to undo.
+    private func updateMarquee(to point: CGPoint) {
+        guard var marquee else { return }
+        marquee.point = point
+        self.marquee = marquee
+        let layout = TimelineLayout(project: editor.project, pointsPerSecond: editor.timeline.pointsPerSecond)
+        let crossed = layout.clips(under: marquee.rect).map(\.clip.id)
+        let selection = marquee.base.union(crossed)
+        if selection != editor.timeline.selectedClipIDs { editor.timeline.selectedClipIDs = selection }
     }
 
     // MARK: - Scrolling while dragging
@@ -289,8 +343,8 @@ struct TimelineView: View {
         CGPoint(x: point.x + scrollOffset, y: point.y)
     }
 
-    /// Follows the pointer of a move or trim to a point in the viewport's
-    /// space, scrolling the lanes along while it's near either end.
+    /// Follows the pointer of a move, trim or selection rectangle to a point
+    /// in the viewport's space, scrolling the lanes along while it's near either end.
     private func dragged(to point: CGPoint) {
         dragPointer = point
         followDragPointer()
@@ -302,7 +356,12 @@ struct TimelineView: View {
     /// scroll under it.
     private func followDragPointer() {
         guard let dragPointer else { return }
-        drag?.update(to: lanePoint(dragPointer), editor: editor)
+        let point = lanePoint(dragPointer)
+        if marquee != nil {
+            updateMarquee(to: point)
+        } else {
+            drag?.update(to: point, editor: editor)
+        }
     }
 
     /// Scrolls the lanes along, a step each frame, while the pointer of a
@@ -631,6 +690,21 @@ private struct TimecodeLabel: View {
         Text(verbatim: playback.frames.timecode(playback.currentTime))
             .font(.system(size: 10, design: .monospaced))
             .foregroundStyle(.secondary)
+    }
+}
+
+/// The rectangle being dragged out to select clips: a tint with an outline.
+private struct MarqueeRectangle: View {
+    let rect: CGRect
+
+    var body: some View {
+        Rectangle()
+            .strokeBorder(Color.accentColor.opacity(0.8), lineWidth: 1)
+            .background(Color.accentColor.opacity(0.12))
+            .frame(width: max(rect.width, 1), height: max(rect.height, 1))
+            .offset(x: rect.minX, y: rect.minY)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
