@@ -323,8 +323,15 @@ struct PremiereProjectImporter {
         var isVideo: Bool
         var parameters: [MarkupElement]
 
-        func parameter(_ name: String) -> MarkupElement? {
+        /// A parameter by its name, or by its ID where Premiere leaves it
+        /// unnamed, as 25.x does Motion's Uniform Scale.
+        func parameter(_ name: String, id: String? = nil) -> MarkupElement? {
             parameters.first { $0.child("Name")?.text.caseInsensitiveCompare(name) == .orderedSame }
+                ?? id.flatMap { id in
+                    parameters.first {
+                        $0.child("ParameterID")?.text == id && ($0.child("Name")?.text ?? "").trimmingCharacters(in: .whitespaces).isEmpty
+                    }
+                }
         }
     }
 
@@ -428,7 +435,7 @@ struct PremiereProjectImporter {
         let media = item.metadata.presentationSize
         let frame = settings.renderSize
         let fit = media.width > 0 && media.height > 0 ? min(frame.width / media.width, frame.height / media.height) : 1
-        let isUniform = component.parameter("Uniform Scale").flatMap { PremiereKeyframes.value(of: $0) } != "false"
+        let isUniform = component.parameter("Uniform Scale", id: "4").flatMap { PremiereKeyframes.value(of: $0) } != "false"
         if let scale = number("Scale") {
             clip.transform.scale = scale.mapped { $0 / 100 / fit }
             if !isUniform, let width = number("Scale Width"), width.isAnimated || abs(width.value - scale.value) > 0.001 {

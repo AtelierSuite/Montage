@@ -415,6 +415,19 @@ struct PremiereRealProjectRegressionTests {
         #expect(imported.issues(.notImported).contains(.generator(name: "Promo Linked Comp 01/Promo.aep")))
     }
 
+    @Test func findsUniformScaleWhereItsLeftUnnamed() throws {
+        // Premiere 25 writes Motion's Uniform Scale with a blank name, as
+        // parameter 4.
+        let xml = PremiereFixtures.xml.replacingOccurrences(
+            of: "<Name>Uniform Scale</Name>\n\t\t<ParameterID>4</ParameterID>\n\t\t<StartKeyframe>-91445760000000000,true,",
+            with: "<Name> </Name>\n\t\t<ParameterID>4</ParameterID>\n\t\t<StartKeyframe>-91445760000000000,false,"
+        )
+        #expect(xml != PremiereFixtures.xml)
+        // Scale 50 across, 100 down.
+        #expect(try PremiereFixtures.read(xml).issues(.changed).contains(.uneven(name: "Scale")))
+        #expect(try !PremiereFixtures.read().issues(.changed).contains(.uneven(name: "Scale")))
+    }
+
     @Test func refusesAProjectWithClipsButNoSequence() {
         // Media in the bin and nothing on a timeline, as in a project only
         // imported into.
