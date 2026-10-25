@@ -3,8 +3,8 @@ import MontageEngine
 import MontageFormats
 import SwiftUI
 
-/// File > Import Project and File > Export Final Cut Pro XML: projects to
-/// and from other editors.
+/// File > Import Project, File > Export Final Cut Pro XML and File > Export
+/// OpenTimelineIO: projects to and from other editors.
 extension ProjectWindowController {
     // MARK: - Importing
 
@@ -93,6 +93,30 @@ extension ProjectWindowController {
                         alert.informativeText = message
                         alert.beginSheetModal(for: window)
                     }
+                } catch {
+                    NSAlert(error: error).beginSheetModal(for: window)
+                }
+            }
+        }
+    }
+
+    /// Writes the project as OpenTimelineIO, to open in Resolve, Premiere
+    /// Pro and other apps that read it.
+    @objc func exportOTIO(_ sender: Any?) {
+        guard let window, editor.canExport else { return }
+        let title = (document as? NSDocument)?.displayName ?? String(localized: "Export.Untitled")
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.otio]
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.nameFieldStringValue = "\(title).otio"
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let destination = panel.url else { return }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                do {
+                    try self.editor.otio(named: destination.deletingPathExtension().lastPathComponent)
+                        .write(to: destination, options: .atomic)
                 } catch {
                     NSAlert(error: error).beginSheetModal(for: window)
                 }
