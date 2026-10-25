@@ -91,6 +91,18 @@ extension ProjectEditor {
         }
     }
 
+    /// Types a text clip's words in the inspector: everything typed until
+    /// `endGesture` is one undo step, as in the preview.
+    func typeWords(of clipID: Clip.ID, _ string: String) {
+        changeClip(clipID, Self.editTextActionName, continuously: true) { $0.textContent.replaceString(with: string) }
+    }
+
+    /// Makes what's been typed in the inspector one undo step, leaving any
+    /// other gesture under way, such as a drag, to go on.
+    func endTypingWords() {
+        if gestureActionName == Self.editTextActionName { endGesture() }
+    }
+
     /// Stops typing in the preview, keeping what was typed as one undo step.
     /// Given a clip, only if it's that clip's words being typed.
     func endEditingText(of clipID: Clip.ID? = nil) {
@@ -115,12 +127,11 @@ extension ProjectEditor {
 
     /// Changes a clip: at once, as an undo step of its own, or as part of a
     /// drag that `endGesture` finishes, all one undo step. A drag doesn't
-    /// join the typing under way in the preview, which it would start again
-    /// from before.
+    /// join another gesture under way, such as typing, which it would start
+    /// again from before, taking back what was typed: it ends it first.
     func changeClip(_ clipID: Clip.ID, _ actionName: String, continuously: Bool = false, _ change: (inout Clip) -> Void) {
         if continuously {
-            endTypingGesture()
-            if gestureBaseline == nil { beginGesture(actionName) }
+            if gestureActionName != actionName { beginGesture(actionName) }
             updateGesture { $0.updateClip(clipID, change) }
         } else {
             perform(actionName) { $0.updateClip(clipID, change) }

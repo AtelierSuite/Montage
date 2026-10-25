@@ -41,11 +41,14 @@ extension ProjectEditor {
     func changeEffect(
         _ effectID: Effect.ID, ofClip clipID: Clip.ID, continuously: Bool = false, _ change: (inout Effect) -> Void
     ) {
+        let actionName = String(localized: "Inspector.Action.ChangeEffect")
         if continuously {
-            if gestureBaseline == nil { beginGesture(String(localized: "Inspector.Action.ChangeEffect")) }
+            // Not joining another gesture under way, which it'd start again
+            // from before.
+            if gestureActionName != actionName { beginGesture(actionName) }
             updateGesture { $0.updateEffect(effectID, ofClip: clipID, change) }
         } else {
-            perform(String(localized: "Inspector.Action.ChangeEffect")) { $0.updateEffect(effectID, ofClip: clipID, change) }
+            perform(actionName) { $0.updateEffect(effectID, ofClip: clipID, change) }
         }
     }
 

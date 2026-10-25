@@ -26,9 +26,9 @@ struct TextInspector: View {
                 .frame(minHeight: 72)
                 .focused($isTyping)
                 .onChange(of: isTyping) { _, isTyping in
-                    if !isTyping { editing.editor.endClipChange() }
+                    if !isTyping { editing.editor.endTypingWords() }
                 }
-                .onDisappear { editing.editor.endClipChange() }
+                .onDisappear { editing.editor.endTypingWords() }
                 .accessibilityLabel(Text("Inspector.Text.Words"))
             formattingBar
         } header: {
@@ -102,7 +102,7 @@ struct TextInspector: View {
             editing.clip.textContent.string
         } set: { string in
             guard string != editing.clip.textContent.string else { return }
-            editing.editor.changeClip(editing.clip.id, continuously: true) { $0.textContent.replaceString(with: string) }
+            editing.editor.typeWords(of: editing.clip.id, string)
         }
     }
 
