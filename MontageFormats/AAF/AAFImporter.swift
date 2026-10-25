@@ -41,6 +41,9 @@ struct AAFImporter {
 
     /// Past this, nesting is taken to loop.
     private static let maximumDepth = 32
+    /// Lanes between one slot's and the next, leaving room for the layers
+    /// of a nested scope or a collapsed track inside a slot.
+    private static let laneSpacing = 100
 
     /// A clip found on the timeline, before picture and sound in step are
     /// made one clip.
@@ -201,14 +204,14 @@ struct AAFImporter {
             switch dataKind(of: segment) {
             case .video?:
                 kind = .video
-                lane = videoLanes
-                if videoLanes == 0 {
+                lane = videoLanes * Self.laneSpacing
+                if videoLanes == 0, start == .zero {
                     settings.frameDuration = InterchangeTime.time(Int64(rate.denominator), over: Int64(rate.numerator))
                 }
                 videoLanes += 1
             case .audio?:
                 kind = .audio
-                lane = -audioLanes
+                lane = -audioLanes * Self.laneSpacing
                 audioLanes += 1
             default:
                 // Timecode, edge code and the like.
@@ -271,11 +274,20 @@ struct AAFImporter {
         } else if segment.isKind(of: AAFClass.operationGroup) {
             importOperationGroup(segment, at: position, length: length, context: context, depth: depth)
         } else if segment.isKind(of: AAFClass.selector) {
-            let alternates = segment.strongReferences(AAFProperty.ID.alternates).count
-            if alternates > 0 {
-                report.add(.auditionAlternatives(count: alternates), time: context.timeline(position))
+            let alternates = segment.strongReferences(AAFProperty.ID.alternates)
+            let selected = segment.strongReference(AAFProperty.ID.selected)
+            if let selected, isEmpty(selected, depth: depth) {
+                // Avid mutes a clip by selecting what's under it instead.
+                for alternate in alternates where !isEmpty(alternate, depth: depth) {
+                    report.add(.disabledClip, clipName: clipName(firstSourceClip(in: alternate, depth: depth)),
+                               time: context.timeline(position))
+                }
+                return
             }
-            if let selected = segment.strongReference(AAFProperty.ID.selected) {
+            if !alternates.isEmpty {
+                report.add(.auditionAlternatives(count: alternates.count), time: context.timeline(position))
+            }
+            if let selected {
                 importSegment(selected, at: position, context: context, depth: depth + 1)
             }
         } else if segment.isKind(of: AAFClass.essenceGroup) {
@@ -283,16 +295,50 @@ struct AAFImporter {
                 importSegment(choice, at: position, context: context, depth: depth + 1)
             }
         } else if segment.isKind(of: AAFClass.nestedScope) {
-            // The scope's last slot is what it shows.
-            if let last = segment.strongReferences(AAFProperty.ID.scopeSlots).last {
-                importSegment(last, at: position, context: context, depth: depth + 1)
-            }
-        } else if segment.isKind(of: AAFClass.scopeReference) {
-            report.add(.setting(name: "Scope Reference"), time: context.timeline(position))
+            // Layers, each over those before it, which it refers to by
+            // scope references to show what's under it.
+            importLayers(segment.strongReferences(AAFProperty.ID.scopeSlots), at: position, context: context, depth: depth)
         } else if segment.isKind(of: AAFClass.event) {
             importMarkers(segment, rate: context.rate, depth: depth)
         }
-        // Fillers are gaps; timecode and the like have nothing to show.
+        // Fillers are gaps, and scope references show the layers under
+        // them, which are already on the tracks below; timecode and the
+        // like have nothing to show.
+    }
+
+    /// Segments stacked as layers, the first lowest, each on a lane of its own.
+    private mutating func importLayers(_ layers: [AAFObject], at position: Int64, context: Context, depth: Int) {
+        for (index, layer) in layers.enumerated() {
+            var layered = context
+            layered.lane = context.kind == .video ? context.lane + index : context.lane - index
+            importSegment(layer, at: position, context: layered, depth: depth + 1)
+        }
+    }
+
+    /// Whether a segment shows nothing of its own: only gaps, or the layers
+    /// under it.
+    private func isEmpty(_ segment: AAFObject, depth: Int) -> Bool {
+        guard depth < Self.maximumDepth else { return true }
+        if segment.isKind(of: AAFClass.scopeReference) || segment.isKind(of: AAFClass.filler) { return true }
+        if segment.isKind(of: AAFClass.sequence) {
+            return segment.strongReferences(AAFProperty.ID.components).allSatisfy {
+                $0.isKind(of: AAFClass.transition) || isEmpty($0, depth: depth + 1)
+            }
+        }
+        return false
+    }
+
+    /// The first source clip in a segment, to name it by.
+    private func firstSourceClip(in segment: AAFObject, depth: Int) -> AAFObject? {
+        guard depth < Self.maximumDepth else { return nil }
+        if segment.isKind(of: AAFClass.sourceClip) { return segment }
+        let children = [AAFProperty.ID.components, AAFProperty.ID.inputSegments, AAFProperty.ID.choices,
+                        AAFProperty.ID.scopeSlots].flatMap { segment.strongReferences($0) }
+            + [AAFProperty.ID.selected].compactMap { segment.strongReference($0) }
+        for child in children {
+            if let clip = firstSourceClip(in: child, depth: depth + 1) { return clip }
+        }
+        return nil
     }
 
     // MARK: - Source clips
@@ -594,22 +640,32 @@ struct AAFImporter {
         inner.lengthOverride = nil
         let first = clips.count
         let speed = parameter(AAFDefinition.speedRatio, named: "speedratio")
+        let mainInput = inputs.first { !isEmpty($0, depth: depth) }
+        let mainName = clipName(mainInput.flatMap { firstSourceClip(in: $0, depth: depth) })
 
         if operation.map(timeWarps.contains) == true || operation == AAFDefinition.videoSpeedControl || speed != nil {
             // Played at normal speed, for as long as the effect lasts.
             let ratio = constant(speed)
             if ratio.map({ abs($0 - 1) > 0.0001 }) ?? true {
-                report.add(.speedChange, clipName: clipName(inputs.first), time: start)
+                report.add(.speedChange, clipName: mainName, time: start)
             }
             inner.lengthOverride = length
             if let input = inputs.first { importSegment(input, at: position, context: inner, depth: depth + 1) }
             return
         }
-        if inputs.isEmpty {
+        // A file's channels, combined, and a collapsed track's layers:
+        // each input on a lane of its own.
+        if lowercasedName.contains("channel combiner") || lowercasedName.contains("submaster") {
+            importLayers(inputs, at: position, context: inner, depth: depth)
+            return
+        }
+        guard !inputs.isEmpty else {
             report.add(.generator(name: name), time: start)
             return
         }
-        importSegment(inputs[0], at: position, context: inner, depth: depth + 1)
+        // Avid's keys and titles take what's under them as their first
+        // input, by a scope reference; the picture of their own is next.
+        if let mainInput { importSegment(mainInput, at: position, context: inner, depth: depth + 1) }
         let added = first..<clips.count
 
         let isGain = operation == AAFDefinition.monoAudioGain || operation == AAFDefinition.stereoAudioGain
@@ -629,7 +685,7 @@ struct AAFImporter {
             return
         }
         // Anything else is kept on its clips, turned off.
-        report.add(.unsupportedEffect(name: name), clipName: clipName(inputs.first), time: start)
+        report.add(.unsupportedEffect(name: name), clipName: mainName, time: start)
         let effect = UnsupportedEffect(
             format: InterchangeFormat.aaf.rawValue, identifier: operation?.description ?? "", name: name,
             isVideo: context.kind == .video,

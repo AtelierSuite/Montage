@@ -261,6 +261,20 @@ struct AAFTestFile {
             .set(AAFProperty.ID.value, indirectRational: numerator, denominator)
     }
 
+    static func scopeReference(_ kind: AUID, length: Int64) -> AAFTestObject {
+        component(AAFClass.scopeReference, kind, length: length)
+    }
+
+    static func nestedScope(_ kind: AUID, length: Int64, _ layers: [AAFTestObject]) -> AAFTestObject {
+        component(AAFClass.nestedScope, kind, length: length).vector(AAFProperty.ID.scopeSlots, layers)
+    }
+
+    static func selector(_ kind: AUID, length: Int64, selected: AAFTestObject, alternates: [AAFTestObject]) -> AAFTestObject {
+        component(AAFClass.selector, kind, length: length)
+            .strong(AAFProperty.ID.selected, selected)
+            .vector(AAFProperty.ID.alternates, alternates)
+    }
+
     static func definition(_ classID: AUID, id: AUID, name: String) -> AAFTestObject {
         AAFTestObject(classID).set(AAFProperty.ID.identification, auid: id).set(AAFProperty.ID.name, string: name)
     }

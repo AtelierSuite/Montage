@@ -337,6 +337,66 @@ struct AAFImportTests {
         #expect(imported.report.isEmpty)
     }
 
+    /// Media Composer's video tracks, as layers of a nested scope, where
+    /// each shows those under it by scope references.
+    @Test func readsNestedScopesAsLayers() throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.nestedScope(picture, length: 50, [
+                F.sequence(picture, [F.sourceClip(picture, length: 50, mob: alphaMaster)]),
+                F.sequence(picture, [
+                    F.scopeReference(picture, length: 10),
+                    F.sourceClip(picture, length: 20, start: 5, mob: bravoMaster),
+                    F.scopeReference(picture, length: 20),
+                ]),
+            ])),
+        ])]
+        let imported = try read(file)
+        #expect(imported.project.tracks.map { $0.clips.count } == [1, 1])
+        #expect(imported.clip("Alpha.mov")?.track == 0)
+        let bravo = try #require(imported.clip("Bravo.mov"))
+        #expect(bravo.track == 1)
+        #expect(bravo.clip.timelineRange == CMTimeRange(start: frames(10), duration: frames(20)))
+        #expect(imported.report.isEmpty)
+    }
+
+    /// Media Composer mutes a clip by selecting the scope under it instead.
+    @Test func leavesOutMutedClips() throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [
+                F.selector(picture, length: 40, selected: F.scopeReference(picture, length: 40),
+                           alternates: [F.sourceClip(picture, length: 40, mob: alphaMaster)]),
+                F.sourceClip(picture, length: 10, mob: bravoMaster),
+            ])),
+        ])]
+        let imported = try read(file)
+        #expect(imported.clip("Alpha.mov") == nil)
+        #expect(imported.clip("Bravo.mov")?.clip.timelineStart == frames(40))
+        #expect(imported.report.items.map(\.issue) == [.disabledClip])
+        #expect(imported.report.items.first?.clipName == "Alpha")
+    }
+
+    /// Keys and titles take what's under them as their first input.
+    @Test func readsTheForegroundOfKeys() throws {
+        let title = AUID("22222222-2222-3333-4444-555555555555")
+        var file = F()
+        file.operationDefinitions = [F.definition(AUID("0d010101-0101-1c00-060e-2b3402060101"), id: title, name: "Title_2")]
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [
+                F.operationGroup(picture, length: 30, operation: title, inputs: [
+                    F.sequence(picture, [F.scopeReference(picture, length: 30)]),
+                    F.sourceClip(picture, length: 30, mob: alphaMaster),
+                ]),
+            ])),
+        ])]
+        let imported = try read(file)
+        let alpha = try #require(imported.clip("Alpha.mov")?.clip)
+        #expect(alpha.effects.first?.isEnabled == false)
+        #expect(imported.issues(.unsupportedEffect) == [.unsupportedEffect(name: "Title_2")])
+        #expect(imported.report.items.first?.clipName == "Alpha")
+    }
+
     // MARK: - Damaged files
 
     @Test func stopsAtCompositionsAndChainsThatLoop() throws {
