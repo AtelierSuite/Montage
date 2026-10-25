@@ -2292,6 +2292,47 @@
         }
       }
     },
+    "EDLExport.LeftOut.Message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "An EDL holds one video track and two channels of sound, with no text or shapes, so %lld clip was left out."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "An EDL holds one video track and two channels of sound, with no text or shapes, so %lld clips were left out."
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLにはビデオトラック1本と2チャンネル分のオーディオしか入らず、テキストや図形も入らないため、%lld 個のクリップが除外されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDL 只能容纳一条视频轨道和两个声道的音频，且不能包含文本或形状，因此 %lld 个剪辑已被略去。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDL 只能容納一條視訊軌道和兩個聲道的音訊，且無法包含文字或形狀，因此 %lld 個剪輯片段已被略去。"
+          }
+        }
+      }
+    },
     "Edit.AddMarker" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14719,6 +14760,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "輸出"
+          }
+        }
+      }
+    },
+    "Toolbar.ExportEDL" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export EDL…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLを書き出す…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出 EDL…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸出 EDL⋯"
           }
         }
       }
