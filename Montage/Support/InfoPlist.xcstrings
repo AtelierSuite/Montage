@@ -30,6 +30,35 @@
         }
       }
     },
+    "CMX 3600 EDL" : {
+      "comment" : "Document type name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        }
+      }
+    },
     "Final Cut Pro XML" : {
       "comment" : "Document type name",
       "localizations" : {
