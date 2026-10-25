@@ -16,7 +16,9 @@ import UniformTypeIdentifiers
 ///
 /// Record timecode is counted from the hour the list starts in, so a list
 /// starting at 01:00:00:00, as most do, starts at the start of the
-/// timeline. Source timecode is taken as time from the start of the media.
+/// timeline; a list starting more than ten minutes into its hour, as one
+/// with a leader before the hour does, starts at its first event. Source
+/// timecode is taken as time from the start of the media.
 ///
 /// Picture goes on one video track (keyed foregrounds on a second), and
 /// sound on an audio track for each channel. Where a picture event and a
@@ -73,6 +75,17 @@ struct EDLImporter {
         return highestFrame >= 30 ? .fps60 : .fps30
     }
 
+    /// The record timecode at the start of the timeline: the hour the list
+    /// starts in, so a list starting at 01:00:00:00, or a little after,
+    /// keeps its place from there. A list starting well into its hour, as
+    /// one with a leader before 01:00:00:00 does, starts at its first event.
+    static func origin(of first: EDLDocument.Event, rate: EDLRate) -> Int {
+        let start = first.recordIn.frameCount(at: rate, dropFrame: first.isDropFrame)
+        let hour = EDLTimecode(hours: first.recordIn.hours, minutes: 0, seconds: 0, frames: 0)
+            .frameCount(at: rate, dropFrame: first.isDropFrame)
+        return start - hour <= rate.timecodeBase * 600 ? hour : start
+    }
+
     private init(document: EDLDocument, baseURL: URL?, rate: EDLRate) {
         self.document = document
         self.baseURL = baseURL
@@ -102,10 +115,8 @@ struct EDLImporter {
     private mutating func run(rateIsGuessed: Bool) -> ImportedProject {
         report.add(rateIsGuessed ? .frameRateAssumed(rate.displayString) : .frameRateFromMedia(rate.displayString))
         let events = document.events
-        // Counted from the hour the list starts in.
         if let first = events.min(by: { frames($0.recordIn, $0) < frames($1.recordIn, $1) }) {
-            let hour = EDLTimecode(hours: first.recordIn.hours, minutes: 0, seconds: 0, frames: 0)
-            origin = hour.frameCount(at: rate, dropFrame: first.isDropFrame)
+            origin = Self.origin(of: first, rate: rate)
         }
 
         var settings = ProjectSettings()

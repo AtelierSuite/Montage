@@ -145,6 +145,23 @@ struct EDLImportTests {
         #expect(video.clips.last?.timelineRange.end == seconds(10) + seconds(5, 30))
     }
 
+    @Test func startsAListWithALeaderAtItsFirstEvent() throws {
+        // Record time from 00:59:53:11, before the hour, as Avid and
+        // Premiere write a list with a leader.
+        let leader = try InterchangeFixtures.read("Leader.edl")
+        let video = try #require(leader.project.tracks.first).clips
+        #expect(video.map(\.timelineStart) == [.zero, seconds(37, 30), seconds(37 + 62, 30)])
+        #expect(leader.project.duration == seconds(238, 30))
+        #expect(video[0].sourceRange.start == seconds(108_125, 30))
+        #expect(leader.project.markers.map(\.time) == [seconds(49, 30)])
+    }
+
+    @Test func keepsAGapAfterTheHour() throws {
+        let text = "TITLE: Gap\nFCM: NON-DROP FRAME\n001  AX  V  C  00:00:00:00 00:00:01:00 01:00:05:00 01:00:06:00\n"
+        let gap = try ProjectInterchange.read(Data(text.utf8))
+        #expect(gap.project.tracks.first?.clips.first?.timelineStart == seconds(5))
+    }
+
     @Test func refusesWhatIsntAnEDL() {
         #expect(throws: InterchangeError.noTimeline) { try ProjectInterchange.read(Data("TITLE: Empty\nFCM: NON-DROP FRAME\n".utf8)) }
         #expect(throws: InterchangeError.self) { try ProjectInterchange.read(Data("hello\nworld".utf8)) }
