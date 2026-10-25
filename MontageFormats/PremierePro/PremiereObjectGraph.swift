@@ -54,7 +54,7 @@ struct PremiereObjectGraph {
 
     /// Whether data, uncompressed, starts as a Premiere project does.
     static func isPremiereXML(_ data: Data) -> Bool {
-        String(decoding: data.prefix(1024), as: UTF8.self).contains("<PremiereData")
+        String(decoding: data.prefix(4096), as: UTF8.self).contains("<PremiereData")
     }
 
     /// Reads a project, gzipped or not. `acceptsVersion` is asked as soon
