@@ -252,7 +252,12 @@ struct XMEMLImporter {
                     clip.effects.append(Effect(.pan(parameters)))
                 }
             case "timeremap":
-                if let speed = number("speed"), speed.isAnimated || abs(speed.value - 100) > 0.001 {
+                // Played backwards, or along a speed graph, at a speed of 100.
+                let isReversed = parameters.contains {
+                    $0.child("parameterid")?.text.lowercased() == "reverse" && $0.child("value")?.text.uppercased() == "TRUE"
+                }
+                let isVariable = number("variablespeed").map { $0.value != 0 } ?? false
+                if isReversed || isVariable || number("speed").map({ $0.isAnimated || abs($0.value - 100) > 0.001 }) == true {
                     report.add(.speedChange, clipName: clipName, time: clip.timelineStart)
                 }
             case "crop":
