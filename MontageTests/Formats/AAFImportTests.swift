@@ -461,6 +461,70 @@ struct AAFImportTests {
         #expect(imported.report.isEmpty)
     }
 
+    // MARK: - Where the timeline starts
+
+    /// A timeline with a sound clip after `gap` edit units, a marker on its
+    /// first frame, and its timecode.
+    private func session(rate: (Int32, Int32), gap: Int64, timecode: AAFTestObject?) -> AAFTestFile {
+        var file = F()
+        var slots = [F.timelineSlot(1, rate: rate, F.sequence(sound, [
+            F.filler(sound, length: gap),
+            F.sourceClip(sound, length: 30, mob: alphaMaster, slot: 2),
+        ]))]
+        if let timecode { slots.append(F.timelineSlot(2, rate: rate, timecode)) }
+        slots.append(F.eventSlot(1000, rate: rate, F.sequence(AUID("01030201-1000-0000-060e-2b3404010101"), [
+            F.marker(at: gap, comment: "Start"),
+        ])))
+        file.mobs = standardMedia() + [timeline(slots)]
+        return file
+    }
+
+    /// Premiere Pro counts a 29.97 timeline from 00:00:00;00 and puts a
+    /// session starting at 01:00:00;00 an hour of drop-frame timecode in.
+    @Test func countsPremieresTimelinesFromTheHour() throws {
+        let ntsc: (Int32, Int32) = (30000, 1001)
+        let imported = try read(session(rate: ntsc, gap: 107_892, timecode: F.timecode(length: 107_922, fps: 30)))
+        #expect(imported.clip("Alpha.mov", on: .audio)?.clip.timelineStart == .zero)
+        #expect(imported.project.markers.map(\.time) == [.zero])
+    }
+
+    /// Pro Tools does the same at whole frame rates.
+    @Test func countsProToolsTimelinesFromTheHour() throws {
+        let imported = try read(session(rate: (30, 1), gap: 108_000 + 300, timecode: F.timecode(length: 2_592_000, fps: 30)))
+        #expect(imported.clip("Alpha.mov", on: .audio)?.clip.timelineStart == CMTime(value: 10, timescale: 1))
+    }
+
+    /// Media Composer and Resolve start their timelines at their first
+    /// frame, and a timeline starting well into its hour keeps its place:
+    /// at its start, 30 seconds in, and 1:11:00 in, at 25 fps.
+    @Test(arguments: [0, 750, 106_500] as [Int64])
+    func keepsTimelinesThatDontStartAnHourIn(gap: Int64) throws {
+        let imported = try read(session(rate: (25, 1), gap: gap, timecode: F.timecode(length: 100, start: 90_000, fps: 25)))
+        #expect(imported.clip("Alpha.mov", on: .audio)?.clip.timelineStart == frames(gap))
+        #expect(imported.project.markers.map(\.time) == [frames(gap)])
+    }
+
+    /// Only the top-level composition is counted from its hour: a nested
+    /// one, and the source mobs, keep their own times.
+    @Test func countsOnlyTheTopLevelTimelineFromTheHour() throws {
+        let nestedID = F.mobID(10)
+        var file = F()
+        file.mobs = standardMedia() + [
+            timeline([F.timelineSlot(1, F.sequence(picture, [
+                F.filler(picture, length: 90_000),
+                F.sourceClip(picture, length: 50, start: 20, mob: alphaMaster),
+            ]))], name: "Nest", id: nestedID, topLevel: false),
+            timeline([F.timelineSlot(1, F.sequence(picture, [
+                F.filler(picture, length: 90_000 + 25),
+                F.sourceClip(picture, length: 30, start: 90_000 + 10, mob: nestedID, slot: 1),
+            ]))], name: "Main"),
+        ]
+        let imported = try read(file)
+        let alpha = try #require(imported.clip("Alpha.mov")?.clip)
+        #expect(alpha.timelineStart == frames(25))
+        #expect(alpha.sourceRange.start == frames(30))
+    }
+
     // MARK: - Damaged files
 
     @Test func stopsAtCompositionsAndChainsThatLoop() throws {

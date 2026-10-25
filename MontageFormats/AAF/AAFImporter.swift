@@ -114,6 +114,7 @@ struct AAFImporter {
             composition = first
             if timelines.count > 1 { report.add(.otherTimelines(count: timelines.count - 1)) }
             importComposition(composition)
+            countFromTheHour(of: composition)
         } else {
             // Clips exported from a bin, with no sequence: one after another.
             let masters = allMobs.filter { $0.isKind(of: AAFClass.masterMob) }
@@ -131,6 +132,69 @@ struct AAFImporter {
         return ImportedProject(
             project: project, report: report, name: composition.string(AAFProperty.ID.mobName), mediaSources: media.sources
         )
+    }
+
+    /// Counts the timeline from the hour its first clip starts in, when
+    /// that's within ten minutes after the hour, as the EDL importer does.
+    /// Premiere Pro and Pro Tools count their timelines from 00:00:00:00
+    /// and put an hour of filler before a session starting at 01:00:00:00;
+    /// Media Composer and Resolve start theirs at their first frame, which
+    /// is within the first hour, so they stay as they are.
+    ///
+    /// Hours are counted in timecode, at the composition's timecode rate,
+    /// so an hour of drop-frame 29.97 is 107,892 frames.
+    private mutating func countFromTheHour(of composition: AAFObject) {
+        guard let first = clips.map(\.clip.timelineStart).min(), first.isNumeric, first > .zero,
+              let hour = Self.timecodeHour(before: first, in: composition) else { return }
+        for index in clips.indices { clips[index].clip.timelineStart = clips[index].clip.timelineStart - hour }
+        transitions = transitions.map { (CMTimeRange(start: $0.range.start - hour, duration: $0.range.duration), $0.lane) }
+        markers = markers.map { marker in
+            var marker = marker
+            marker.time = max(.zero, marker.time - hour)
+            return marker
+        }
+    }
+
+    /// The start of the timecode hour a time is in, if the time is in its
+    /// first ten minutes and isn't in the first hour.
+    private static func timecodeHour(before start: CMTime, in composition: AAFObject) -> CMTime? {
+        // The composition's timecode: its rate, frames a second and whether
+        // it drops frames. Without one, the first picture or sound slot's rate.
+        var rate: AAFRational?
+        var fps: Int64?
+        var drop = false
+        for slot in composition.strongReferences(AAFProperty.ID.slots) {
+            guard let slotRate = validRate(slot.rational(AAFProperty.ID.editRate)),
+                  let segment = slot.strongReference(AAFProperty.ID.segment) else { continue }
+            let timecode = segment.isKind(of: AAFClass.timecode) ? segment
+                : segment.strongReferences(AAFProperty.ID.components).first { $0.isKind(of: AAFClass.timecode) }
+            if let timecode {
+                rate = slotRate
+                fps = timecode.integer(AAFProperty.ID.timecodeFPS)
+                drop = timecode.bool(AAFProperty.ID.timecodeDrop) ?? false
+                break
+            }
+            if rate == nil { rate = slotRate }
+        }
+        guard let rate else { return nil }
+        let base = fps.flatMap { $0 > 0 && $0 <= 1000 ? $0 : nil }
+            ?? Int64((Double(rate.numerator) / Double(rate.denominator)).rounded())
+        guard base > 0 else { return nil }
+        let count = (start.seconds * Double(rate.numerator) / Double(rate.denominator)).rounded()
+        // Past any real timeline, there's no hour to count from.
+        guard count.isFinite, count >= 0, count < 1e15 else { return nil }
+        let frames = Int64(count)
+        // An hour of timecode, without and with dropped frames; files don't
+        // always say which an NTSC timeline's is, so both are tried.
+        let isNTSC = rate.denominator == 1001
+        let dropped = base % 30 == 0 ? base * 3600 - base / 15 * 54 : nil
+        let hours = (drop ? [dropped, base * 3600] : [base * 3600, isNTSC ? dropped : nil]).compactMap { $0 }
+        for hourFrames in hours where hourFrames > 0 {
+            let count = frames / hourFrames
+            guard count >= 1, frames - count * hourFrames <= base * 600 else { continue }
+            return Self.time(count * hourFrames, rate)
+        }
+        return nil
     }
 
     // MARK: - Definitions and mobs

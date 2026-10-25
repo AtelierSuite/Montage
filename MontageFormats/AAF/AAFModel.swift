@@ -128,6 +128,8 @@ extension AAFProperty {
         static let fadeOutLength: UInt16 = 0x1204
         // Timecode
         static let timecodeStart: UInt16 = 0x1501
+        static let timecodeFPS: UInt16 = 0x1502
+        static let timecodeDrop: UInt16 = 0x1503
         // Transition
         static let transitionOperationGroup: UInt16 = 0x1801
         static let cutPoint: UInt16 = 0x1802

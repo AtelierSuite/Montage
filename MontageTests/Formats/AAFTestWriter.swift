@@ -273,6 +273,16 @@ struct AAFTestFile {
             })
     }
 
+    /// A timeline's timecode: where it starts, its frames a second, and
+    /// whether it drops frames, if that's said.
+    static func timecode(length: Int64, start: Int64 = 0, fps: UInt16, drop: Bool? = nil) -> AAFTestObject {
+        let timecode = component(AAFClass.timecode, AUID("01030201-0100-0000-060e-2b3404010101"), length: length)
+            .set(AAFProperty.ID.timecodeStart, int64: start)
+            .set(AAFProperty.ID.timecodeFPS, data: Data(le: fps))
+        if let drop { timecode.set(AAFProperty.ID.timecodeDrop, bool: drop) }
+        return timecode
+    }
+
     static func scopeReference(_ kind: AUID, length: Int64) -> AAFTestObject {
         component(AAFClass.scopeReference, kind, length: length)
     }
