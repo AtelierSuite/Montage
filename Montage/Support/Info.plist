@@ -173,6 +173,40 @@
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.zip-archive</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>OpenTimelineIO Bundle</string>
+			<key>UTTypeIdentifier</key>
+			<string>io.aswf.opentimelineio.otioz</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>otioz</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.package</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>OpenTimelineIO Directory Bundle</string>
+			<key>UTTypeIdentifier</key>
+			<string>io.aswf.opentimelineio.otiod</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>otiod</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 </dict>
 </plist>
