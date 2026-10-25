@@ -202,8 +202,8 @@ struct TimelineView: View {
         .overlay(alignment: .topLeading) {
             Playhead(pointsPerSecond: layout.pointsPerSecond)
         }
-        .dropDestination(for: MediaDragPayload.self) { payloads, location in
-            dropped(payloads.flatMap(\.mediaIDs), at: location, layout: layout)
+        .timelineMediaDrop(layout: layout) { ids, location in
+            dropped(ids, at: location, layout: layout)
         }
         .coordinateSpace(.named(Self.space))
         .onChange(of: isDragGestureActive) { _, isActive in
@@ -403,11 +403,9 @@ struct TimelineView: View {
     private func dropped(_ ids: [MediaItem.ID], at location: CGPoint, layout: TimelineLayout) -> Bool {
         let ids = ids.filter { editor.project.mediaItem(id: $0) != nil }
         guard !ids.isEmpty else { return false }
-        let time = max(.zero, editor.playback.frames.rounded(seconds: layout.seconds(atX: location.x)))
-        let row = layout.rowIndex(atY: location.y)
-        let track = layout.rows.indices.contains(row) ? layout.rows[row].track?.id : nil
+        let target = layout.mediaDropTarget(at: location, frames: editor.playback.frames)
         focus()
-        editor.insertMedia(ids, at: time, onTrack: track)
+        editor.insertMedia(ids, at: target.time, onTrack: target.trackID)
         return true
     }
 
