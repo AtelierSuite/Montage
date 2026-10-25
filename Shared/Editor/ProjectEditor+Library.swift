@@ -37,6 +37,15 @@ extension ProjectEditor {
         perform(String(localized: "Action.RemoveUnusedMedia")) { $0.removeUnusedMedia() }
     }
 
+    /// Selects the timeline's clips of the media, and takes the playhead to
+    /// the first of them, which brings it into sight.
+    func selectClips(usingMedia ids: Set<MediaItem.ID>) {
+        let clips = project.clips(usingMedia: ids)
+        guard let first = clips.first else { return }
+        timeline.selectedClipIDs = Set(clips.map(\.id))
+        playback.seek(to: first.timelineStart)
+    }
+
     /// Puts media dropped on the timeline there: one after another from
     /// `time`, on `trackID` if it's of the media's kind and has room, else on
     /// another track that does, never covering what's there. For the

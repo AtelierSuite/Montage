@@ -237,6 +237,9 @@ struct LibraryView: View {
                 Divider()
                 Button("Library.Bin.NewWithSelection", systemImage: "folder.badge.plus") { newBin(with: ids) }
             }
+            if !ids.isDisjoint(with: editor.project.usedMediaIDs) {
+                Button("Library.SelectInTimeline", systemImage: "scope") { editor.selectClips(usingMedia: ids) }
+            }
             if !ids.isDisjoint(with: editor.missingMediaIDs) {
                 Button("Library.Relink", systemImage: "link") { isShowingRelink = true }
             }

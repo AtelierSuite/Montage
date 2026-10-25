@@ -23,6 +23,9 @@ struct LibraryModelTests {
         #expect(project.usedMediaIDs == [used.id, music.id])
         #expect(project.clipCounts == [used.id: 2, music.id: 1])
         #expect(project.unusedMedia.map(\.id) == [unused.id])
+        #expect(project.clips(usingMedia: [used.id]).count == 2)
+        #expect(project.clips(usingMedia: [used.id, music.id]).map(\.timelineStart) == [.zero, .zero, Self.seconds(4)])
+        #expect(project.clips(usingMedia: [unused.id]).isEmpty)
 
         #expect(project.removeUnusedMedia() == [unused.id])
         #expect(project.media.map(\.id) == [used.id, music.id])

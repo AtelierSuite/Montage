@@ -10777,6 +10777,35 @@
         }
       }
     },
+    "Library.SelectInTimeline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select in Timeline"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タイムラインで選択"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在时间线中选择"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在時間軸中選取"
+          }
+        }
+      }
+    },
     "Library.Sort" : {
       "extractionState" : "manual",
       "localizations" : {

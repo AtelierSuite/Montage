@@ -17,6 +17,14 @@ extension Project {
         tracks.flatMap(\.clips).reduce(into: [:]) { counts, clip in if let id = clip.mediaID { counts[id, default: 0] += 1 } }
     }
 
+    /// The clips made from any of `mediaIDs`, earliest on the timeline
+    /// first.
+    public func clips(usingMedia mediaIDs: Set<MediaItem.ID>) -> [Clip] {
+        tracks.flatMap(\.clips)
+            .filter { $0.mediaID.map(mediaIDs.contains) ?? false }
+            .sorted { $0.timelineStart < $1.timelineStart }
+    }
+
     /// The media with no clip on the timeline, in library order.
     public var unusedMedia: [MediaItem] {
         let used = usedMediaIDs
