@@ -173,6 +173,23 @@
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>DaVinci Resolve Timeline</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.blackmagic-design.resolve.timeline</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>drt</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 </dict>
 </plist>

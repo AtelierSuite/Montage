@@ -237,6 +237,32 @@ struct DRPInterchangeTests {
     @Test func offersResolveProjectsForImport() {
         #expect(ProjectInterchange.importableTypes.contains(.resolveProject))
         #expect(UTType.resolveProject.identifier == "com.blackmagic-design.resolve.project")
+        #expect(ProjectInterchange.importableTypes.contains(.resolveTimeline))
+        #expect(UTType.resolveTimeline.identifier == "com.blackmagic-design.resolve.timeline")
+    }
+
+    /// A timeline export: a project's layout without the gallery.
+    @Test func readsATimelineExport() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var builder = DRPTestBuilder()
+        builder.leaveOut = ["Gallery.xml"]
+        let file = folder.appending(path: "Edit.drt")
+        try builder.archive().write(to: file)
+        #expect(DRPImporter.isResolveArchive(builder.archive()))
+        let imported = try ProjectInterchange.read(contentsOf: file)
+        #expect(imported.name == "Edit")
+        #expect(imported.report.format == .drp)
+    }
+
+    @Test func tellsResolveArchivesFromOtherArchives() {
+        var other = ZIPTestWriter()
+        other.add("projectData", "{}")
+        other.add("project.xml", "<other/>")
+        #expect(!DRPImporter.isResolveArchive(other.archive()))
+        #expect(!DRPImporter.isResolveArchive(Data("PK\u{3}\u{4}".utf8)))
+        #expect(DRPImporter.isResolveArchive(DRPTestBuilder().archive()))
     }
 
     @Test func stillReadsXML() {

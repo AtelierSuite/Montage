@@ -71,6 +71,15 @@ struct DRPImporter {
         self.baseURL = baseURL
     }
 
+    /// Whether data is a ZIP archive laid out as a Resolve project or
+    /// timeline export is, with a `project.xml` at its root beside the
+    /// media pool or timelines.
+    static func isResolveArchive(_ data: Data) -> Bool {
+        guard let archive = try? ResolveZIPArchive(data) else { return false }
+        return archive.entry(named: "project.xml") != nil
+            && archive.entries.contains { $0.name.hasPrefix("SeqContainer") || $0.name.hasPrefix("MediaPool/") }
+    }
+
     // MARK: - Version
 
     /// The Resolve version and project schema version an XML file in the

@@ -59,6 +59,35 @@
         }
       }
     },
+    "DaVinci Resolve Timeline" : {
+      "comment" : "Document type name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DaVinci Resolve Timeline"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DaVinci Resolveタイムライン"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DaVinci Resolve 时间线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DaVinci Resolve 時間線"
+          }
+        }
+      }
+    },
     "Final Cut Pro XML" : {
       "comment" : "Document type name",
       "localizations" : {
