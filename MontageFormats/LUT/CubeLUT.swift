@@ -80,6 +80,13 @@ public enum CubeLUT {
         let text = try String(contentsOf: url, encoding: .utf8)
         return try read(text, name: url.deletingPathExtension().lastPathComponent)
     }
+
+    /// The table in a file, read off the caller's actor: a 65-point table is
+    /// over a quarter of a million lines, too many to read on the main actor.
+    @concurrent
+    public static func load(contentsOf url: URL) async throws -> ColorLUT {
+        try read(contentsOf: url)
+    }
 }
 
 public enum CubeLUTError: LocalizedError {
