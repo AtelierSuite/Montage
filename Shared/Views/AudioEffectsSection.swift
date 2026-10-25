@@ -112,11 +112,15 @@ struct AudioEffectsSection: View {
             }
         }
         let actionName = String(localized: "Action.ChangeEffect")
-        if editor.gestureBaseline == nil, isFinal {
-            editor.perform(actionName, apply)
-            return
+        // A drag of its own, not joining another gesture under way, which
+        // it'd start again from before.
+        if editor.gestureActionName != actionName {
+            if isFinal {
+                editor.perform(actionName, apply)
+                return
+            }
+            editor.beginGesture(actionName)
         }
-        if editor.gestureBaseline == nil { editor.beginGesture(actionName) }
         editor.updateGesture(apply)
         if isFinal { editor.endGesture() }
     }

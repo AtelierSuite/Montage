@@ -13,6 +13,11 @@ struct TextInspector: View {
     /// Whether the words are being typed, which is one undo step until the
     /// box is left.
     @FocusState private var isTyping: Bool
+    /// Whether the wrap width is being dragged, so each move isn't an undo
+    /// step.
+    @State private var isDraggingWrapWidth = false
+    /// Whose changes join one undo step: the selection's colour well's.
+    @State private var selectionColorKey = UUID()
     @State private var isNamingPreset = false
     @State private var presetName = ""
     private var presets: TextPresetLibrary { TextPresetLibrary.shared }
@@ -26,9 +31,9 @@ struct TextInspector: View {
                 .frame(minHeight: 72)
                 .focused($isTyping)
                 .onChange(of: isTyping) { _, isTyping in
-                    if !isTyping { editing.editor.endClipChange() }
+                    if !isTyping { editing.editor.endTypingWords() }
                 }
-                .onDisappear { editing.editor.endClipChange() }
+                .onDisappear { editing.editor.endTypingWords() }
                 .accessibilityLabel(Text("Inspector.Text.Words"))
             formattingBar
         } header: {
@@ -62,7 +67,17 @@ struct TextInspector: View {
             ParameterSlider("Inspector.Text.LetterSpacing", editing.parameter(\.textContent.style.letterSpacing), in: -20...100,
                             format: ParameterFormat.whole)
             LabeledContent("Inspector.Text.WrapWidth") {
-                Slider(value: editing.binding(\.textContent.style.wrapWidth), in: 0.1...1)
+                Slider(value: Binding {
+                    style.wrapWidth
+                } set: { width in
+                    editing.editor.changeClip(editing.clip.id, continuously: isDraggingWrapWidth) {
+                        $0.textContent.style.wrapWidth = width
+                    }
+                }, in: 0.1...1) { dragging in
+                    isDraggingWrapWidth = dragging
+                    if !dragging { editing.editor.endClipChange() }
+                }
+                .onDisappear { if isDraggingWrapWidth { editing.editor.endClipChange() } }
             }
         }
         Section("Inspector.Fill") {
@@ -102,7 +117,7 @@ struct TextInspector: View {
             editing.clip.textContent.string
         } set: { string in
             guard string != editing.clip.textContent.string else { return }
-            editing.editor.changeClip(editing.clip.id, continuously: true) { $0.textContent.replaceString(with: string) }
+            editing.editor.typeWords(of: editing.clip.id, string)
         }
     }
 
@@ -144,7 +159,9 @@ struct TextInspector: View {
             ColorPicker(selection: Binding {
                 (formatting.color ?? text.style.fill.color.value(at: editing.time)).cgColor
             } set: { color in
-                if let color = RGBAColor(color) { format(range) { $0.color = color } }
+                guard let color = RGBAColor(color) else { return }
+                // Dragging about in the colour panel is one undo step.
+                editing.editor.coalescingChanges(selectionColorKey) { format(range) { $0.color = color } }
             }) {
                 Text("Inspector.Text.SelectionColor")
             }

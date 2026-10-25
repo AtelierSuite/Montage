@@ -83,21 +83,25 @@ struct EasingPicker: View {
             }
         }
         if showsCurve, case .bezier(let curve) = interpolation {
-            CurveSlider("Inspector.Keyframes.Curve.X1", value: curve.x1, in: 0...1) { set(curve, x1: $0, continuously: $1) }
-            CurveSlider("Inspector.Keyframes.Curve.Y1", value: curve.y1, in: -1...2) { set(curve, y1: $0, continuously: $1) }
-            CurveSlider("Inspector.Keyframes.Curve.X2", value: curve.x2, in: 0...1) { set(curve, x2: $0, continuously: $1) }
-            CurveSlider("Inspector.Keyframes.Curve.Y2", value: curve.y2, in: -1...2) { set(curve, y2: $0, continuously: $1) }
+            CurveSlider("Inspector.Keyframes.Curve.X1", value: curve.x1, in: 0...1, endChange: endChange) {
+                set(curve, x1: $0, continuously: $1)
+            }
+            CurveSlider("Inspector.Keyframes.Curve.Y1", value: curve.y1, in: -1...2, endChange: endChange) {
+                set(curve, y1: $0, continuously: $1)
+            }
+            CurveSlider("Inspector.Keyframes.Curve.X2", value: curve.x2, in: 0...1, endChange: endChange) {
+                set(curve, x2: $0, continuously: $1)
+            }
+            CurveSlider("Inspector.Keyframes.Curve.Y2", value: curve.y2, in: -1...2, endChange: endChange) {
+                set(curve, y2: $0, continuously: $1)
+            }
         }
     }
 
     private func set(
         _ curve: TimingCurve, x1: Double? = nil, y1: Double? = nil, x2: Double? = nil, y2: Double? = nil, continuously: Bool
     ) {
-        if !continuously {
-            endChange()
-            return
-        }
-        change(.bezier(TimingCurve(x1: x1 ?? curve.x1, y1: y1 ?? curve.y1, x2: x2 ?? curve.x2, y2: y2 ?? curve.y2)), true)
+        change(.bezier(TimingCurve(x1: x1 ?? curve.x1, y1: y1 ?? curve.y1, x2: x2 ?? curve.x2, y2: y2 ?? curve.y2)), continuously)
     }
 }
 
@@ -106,13 +110,22 @@ private struct CurveSlider: View {
     let title: LocalizedStringKey
     let value: Double
     let range: ClosedRange<Double>
-    /// The new value, and whether the drag goes on: false once it ends.
+    /// Ends a drag, making its changes one undo step.
+    let endChange: () -> Void
+    /// The new value, and whether it's a step of a drag rather than a
+    /// change of its own, such as with the arrow keys.
     let change: (Double, Bool) -> Void
 
-    init(_ title: LocalizedStringKey, value: Double, in range: ClosedRange<Double>, change: @escaping (Double, Bool) -> Void) {
+    @State private var isDragging = false
+
+    init(
+        _ title: LocalizedStringKey, value: Double, in range: ClosedRange<Double>,
+        endChange: @escaping () -> Void, change: @escaping (Double, Bool) -> Void
+    ) {
         self.title = title
         self.value = value
         self.range = range
+        self.endChange = endChange
         self.change = change
     }
 
@@ -125,10 +138,12 @@ private struct CurveSlider: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
-            Slider(value: Binding { value } set: { change($0, true) }, in: range) { editing in
-                if !editing { change(value, false) }
+            Slider(value: Binding { value } set: { change($0, isDragging) }, in: range) { dragging in
+                isDragging = dragging
+                if !dragging { endChange() }
             }
             .labelsHidden()
+            .onDisappear { if isDragging { endChange() } }
             .accessibilityLabel(Text(title))
         }
     }

@@ -62,13 +62,18 @@ struct AudioParameterSlider: View {
             .font(.callout)
             Slider(value: position, in: positionRange) { editing in
                 isEditing = editing
-                if !editing, let draft {
-                    onCommit(draft)
-                    self.draft = nil
-                }
+                if !editing { commitDraft() }
             }
             .labelsHidden()
+            // Taken away mid-drag, the drag still ends.
+            .onDisappear { commitDraft() }
         }
+    }
+
+    private func commitDraft() {
+        guard let draft else { return }
+        onCommit(draft)
+        self.draft = nil
     }
 
     /// The slider's own position, which is the value itself unless the
