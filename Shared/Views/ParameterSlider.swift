@@ -9,15 +9,40 @@ struct ParameterEditing<Value: Interpolatable> {
     /// The parameter as it is.
     var parameter: MontageEngine.Animatable<Value>
     /// The playhead's time in the clip, where values are shown and set.
-    var time: CMTime
+    var time: CMTime { readTime() }
     /// Whether the playhead is on the clip, for keyframes to be set there.
-    var canKeyframe: Bool
+    var canKeyframe: Bool { readCanKeyframe() }
     /// Puts in a changed parameter; `continuously` while a drag goes on.
     var change: (_ parameter: MontageEngine.Animatable<Value>, _ continuously: Bool) -> Void
     /// Ends a drag, making its changes one undo step.
     var endChange: () -> Void
 
-    var value: Value { parameter.value(at: time) }
+    // Read from the playhead only when they're needed, rather than when the
+    // editing is made: whatever reads the playhead is drawn again on every
+    // frame while playing, and a parameter without keyframes looks the same
+    // all the way through.
+    private let readTime: () -> CMTime
+    private let readCanKeyframe: () -> Bool
+
+    init(
+        parameter: MontageEngine.Animatable<Value>, time: @autoclosure @escaping () -> CMTime,
+        canKeyframe: @autoclosure @escaping () -> Bool,
+        change: @escaping (_ parameter: MontageEngine.Animatable<Value>, _ continuously: Bool) -> Void,
+        endChange: @escaping () -> Void
+    ) {
+        self.parameter = parameter
+        readTime = time
+        readCanKeyframe = canKeyframe
+        self.change = change
+        self.endChange = endChange
+    }
+
+    /// The value at the playhead, which only reads the playhead if the
+    /// parameter has keyframes.
+    var value: Value { parameter.isAnimated ? parameter.value(at: time) : parameter.value }
+
+    /// Whether the playhead is on one of the parameter's keyframes.
+    var isOnKeyframe: Bool { parameter.isAnimated && parameter.hasKeyframe(at: time) }
 
     /// Sets the value at the playhead: throughout, or as a keyframe there
     /// once the parameter has keyframes.
@@ -128,7 +153,7 @@ struct KeyframeButton<Value: Interpolatable>: View {
     let editing: ParameterEditing<Value>
 
     var body: some View {
-        let isOnKeyframe = editing.parameter.hasKeyframe(at: editing.time)
+        let isOnKeyframe = editing.isOnKeyframe
         Button {
             var parameter = editing.parameter
             parameter.toggleKeyframe(at: editing.time)
@@ -144,7 +169,7 @@ struct KeyframeButton<Value: Interpolatable>: View {
         .help(Text(isOnKeyframe ? "Inspector.Keyframe.Remove" : "Inspector.Keyframe.Add"))
         .contextMenu {
             // On a keyframe, how this parameter travels on from it.
-            if let interpolation = editing.parameter.interpolation(at: editing.time) {
+            if editing.parameter.isAnimated, let interpolation = editing.parameter.interpolation(at: editing.time) {
                 EasingPicker(interpolation: interpolation, showsCurve: false) { interpolation, _ in
                     var parameter = editing.parameter
                     parameter.setInterpolation(interpolation, at: editing.time)

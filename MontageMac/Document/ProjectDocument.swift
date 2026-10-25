@@ -1,6 +1,7 @@
 import AppKit
 import MontageEngine
 import MontageFormats
+import Synchronization
 
 /// A project open on the Mac: the project package it was read from.
 @MainActor
@@ -50,8 +51,38 @@ final class ProjectDocument: NSDocument {
 
     // MARK: - Reading and writing
 
-    // Documents are read and written on the main thread: neither
-    // `canConcurrentlyReadDocuments` nor `canAsynchronouslyWrite` is on.
+    // Documents are read on the main thread: `canConcurrentlyReadDocuments`
+    // isn't on. They're written on another thread, from a snapshot taken on
+    // the main thread when the save begins, so saving a project, and the
+    // first save of a project with long videos imported into it, which
+    // copies them into the package, doesn't hold up editing.
+
+    /// What a save writes: the project as it was when the save began, and
+    /// the package on disk that its media and caches are kept from.
+    private struct SaveSnapshot: Sendable {
+        var project: Project
+        var existingURL: URL?
+    }
+
+    /// The snapshot of the latest save, for the thread that writes it.
+    private nonisolated let saveSnapshot = Mutex<SaveSnapshot?>(nil)
+
+    override func save(
+        to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType,
+        completionHandler: @escaping (Error?) -> Void
+    ) {
+        // An untitled project has only been autosaved, but its media is
+        // there too.
+        let snapshot = SaveSnapshot(project: editor.project, existingURL: fileURL ?? autosavedContentsFileURL)
+        saveSnapshot.withLock { $0 = snapshot }
+        super.save(to: url, ofType: typeName, for: saveOperation, completionHandler: completionHandler)
+    }
+
+    override func canAsynchronouslyWrite(
+        to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType
+    ) -> Bool {
+        true
+    }
 
     override nonisolated func read(from fileWrapper: FileWrapper, ofType typeName: String) throws {
         let project = try ProjectPackage.read(fileWrapper)
@@ -59,17 +90,24 @@ final class ProjectDocument: NSDocument {
     }
 
     override nonisolated func fileWrapper(ofType typeName: String) throws -> FileWrapper {
-        // A file wrapper isn't Sendable, so it is handed out of the main
-        // actor's closure by hand; it never leaves the main thread.
-        nonisolated(unsafe) var wrapper: FileWrapper?
-        try MainActor.assumeIsolated {
-            // Only the project is written again: media and caches already in
-            // the package on disk are left where they are. An untitled
-            // project has only been autosaved, but its media is there too.
-            let existing = (fileURL ?? autosavedContentsFileURL).flatMap { try? FileWrapper(url: $0) }
-            wrapper = try ProjectPackage.fileWrapper(for: editor.project, existing: existing, media: media)
+        let snapshot: SaveSnapshot
+        if Thread.isMainThread {
+            // Written on the main thread, as when duplicating, the project
+            // is read as it is now.
+            snapshot = MainActor.assumeIsolated {
+                SaveSnapshot(project: editor.project, existingURL: fileURL ?? autosavedContentsFileURL)
+            }
+        } else {
+            // On the writing thread, while the main thread waits for the
+            // snapshot to be taken; the save took it as it began.
+            guard let saved = saveSnapshot.withLock({ $0 }) else { throw CocoaError(.fileWriteUnknown) }
+            snapshot = saved
         }
-        guard let wrapper else { throw CocoaError(.fileWriteUnknown) }
-        return wrapper
+        // Only the project is written again: media and caches already in
+        // the package on disk are left where they are.
+        let existing = snapshot.existingURL.flatMap { try? FileWrapper(url: $0) }
+        // NSDocument lets the main thread go on once this returns, and writes
+        // the wrapper here, copying in staged media as it goes.
+        return try ProjectPackage.fileWrapper(for: snapshot.project, existing: existing, media: media)
     }
 }

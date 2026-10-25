@@ -141,25 +141,26 @@ public final class PlaybackController {
     /// audio taps read the snapshot too, and only need building again when a
     /// clip's audio effects change shape: one is added, removed or moved, or
     /// its tail gets longer or shorter.
+    ///
+    /// Asked on every step of a drag, on the main actor, so it goes through
+    /// each project once rather than looking up and reordering every clip.
     nonisolated static func needsRebuild(from old: Project, to new: Project) -> Bool {
         func structure(_ project: Project) -> Project {
             var project = project
             for index in project.tracks.indices {
-                for clip in project.tracks[index].clips {
-                    project.tracks[index].update(clip.id) {
-                        $0.effects = []
-                        $0.opacity = Animatable(1)
-                        $0.transform = ClipTransform()
-                        $0.blendMode = .normal
-                        $0.fit = .fit
-                        $0.kenBurns = nil
-                        // How text and shapes look is drawn from the
-                        // snapshot too; only what kind of clip it is counts.
-                        switch $0.content {
-                        case .text: $0.content = .text(TextContent())
-                        case .shape: $0.content = .shape(ShapeContent())
-                        case .media, .image: break
-                        }
+                project.tracks[index].updateEach {
+                    $0.effects = []
+                    $0.opacity = Animatable(1)
+                    $0.transform = ClipTransform()
+                    $0.blendMode = .normal
+                    $0.fit = .fit
+                    $0.kenBurns = nil
+                    // How text and shapes look is drawn from the
+                    // snapshot too; only what kind of clip it is counts.
+                    switch $0.content {
+                    case .text: $0.content = .text(TextContent())
+                    case .shape: $0.content = .shape(ShapeContent())
+                    case .media, .image: break
                     }
                 }
             }

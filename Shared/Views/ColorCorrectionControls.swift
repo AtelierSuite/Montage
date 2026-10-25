@@ -65,14 +65,16 @@ struct ColorCorrectionControls: View {
             }
         }
         .fileImporter(isPresented: $isImportingLUT, allowedContentTypes: [.cubeLUT]) { result in
-            do {
-                let url = try result.get()
-                let isScoped = url.startAccessingSecurityScopedResource()
-                defer { if isScoped { url.stopAccessingSecurityScopedResource() } }
-                let lut = try CubeLUT.read(contentsOf: url)
-                editing.change { $0.colorCorrection.lut = lut }
-            } catch {
-                lutError = error
+            Task {
+                do {
+                    let url = try result.get()
+                    let isScoped = url.startAccessingSecurityScopedResource()
+                    defer { if isScoped { url.stopAccessingSecurityScopedResource() } }
+                    let lut = try await CubeLUT.load(contentsOf: url)
+                    editing.change { $0.colorCorrection.lut = lut }
+                } catch {
+                    lutError = error
+                }
             }
         }
         .alert("Inspector.Color.LUT.Error", isPresented: Binding { lutError != nil } set: { if !$0 { lutError = nil } }) {

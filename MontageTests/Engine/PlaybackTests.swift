@@ -45,6 +45,24 @@ struct RebuildTests {
         quieter.tracks[0].update(clip.id) { $0.volume = Animatable(0.5) }
         #expect(PlaybackController.needsRebuild(from: project, to: quieter))
     }
+
+    @Test func lookChangesAmongManyClipsDontRebuild() {
+        let media = MediaItem(name: "A.mov", kind: .video, location: .package(path: "A.mov"), metadata: MediaMetadata())
+        func clips() -> [Clip] {
+            (0..<500).map { index in
+                Clip(mediaID: media.id, sourceRange: CMTimeRange(start: .zero, duration: seconds(1)), timelineStart: seconds(Double(index)))
+            }
+        }
+        let project = Project(media: [media], tracks: [Track(kind: .video, clips: clips()), Track(kind: .audio, clips: clips())])
+
+        var restyled = project
+        restyled.tracks[0].update(project.tracks[0].clips[250].id) { $0.transform.rotation = Animatable(45) }
+        #expect(!PlaybackController.needsRebuild(from: project, to: restyled))
+
+        var moved = restyled
+        moved.tracks[1].update(project.tracks[1].clips[499].id) { $0.timelineStart = seconds(600) }
+        #expect(PlaybackController.needsRebuild(from: restyled, to: moved))
+    }
 }
 
 @MainActor

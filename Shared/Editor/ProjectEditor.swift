@@ -34,9 +34,11 @@ final class ProjectEditor {
         }
     }
     /// The media whose files can't be found, as of the last `checkMedia()`,
-    /// which is what sets it. Their clips stay on the timeline, and play as
-    /// empty time, until the media is relinked.
+    /// which is what sets it once it has looked. Their clips stay on the
+    /// timeline, and play as empty time, until the media is relinked.
     var missingMediaIDs: Set<MediaItem.ID> = []
+    /// The look for the media's files under way, if one is.
+    @ObservationIgnored var mediaCheck: Task<Void, Never>?
 
     /// Plays the project in the preview, following every change to it. Made
     /// the first time a view asks for it, so an editor that's never shown
@@ -113,13 +115,23 @@ final class ProjectEditor {
         waveforms = WaveformCache(store: cache)
         cacheStore = cache
         derivedMedia = DerivedMediaCache(store: cache as? any DerivedMediaStore)
-        checkMedia()
-        makeDerivedMedia()
+        // Not straight away: SwiftUI makes an editor each time it makes the
+        // view that keeps one, and keeps only the first, so an editor let go
+        // of at once mustn't have set off a look for the media's files, or
+        // copies being made of them, first.
+        Task { [weak self] in
+            self?.checkMedia()
+            self?.makeDerivedMedia()
+        }
         settingsObserver = NotificationCenter.default.addObserver(
             forName: PreviewSettings.didChange, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.previewSettingsChanged() }
         }
+    }
+
+    isolated deinit {
+        if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }
     }
 
     /// Makes a change as one undo step, named for the Edit menu. A change
@@ -198,6 +210,7 @@ final class ProjectEditor {
     func close() {
         playbackController?.invalidate()
         stopMakingDerivedMedia()
+        mediaCheck?.cancel()
         if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }
         settingsObserver = nil
     }

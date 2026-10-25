@@ -32,6 +32,19 @@ struct CubeLUTTests {
         #expect(Array(values[4..<8]) == [0, 0, 1, 1])
     }
 
+    @Test func loadsAFileOffTheCallersActor() async throws {
+        let folder = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appending(path: "Warm.cube")
+        try swap.replacingOccurrences(of: "TITLE \"Swap\"\n", with: "").write(to: file, atomically: true, encoding: .utf8)
+
+        let lut = try await CubeLUT.load(contentsOf: file)
+        #expect(lut == (try CubeLUT.read(contentsOf: file)))
+        #expect(lut.name == "Warm")
+        #expect(lut.dimension == 2)
+    }
+
     @Test func isNamedAfterItsFileWithoutATitle() throws {
         let text = swap.replacingOccurrences(of: "TITLE \"Swap\"\n", with: "")
         #expect(try CubeLUT.read(text, name: "File").name == "File")
