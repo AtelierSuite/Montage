@@ -465,8 +465,18 @@ struct PremiereProjectImporter {
 
     // MARK: - Media
 
+    /// Whether media is a file Montage can play. Generated media, such as
+    /// a Graphic or a color matte, has no file key, and where it has a
+    /// "path" at all it's a number. An After Effects composition linked in
+    /// has a path, but to a project rather than to media.
     private static func hasFile(_ media: MarkupElement) -> Bool {
-        ["ActualMediaFilePath", "FilePath", "RelativePath"].contains { !(media.child($0)?.text.isEmpty ?? true) }
+        let paths = ["ActualMediaFilePath", "FilePath", "RelativePath"].compactMap { media.child($0)?.text }.filter { !$0.isEmpty }
+        let hasKey = !(media.child("FileKey")?.text.isEmpty ?? true)
+        guard let path = paths.first, hasKey || paths.contains(where: { $0.contains("/") || $0.contains("\\") }) else {
+            return false
+        }
+        let fileName = path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? path
+        return !["aep", "aepx", "prproj"].contains((fileName as NSString).pathExtension.lowercased())
     }
 
     private mutating func mediaItem(for object: MarkupElement) -> MediaItem {

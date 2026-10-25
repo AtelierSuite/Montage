@@ -394,4 +394,37 @@ struct PremiereRealProjectRegressionTests {
         )
         #expect(try PremiereFixtures.read(xml).project.settings.frameDuration == CMTime(value: 1, timescale: 30))
     }
+
+    @Test func leavesOutGeneratedMediaWhosePathIsANumber() throws {
+        // A 2025 project's Graphic: no file key, and a number for a path.
+        let xml = PremiereFixtures.xml.replacingOccurrences(
+            of: "<Title>Graphic</Title>\n\t\t<FileKey></FileKey>",
+            with: "<FilePath>1196574294</FilePath>\n\t\t<Title>Graphic</Title>\n\t\t<Infinite>true</Infinite>\n\t\t<ActualMediaFilePath>1196574294</ActualMediaFilePath>"
+        )
+        let imported = try PremiereFixtures.read(xml)
+        #expect(imported.issues(.notImported).contains(.generator(name: "Graphic")))
+        #expect(!imported.project.media.contains { $0.name == "1196574294" || $0.name == "Graphic" })
+    }
+
+    @Test func leavesOutLinkedAfterEffectsCompositions() throws {
+        // A 2024 project's Dynamic Link comp, which is an .aep file.
+        let xml = PremiereFixtures.xml.replacingOccurrences(of: #"D:\Footage\Broll.mp4"#, with: #"D:\Promo\Promo.aep"#)
+            .replacingOccurrences(of: "<Title>Broll.mp4</Title>", with: "<Title>Promo Linked Comp 01/Promo.aep</Title>")
+        let imported = try PremiereFixtures.read(xml)
+        #expect(!imported.project.media.contains { $0.name.hasSuffix(".aep") })
+        #expect(imported.issues(.notImported).contains(.generator(name: "Promo Linked Comp 01/Promo.aep")))
+    }
+
+    @Test func refusesAProjectWithClipsButNoSequence() {
+        // Media in the bin and nothing on a timeline, as in a project only
+        // imported into.
+        let xml = #"""
+            <PremiereData Version="3"><Project ObjectID="1" ClassID="62ad66dd-0dcd-42da-a660-6d8fbde94876" Version="45"/>
+            <VideoClip ObjectID="2" ClassID="9308dbef-2440-4acb-9ab2-953b9a4e82ec" Version="11"><Clip Version="18"><Source ObjectRef="3"/></Clip></VideoClip>
+            <VideoMediaSource ObjectID="3" ClassID="e64ddf74-8fac-4682-8aa8-0e0ca2248949" Version="2"><MediaSource Version="4"><Media ObjectURef="m"/></MediaSource></VideoMediaSource>
+            <Media ObjectUID="m" ClassID="7a5c103e-f3ac-4391-b6b4-7cc3d2f9a7ff" Version="29"><FilePath>/Media/bars.mov</FilePath><Title>bars.mov</Title><FileKey>k</FileKey></Media>
+            </PremiereData>
+            """#
+        #expect(throws: InterchangeError.noTimeline) { try PremiereFixtures.read(xml) }
+    }
 }
