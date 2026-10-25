@@ -424,9 +424,9 @@ struct DRPImporter {
         }
 
         let mediaItem = mediaItem(for: item, poolItem: poolItem)
-        if track == .audio, inPoint == nil {
-            report.add(.setting(name: "Audio in point"), clipName: name, time: timelineStart)
-        }
+        // An empty in point is the start of the media: real exports leave it
+        // empty on clips that play their media from the start, video and
+        // audio alike, and write it on those that don't.
         var clip = Clip(
             content: mediaItem.content,
             sourceRange: CMTimeRange(start: mediaItem.kind == .image ? .zero : placement.duration(inPoint ?? 0), duration: duration),

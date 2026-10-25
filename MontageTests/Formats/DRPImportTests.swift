@@ -76,7 +76,9 @@ struct DRPImportTests {
         let music = try #require(clipOn(.audio, at: .zero))
         #expect(music.duration == frames(96))
         #expect(imported.project.tracks.filter { $0.kind == .audio }.count == 1)
-        #expect(imported.report.items.contains { $0.issue == .setting(name: "Audio in point") && $0.clipName == "Music.wav" })
+        // Its empty in point is the start of its media, and nothing to report.
+        #expect(music.sourceRange.start == .zero)
+        #expect(!imported.report.items.contains { $0.clipName == "Music.wav" && $0.issue != .unsupportedEffect(name: "Resolve effects") })
     }
 
     @Test func importsTimelineMarkers() {
