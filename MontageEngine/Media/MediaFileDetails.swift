@@ -30,6 +30,7 @@ public struct MediaFileDetails: Equatable, Sendable {
 
     /// Reads the details of the file at `url`, holding media of `kind`.
     /// Whatever can't be read is left out.
+    @concurrent
     public static func read(at url: URL, kind: MediaItem.Kind) async -> MediaFileDetails {
         var details = MediaFileDetails()
         if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
