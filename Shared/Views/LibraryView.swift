@@ -195,7 +195,7 @@ struct LibraryView: View {
         }
         .contextMenu { itemMenu(ids(actingOn: item)) }
         // Onto the timeline, or onto a bin to file it there.
-        .draggable(MediaDragPayload(mediaIDs: ordered(ids(actingOn: item))))
+        .draggable(dragPayload(for: item))
         .accessibilityAction { select(item) }
         .accessibilityAction(named: Text("Library.AddToTimeline")) { addToTimeline(ids(actingOn: item)) }
         .accessibilityAction(named: Text("Library.Remove")) { remove(ids(actingOn: item)) }
@@ -275,6 +275,14 @@ struct LibraryView: View {
     /// The items in the order the project's library has them.
     private func ordered(_ ids: Set<MediaItem.ID>) -> [MediaItem.ID] {
         editor.project.media.map(\.id).filter(ids.contains)
+    }
+
+    /// What dragging `item` carries, worked out as the drag starts, which
+    /// tells the timeline what's coming.
+    private func dragPayload(for item: MediaItem) -> MediaDragPayload {
+        let ids = ordered(ids(actingOn: item))
+        editor.timeline.draggedMediaIDs = ids
+        return MediaDragPayload(mediaIDs: ids)
     }
 
     /// Adds the items to the timeline in the order the library lists them.

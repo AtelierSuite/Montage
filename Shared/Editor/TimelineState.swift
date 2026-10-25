@@ -43,6 +43,10 @@ final class TimelineState {
     /// Whether media dragged from the library has been taken out of it, for
     /// the editor to give the timeline room to take it.
     var isDraggingMedia = false
+    /// The media last picked up from the library, for the timeline to show
+    /// where it would go before it's dropped, which is the only time a
+    /// drop's own items can be read.
+    @ObservationIgnored var draggedMediaIDs: [MediaItem.ID] = []
 
     /// How far the timeline zooms in and out.
     static let zoomRange = 2.0...2400.0
