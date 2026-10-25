@@ -395,6 +395,7 @@ private struct LibraryCell: View {
                 .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
         }
         .contentShape(.rect(cornerRadius: Self.cornerRadius))
+        .help(Text(help))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(item.name))
         .accessibilityValue(Text(LibraryItemText.accessibilityValue(of: item, clipCount: clipCount, isMissing: isMissing)))
@@ -412,13 +413,31 @@ private struct LibraryCell: View {
                 .background(.black.opacity(0.6), in: .circle)
                 .padding(4)
         } else if clipCount > 0 {
-            Image(systemName: "checkmark")
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(.white)
-                .padding(4)
-                .background(.tint, in: .circle)
-                .padding(4)
+            // A tick for one clip, else how many.
+            Group {
+                if clipCount == 1 {
+                    Image(systemName: "checkmark")
+                } else {
+                    Text(clipCount, format: .number)
+                        .monospacedDigit()
+                }
+            }
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(.white)
+            .frame(minWidth: 12, minHeight: 12)
+            .padding(.horizontal, clipCount == 1 ? 4 : 5)
+            .padding(.vertical, 4)
+            .background(.tint, in: .capsule)
+            .padding(4)
         }
+    }
+
+    /// The item's name, what it is, and how much it's used, for the pointer
+    /// to show.
+    private var help: String {
+        [item.name, LibraryItemText.format(of: item), LibraryItemText.usage(clipCount: clipCount, isMissing: isMissing)]
+            .compactMap { $0 }
+            .joined(separator: "\n")
     }
 
     /// How long the media runs, or a glyph for a still image.
