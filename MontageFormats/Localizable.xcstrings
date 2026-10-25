@@ -175,6 +175,151 @@
         }
       }
     },
+    "DRP.Error.Damaged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This DaVinci Resolve project can’t be read because it’s damaged or incomplete."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このDaVinci Resolveプロジェクトは破損しているか不完全なため、読み込めません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取此 DaVinci Resolve 项目，因为它已损坏或不完整。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法讀取此 DaVinci Resolve 專案，因為它已損毀或不完整。"
+          }
+        }
+      }
+    },
+    "DRP.Error.ExportFCPXML" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In DaVinci Resolve, choose File > Export > Timeline, export the timeline as FCPXML, and import that file instead."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DaVinci Resolveで「ファイル」>「書き出し」>「タイムライン」を選択してタイムラインをFCPXMLとして書き出し、代わりにそのファイルを読み込んでください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在 DaVinci Resolve 中选取“文件”>“导出”>“时间线”，将时间线导出为 FCPXML，然后改为导入该文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在 DaVinci Resolve 中選擇「檔案」>「輸出」>「時間線」，將時間線輸出為 FCPXML，然後改為輸入該檔案。"
+          }
+        }
+      }
+    },
+    "DRP.Error.NotAProject" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file isn’t a DaVinci Resolve project."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このファイルはDaVinci Resolveプロジェクトではありません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此文件不是 DaVinci Resolve 项目。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此檔案不是 DaVinci Resolve 專案。"
+          }
+        }
+      }
+    },
+    "DRP.Error.UnknownVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This project was exported from a version of DaVinci Resolve whose projects Montage can’t import yet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトは、Montageでまだ読み込めないバージョンのDaVinci Resolveから書き出されたものです。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目是从 Montage 尚无法导入的 DaVinci Resolve 版本导出的。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案是從 Montage 尚無法輸入的 DaVinci Resolve 版本輸出的。"
+          }
+        }
+      }
+    },
+    "DRP.Error.UnsupportedVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This project was exported from DaVinci Resolve %@, whose projects Montage can’t import yet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトはDaVinci Resolve %@から書き出されたもので、Montageではまだ読み込めません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目是从 DaVinci Resolve %@ 导出的，Montage 尚无法导入该版本的项目。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案是從 DaVinci Resolve %@ 輸出的，Montage 尚無法輸入該版本的專案。"
+          }
+        }
+      }
+    },
     "Interchange.Error.NoTimeline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -258,6 +403,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此檔案不是 Montage 可輸入的專案。Montage 可輸入來自 Final Cut Pro 或 LumaFusion 的 FCPXML，以及來自 Premiere Pro 的 Final Cut Pro 7 XML。"
+          }
+        }
+      }
+    },
+    "Interchange.Format.DRP" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DaVinci Resolve project"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DaVinci Resolveプロジェクト"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DaVinci Resolve 项目"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DaVinci Resolve 專案"
           }
         }
       }
