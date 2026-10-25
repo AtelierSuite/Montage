@@ -138,6 +138,24 @@
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.zip-archive</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>LumaFusion Project Package</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.luma-touch.lumafusion.package</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>lfpackage</string>
+					<string>lfz</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 </dict>
 </plist>

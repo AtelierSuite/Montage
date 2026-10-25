@@ -89,6 +89,35 @@
         }
       }
     },
+    "LumaFusion Project Package" : {
+      "comment" : "Document type name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion Project Package"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusionプロジェクトパッケージ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion 项目包"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion 專案套件"
+          }
+        }
+      }
+    },
     "Montage Media Reference" : {
       "comment" : "Document type name",
       "localizations" : {
