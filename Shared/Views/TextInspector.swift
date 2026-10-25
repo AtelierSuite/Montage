@@ -16,6 +16,8 @@ struct TextInspector: View {
     /// Whether the wrap width is being dragged, so each move isn't an undo
     /// step.
     @State private var isDraggingWrapWidth = false
+    /// Whose changes join one undo step: the selection's colour well's.
+    @State private var selectionColorKey = UUID()
     @State private var isNamingPreset = false
     @State private var presetName = ""
     private var presets: TextPresetLibrary { TextPresetLibrary.shared }
@@ -157,7 +159,9 @@ struct TextInspector: View {
             ColorPicker(selection: Binding {
                 (formatting.color ?? text.style.fill.color.value(at: editing.time)).cgColor
             } set: { color in
-                if let color = RGBAColor(color) { format(range) { $0.color = color } }
+                guard let color = RGBAColor(color) else { return }
+                // Dragging about in the colour panel is one undo step.
+                editing.editor.coalescingChanges(selectionColorKey) { format(range) { $0.color = color } }
             }) {
                 Text("Inspector.Text.SelectionColor")
             }

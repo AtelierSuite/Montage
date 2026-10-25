@@ -26,10 +26,14 @@ struct MosaicControls: View {
 }
 
 /// A colour well for a colour parameter, set at the playhead, with a button
-/// to keyframe it there.
+/// to keyframe it there. Dragging about in the colour panel is one undo
+/// step.
 struct ColorParameterPicker: View {
+    @Environment(ProjectEditor.self) private var editor
     private let title: LocalizedStringKey
     private let editing: ParameterEditing<RGBAColor>
+    /// Whose changes join one undo step: this well's.
+    @State private var coalescingKey = UUID()
 
     init(_ title: LocalizedStringKey, _ editing: ParameterEditing<RGBAColor>) {
         self.title = title
@@ -41,7 +45,8 @@ struct ColorParameterPicker: View {
             ColorPicker(title, selection: Binding {
                 editing.value.cgColor
             } set: { color in
-                if let color = RGBAColor(color) { editing.set(color) }
+                guard let color = RGBAColor(color) else { return }
+                editor.coalescingChanges(coalescingKey) { editing.set(color) }
             })
             KeyframeButton(editing: editing)
         }

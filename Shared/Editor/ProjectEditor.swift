@@ -93,6 +93,13 @@ final class ProjectEditor {
     /// name of the undo step it makes.
     @ObservationIgnored private var gesture: (baseline: Project, actionName: String)?
 
+    /// The control whose changes the last undo step was made of, and when
+    /// it last changed, for `coalescingChanges` to add more to it.
+    @ObservationIgnored private var lastCoalescedStep: (key: AnyHashable, actionName: String, date: Date)?
+    /// The control whose changes `perform` is making, inside
+    /// `coalescingChanges`.
+    @ObservationIgnored private var coalescingKey: AnyHashable?
+
     /// Where undo steps go: the document's undo manager.
     @ObservationIgnored weak var undoManager: UndoManager?
     /// Called after every change, with the project as it now is.
@@ -129,7 +136,40 @@ final class ProjectEditor {
         var project = self.project
         change(&project)
         guard project != self.project else { return }
-        apply(project, undoName: actionName)
+        if let coalescingKey {
+            let now = Date()
+            if let last = lastCoalescedStep, last.key == coalescingKey, last.actionName == actionName,
+               now.timeIntervalSince(last.date) < Self.coalescingInterval {
+                // Its undo step already goes back to before the first of
+                // them.
+                self.project = project
+                onChange(self.project)
+            } else {
+                apply(project, undoName: actionName)
+            }
+            lastCoalescedStep = (coalescingKey, actionName, now)
+        } else {
+            apply(project, undoName: actionName)
+        }
+    }
+
+    // MARK: - Coalescing
+
+    /// How soon after a control's last change another from it joins the
+    /// same undo step.
+    static let coalescingInterval: TimeInterval = 1
+
+    /// Makes the changes `body` performs join the last undo step, when that
+    /// was made of the same control's changes a moment ago and nothing's
+    /// been done since: for a control that changes the project over and
+    /// over without saying when it's let go, such as a colour well, whose
+    /// colour panel changes the colour all the while it's dragged in. Each
+    /// change is in the project, and saved, at once, unlike a gesture's.
+    func coalescingChanges(_ key: AnyHashable, _ body: () -> Void) {
+        let outer = coalescingKey
+        coalescingKey = key
+        defer { coalescingKey = outer }
+        body()
     }
 
     // MARK: - Gestures
@@ -179,6 +219,7 @@ final class ProjectEditor {
     /// undo step: the history it would undo to is gone.
     func replace(with project: Project) {
         gesture = nil
+        lastCoalescedStep = nil
         guard project != self.project else { return }
         self.project = project
     }
@@ -206,6 +247,8 @@ final class ProjectEditor {
     /// it is unless a gesture has already put the change in.
     private func apply(_ project: Project, undoName: String, from previous: Project? = nil) {
         let previous = previous ?? self.project
+        // Another step, or an undo or redo, so nothing more joins the last.
+        lastCoalescedStep = nil
         if project != self.project { self.project = project }
         if let undoManager {
             undoManager.registerUndo(withTarget: self) { editor in
