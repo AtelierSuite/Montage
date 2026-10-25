@@ -204,6 +204,35 @@
           }
         }
       }
+    },
+    "OpenTimelineIO Timeline" : {
+      "comment" : "Document type name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO Timeline"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIOタイムライン"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO 时间线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO 時間軸"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
