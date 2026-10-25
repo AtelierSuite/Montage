@@ -177,6 +177,8 @@ private struct EditActions: View {
                     .contentShape(.circle)
                     .foregroundStyle(.primary)
             }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
             .accessibilityLabel(Text("Timeline.Options"))
         }
     }
