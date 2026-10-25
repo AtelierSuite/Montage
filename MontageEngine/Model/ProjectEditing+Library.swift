@@ -92,6 +92,22 @@ extension Project {
         return added
     }
 
+    /// Where `insertClips(of:at:onTrack:)` would put each item, without
+    /// putting it there: for the timeline to show a drop before it's made.
+    public func placements(
+        ofClipsOf mediaIDs: [MediaItem.ID], at time: CMTime, onTrack trackID: Track.ID? = nil
+    ) -> [ClipPlacement] {
+        var project = self
+        let existing = Set(tracks.map(\.id))
+        return project.insertClips(of: mediaIDs, at: time, onTrack: trackID).compactMap { id in
+            guard let (track, clip) = project.clip(id: id), let mediaID = clip.mediaID else { return nil }
+            return ClipPlacement(
+                mediaID: mediaID, trackID: track.id, kind: track.kind, isNewTrack: !existing.contains(track.id),
+                range: clip.timelineRange
+            )
+        }
+    }
+
     /// Puts a clip of text or a shape on the timeline at `time`, lasting
     /// `duration`, over whatever video is there: on the first video track
     /// above the clips under it with room, or a new track on top. Hidden
@@ -132,5 +148,25 @@ extension Project {
             : tracks.endIndex
         tracks.insert(Track(kind: kind), at: index)
         return index
+    }
+}
+
+/// Where a clip of a media item would go on the timeline.
+public struct ClipPlacement: Equatable, Sendable {
+    public var mediaID: MediaItem.ID
+    /// The track it goes on. A new track's ID is made up for the placement,
+    /// and isn't the one the drop makes.
+    public var trackID: Track.ID
+    public var kind: Track.Kind
+    /// Whether the track is one the drop would add.
+    public var isNewTrack: Bool
+    public var range: CMTimeRange
+
+    public init(mediaID: MediaItem.ID, trackID: Track.ID, kind: Track.Kind, isNewTrack: Bool, range: CMTimeRange) {
+        self.mediaID = mediaID
+        self.trackID = trackID
+        self.kind = kind
+        self.isNewTrack = isNewTrack
+        self.range = range
     }
 }

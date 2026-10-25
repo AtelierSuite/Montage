@@ -103,4 +103,33 @@ struct LibraryModelTests {
         #expect(project.tracks.map(\.kind) == [.video, .video, .audio])
         #expect(project.tracks[2].clips[0].timelineStart == Self.seconds(6))
     }
+
+    @Test func placesADropWithoutMakingIt() throws {
+        let a = Self.item("A.mov", .video, seconds: 4)
+        let b = Self.item("B.mov", .video, seconds: 2)
+        let music = Self.item("C.m4a", .audio, seconds: 10)
+        var project = Project(media: [a, b, music])
+        project.appendClip(of: a.id)
+        let videoTrack = project.tracks[0].id
+        let before = project
+
+        let placements = project.placements(ofClipsOf: [b.id, music.id], at: Self.seconds(1), onTrack: videoTrack)
+        #expect(project == before)
+        #expect(placements.map(\.mediaID) == [b.id, music.id])
+        // Over A, so on a new video track; the music follows it on a new
+        // audio track.
+        #expect(placements.map(\.kind) == [.video, .audio])
+        #expect(placements.map(\.isNewTrack) == [true, true])
+        #expect(placements[0].range == CMTimeRange(start: Self.seconds(1), duration: Self.seconds(2)))
+        #expect(placements[1].range.start == Self.seconds(3))
+
+        // After A, it fits on A's track.
+        let after = project.placements(ofClipsOf: [b.id], at: Self.seconds(4), onTrack: videoTrack)
+        #expect(after.map(\.trackID) == [videoTrack])
+        #expect(after.map(\.isNewTrack) == [false])
+
+        // The same as the drop makes.
+        project.insertClips(of: [b.id], at: Self.seconds(4), onTrack: videoTrack)
+        #expect(project.tracks[0].clips.last?.timelineRange == after[0].range)
+    }
 }
