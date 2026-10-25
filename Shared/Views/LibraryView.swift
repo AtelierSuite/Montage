@@ -27,6 +27,9 @@ struct LibraryView: View {
     @State private var isShowingPhotos = false
     @State private var isShowingFiles = false
     @State private var pickedPhotos: [PhotosPickerItem] = []
+    /// Whether taps add items to the selection and take them out, to act
+    /// on or drag several at once.
+    @State private var isSelectingMultiple = false
     #endif
 
     var body: some View {
@@ -58,6 +61,14 @@ struct LibraryView: View {
             #if os(iOS)
             .searchable(text: $query.search, prompt: Text("Library.Search"))
             .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    if !editor.project.media.isEmpty {
+                        Button(isSelectingMultiple ? "Library.Select.Done" : "Library.Select") {
+                            isSelectingMultiple.toggle()
+                            if !isSelectingMultiple { selection = [] }
+                        }
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) { importMenu }
             }
             .photosPicker(
@@ -227,7 +238,8 @@ struct LibraryView: View {
     }
 
     /// Selects as a click does: alone, or with Command to toggle the item and
-    /// Shift to reach it from the last one clicked. A tap on iOS toggles it.
+    /// Shift to reach it from the last one clicked. A tap on iOS toggles it,
+    /// alone or, choosing several, along with the rest.
     private func select(_ item: MediaItem) {
         #if os(macOS)
         isGridFocused = true
@@ -245,7 +257,11 @@ struct LibraryView: View {
             selection = [item.id]
         }
         #else
-        selection = selection == [item.id] ? [] : [item.id]
+        if isSelectingMultiple {
+            selection.formSymmetricDifference([item.id])
+        } else {
+            selection = selection == [item.id] ? [] : [item.id]
+        }
         #endif
     }
 
