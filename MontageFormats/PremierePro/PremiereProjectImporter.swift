@@ -407,7 +407,8 @@ struct PremiereProjectImporter {
                     clip.effects.append(Effect(isEnabled: component.isEnabled, kind))
                     continue
                 }
-                let name = component.displayName.isEmpty ? component.matchName : component.displayName
+                let name = Self.effectName(displayName: component.displayName, matchName: component.matchName,
+                                           isVideo: component.isVideo)
                 report.add(.unsupportedEffect(name: name), clipName: clipName, time: clip.timelineStart)
                 clip.effects.append(Effect(isEnabled: false, .unsupported(UnsupportedEffect(
                     format: InterchangeFormat.prproj.rawValue, identifier: component.matchName, name: name,
@@ -420,6 +421,16 @@ struct PremiereProjectImporter {
                 ))))
             }
         }
+    }
+
+    /// The name to show for an effect: the one Premiere showed, else its
+    /// match name, unless that's only a plug-in's UUID, as a third-party
+    /// audio plug-in's can be, which says nothing to the user.
+    static func effectName(displayName: String, matchName: String, isVideo: Bool) -> String {
+        if !displayName.isEmpty { return displayName }
+        if !matchName.isEmpty, UUID(uuidString: matchName) == nil { return matchName }
+        return isVideo ? String(localized: "PremiereProject.UnnamedVideoEffect", bundle: #bundle)
+            : String(localized: "PremiereProject.UnnamedAudioEffect", bundle: #bundle)
     }
 
     /// Motion: the position as a fraction of the frame from its top left,

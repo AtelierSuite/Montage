@@ -470,6 +470,32 @@ struct PremiereRealProjectRegressionTests {
         #expect(lowered.issues(.notImported).contains(.setting(name: "Channel Volume")))
     }
 
+    @Test func namesAPlugInKnownOnlyByItsUUID() throws {
+        // A 2025 project's third-party audio effect: no display name, and a
+        // UUID for a match name.
+        let uuid = "c6762838-e451-4d22-9c90-b0eaa734605a"
+        let unnamed = PremiereProjectImporter.effectName(displayName: "", matchName: uuid, isVideo: false)
+        #expect(unnamed == String(localized: "PremiereProject.UnnamedAudioEffect", bundle: Bundle(for: GzipInputStream.self)))
+        #expect(unnamed != uuid && !unnamed.isEmpty)
+        #expect(PremiereProjectImporter.effectName(displayName: "", matchName: "", isVideo: true)
+            == String(localized: "PremiereProject.UnnamedVideoEffect", bundle: Bundle(for: GzipInputStream.self)))
+        #expect(PremiereProjectImporter.effectName(displayName: "", matchName: "AE.ADBE Mirror", isVideo: true) == "AE.ADBE Mirror")
+        #expect(PremiereProjectImporter.effectName(displayName: "DeEsser", matchName: uuid, isVideo: false) == "DeEsser")
+
+        // Brought in turned off, under that name, keeping the UUID.
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: "<DisplayName>Panner</DisplayName>", with: "")
+            .replacingOccurrences(of: "<FilterMatchName>Internal Panner</FilterMatchName>", with: "<FilterMatchName>\(uuid)</FilterMatchName>")
+        let imported = try PremiereFixtures.read(xml)
+        #expect(imported.issues(.unsupportedEffect) == [.unsupportedEffect(name: "Lumetri Color"), .unsupportedEffect(name: unnamed)])
+        let music = try #require(imported.clip("Music.wav", on: .audio)).clip
+        let kept = music.effects.compactMap { effect -> UnsupportedEffect? in
+            if case .unsupported(let unsupported) = effect.kind { unsupported } else { nil }
+        }
+        #expect(kept.map(\.identifier) == [uuid])
+        #expect(kept.map(\.name) == [unnamed])
+    }
+
     @Test func refusesAProjectWithClipsButNoSequence() {
         // Media in the bin and nothing on a timeline, as in a project only
         // imported into.
