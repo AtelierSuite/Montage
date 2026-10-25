@@ -180,6 +180,10 @@ extension AAFProperty {
         static let parameterDefinition: UInt16 = 0x4C01
         // ConstantValue
         static let value: UInt16 = 0x4D01
+        // VaryingValue, ControlPoint
+        static let pointList: UInt16 = 0x4E02
+        static let controlPointValue: UInt16 = 0x1A02
+        static let controlPointTime: UInt16 = 0x1A03
     }
 }
 

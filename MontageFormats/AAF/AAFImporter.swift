@@ -622,7 +622,9 @@ struct AAFImporter {
         func parameter(_ id: AUID, named wanted: String) -> AAFObject? {
             parameters.first { parameter in
                 guard let definition = parameter.auid(AAFProperty.ID.parameterDefinition) else { return false }
-                return definition == id || definitionNames[definition]?.lowercased().replacingOccurrences(of: " ", with: "") == wanted
+                // Premiere names them "Amplitude multiplier" and "Pan value".
+                return definition == id
+                    || definitionNames[definition]?.lowercased().replacingOccurrences(of: " ", with: "").hasPrefix(wanted) == true
             }
         }
         /// A parameter's value where it doesn't change: nil if it changes,
@@ -671,15 +673,29 @@ struct AAFImporter {
         let isGain = operation == AAFDefinition.monoAudioGain || operation == AAFDefinition.stereoAudioGain
             || (context.kind == .audio && lowercasedName.contains("gain"))
         let isPan = operation == AAFDefinition.monoAudioPan || (context.kind == .audio && lowercasedName.contains("pan"))
-        if isGain, let level = constant(parameter(AAFDefinition.amplitude, named: "amplitude")), level.isFinite {
-            for index in added { clips[index].clip.volume = clips[index].clip.volume.mapped { max(0, $0 * level) } }
+        if isGain {
+            guard let level = curve(parameter(AAFDefinition.amplitude, named: "amplitude")) else {
+                // Avid's own gain, with no level AAF defines.
+                report.add(.setting(name: name), clipName: mainName, time: start)
+                return
+            }
+            for index in added {
+                let gain = animatable(level, over: range, on: clips[index].clip) { max(0, $0) }
+                clips[index].clip.volume = Self.product(clips[index].clip.volume, gain)
+            }
             return
         }
-        if isPan, let pan = constant(parameter(AAFDefinition.pan, named: "pan")), pan.isFinite {
-            var parameters = Pan()
-            // AAF pans from 0, left, to 1, right.
-            parameters.position = Animatable(max(-1, min(1, pan * 2 - 1)))
+        if isPan {
+            guard let pan = curve(parameter(AAFDefinition.pan, named: "pan")) else {
+                report.add(.setting(name: name), clipName: mainName, time: start)
+                return
+            }
             for index in added where clips[index].kind == .audio {
+                // AAF pans from 0, left, to 1, right.
+                let position = animatable(pan, over: range, on: clips[index].clip) { max(-1, min(1, $0 * 2 - 1)) }
+                guard position.isAnimated || abs(position.value) > 0.0001 else { continue }
+                var parameters = Pan()
+                parameters.position = position
                 clips[index].clip.effects.append(Effect(.pan(parameters)))
             }
             return
@@ -700,6 +716,61 @@ struct AAFImporter {
             }
         )
         for index in added { clips[index].clip.effects.append(Effect(isEnabled: false, .unsupported(effect))) }
+    }
+
+    /// A parameter's value as points along its effect, from 0 at its start
+    /// to 1 at its end: one point for a constant value. Nil if it isn't a
+    /// number.
+    private func curve(_ parameter: AAFObject?) -> [(fraction: Double, value: Double)]? {
+        guard let parameter else { return nil }
+        if let value = parameter.indirectNumber(AAFProperty.ID.value), value.isFinite { return [(0, value)] }
+        let points = parameter.strongReferences(AAFProperty.ID.pointList).compactMap { point -> (Double, Double)? in
+            guard let time = point.rational(AAFProperty.ID.controlPointTime), time.denominator != 0,
+                  let value = point.indirectNumber(AAFProperty.ID.controlPointValue), value.isFinite else { return nil }
+            return (Double(time.numerator) / Double(time.denominator), value)
+        }
+        return points.isEmpty ? nil : points.sorted { $0.0 < $1.0 }
+    }
+
+    /// A curve over an effect's stretch of the timeline as a clip's
+    /// parameter, keyframed from the clip's start where it changes there.
+    private func animatable(
+        _ curve: [(fraction: Double, value: Double)], over range: CMTimeRange, on clip: Clip, _ transform: (Double) -> Double
+    ) -> Animatable<Double> {
+        func value(at fraction: Double) -> Double {
+            guard let first = curve.first, let last = curve.last else { return 0 }
+            if fraction <= first.fraction { return first.value }
+            if fraction >= last.fraction { return last.value }
+            let index = curve.lastIndex { $0.fraction <= fraction }!
+            let (from, to) = (curve[index], curve[index + 1])
+            let span = to.fraction - from.fraction
+            return span > 0 ? from.value + (to.value - from.value) * (fraction - from.fraction) / span : to.value
+        }
+        let length = range.duration.seconds
+        guard length > 0 else { return Animatable(transform(curve.first?.value ?? 0)) }
+        let offset = (clip.timelineStart - range.start).seconds
+        let duration = clip.duration.seconds
+        // The clip's ends, and the points between them.
+        var times = [0.0, duration]
+        times += curve.map { $0.fraction * length - offset }.filter { $0 > 0 && $0 < duration }
+        times.sort()
+        let values = times.map { transform(value(at: ($0 + offset) / length)) }
+        guard let firstValue = values.first, values.contains(where: { abs($0 - firstValue) > 0.000_001 }) else {
+            return Animatable(transform(value(at: offset / length)))
+        }
+        let timescale = max(clip.duration.timescale, 600)
+        return Animatable(firstValue, keyframes: zip(times, values).map { time, value in
+            Keyframe(time: CMTime(seconds: time, preferredTimescale: timescale), value: value)
+        })
+    }
+
+    /// Two levels applied one after the other.
+    private static func product(_ a: Animatable<Double>, _ b: Animatable<Double>) -> Animatable<Double> {
+        guard a.isAnimated || b.isAnimated else { return Animatable(a.value * b.value) }
+        let times = Set(a.keyframes.map(\.time) + b.keyframes.map(\.time)).sorted()
+        return Animatable(a.value * b.value, keyframes: times.map { time in
+            Keyframe(time: time, value: a.value(at: time) * b.value(at: time))
+        })
     }
 
     /// The name of the clip an effect is on, for the report.

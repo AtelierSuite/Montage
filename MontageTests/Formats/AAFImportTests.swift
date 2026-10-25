@@ -397,6 +397,70 @@ struct AAFImportTests {
         #expect(imported.report.items.first?.clipName == "Alpha")
     }
 
+    /// Media Composer writes a track's volume and pan as keyframed values
+    /// over the whole track, mostly at their defaults.
+    @Test func readsKeyframedVolumeAndPan() throws {
+        let gain = AUID("33333333-2222-3333-4444-555555555555")
+        let pan = AUID("44444444-2222-3333-4444-555555555555")
+        let clipRatio = AUID("47c00f7d-fb55-11d3-9ff7-0004ac969f50")
+        var file = F()
+        let definitionClass = AUID("0d010101-0101-1c00-060e-2b3402060101")
+        file.operationDefinitions = [F.definition(definitionClass, id: gain, name: "Audio Gain"),
+                                     F.definition(definitionClass, id: pan, name: "Audio Pan")]
+        file.mobs = standardMedia() + [timeline([
+            // Rising from silence to full over the clip, centred.
+            F.timelineSlot(1, F.operationGroup(sound, length: 40, operation: pan, inputs: [
+                F.operationGroup(sound, length: 40, operation: gain,
+                                 inputs: [F.sequence(sound, [F.sourceClip(sound, length: 40, mob: alphaMaster, slot: 2)])],
+                                 parameters: [F.varying(AAFDefinition.amplitude, points: [(0, 0), (1000, 1000)])]),
+            ], parameters: [F.varying(AAFDefinition.pan, points: [(0, 500), (500, 500), (1000, 500)])])),
+            // Avid's own gain, with no level AAF defines.
+            F.timelineSlot(2, F.operationGroup(sound, length: 40, operation: gain,
+                                               inputs: [F.sourceClip(sound, length: 40, mob: bravoMaster, slot: 2)],
+                                               parameters: [F.varying(clipRatio, points: [(500, 75)])])),
+        ])]
+        let imported = try read(file)
+        let alpha = try #require(imported.clip("Alpha.mov", on: .audio)?.clip)
+        #expect(alpha.effects.isEmpty)
+        #expect(alpha.volume.isAnimated)
+        #expect(alpha.volume.value(at: .zero) == 0)
+        #expect(abs(alpha.volume.value(at: frames(20)) - 0.5) < 0.001)
+        #expect(alpha.volume.value(at: frames(40)) == 1)
+        #expect(imported.clip("Bravo.mov", on: .audio)?.clip.volume == Animatable(1))
+        #expect(imported.report.items.map(\.issue) == [.setting(name: "Audio Gain")])
+    }
+
+    /// Premiere names its parameters "Amplitude multiplier" and "Pan
+    /// value", and combines a file's channels in an effect of their own.
+    @Test func readsPremieresChannelsVolumeAndPan() throws {
+        let combiner = AUID("55555555-2222-3333-4444-555555555555")
+        let amplitude = AUID("66666666-2222-3333-4444-555555555555")
+        var file = F()
+        let definitionClass = AUID("0d010101-0101-1c00-060e-2b3402060101")
+        file.operationDefinitions = [F.definition(definitionClass, id: combiner, name: "Audio Channel Combiner")]
+        file.parameterDefinitions = [F.definition(AUID("0d010101-0101-1d00-060e-2b3402060101"), id: amplitude,
+                                                  name: "Amplitude multiplier")]
+        let stereo = F.media(master: alphaMaster, file: alphaFile, name: "Stereo", url: "file:///Media/stereo.wav",
+                             length: 100, picture: false)
+        // Both channels: a second sound slot on the master and the file.
+        stereo[0].properties[stereo[0].properties.firstIndex { $0.pid == AAFProperty.ID.slots }!].objects.append(
+            F.timelineSlot(2, F.sequence(sound, [F.sourceClip(sound, length: 100, mob: alphaFile, slot: 1)])))
+        file.mobs = stereo + [timeline([
+            F.timelineSlot(1, F.sequence(sound, [
+                F.operationGroup(sound, length: 40, operation: AAFDefinition.monoAudioGain, inputs: [
+                    F.operationGroup(sound, length: 40, operation: combiner, inputs: [
+                        F.sourceClip(sound, length: 40, mob: alphaMaster, slot: 1),
+                        F.sourceClip(sound, length: 40, mob: alphaMaster, slot: 2),
+                    ]),
+                ], parameters: [F.constant(amplitude, rational: 1, 4)]),
+            ])),
+        ])]
+        let imported = try read(file)
+        #expect(imported.clips(of: "stereo.wav").count == 1)
+        #expect(imported.clip("stereo.wav")?.clip.volume.value == 0.25)
+        #expect(imported.report.isEmpty)
+    }
+
     // MARK: - Damaged files
 
     @Test func stopsAtCompositionsAndChainsThatLoop() throws {

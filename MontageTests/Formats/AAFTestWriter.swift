@@ -261,6 +261,18 @@ struct AAFTestFile {
             .set(AAFProperty.ID.value, indirectRational: numerator, denominator)
     }
 
+    /// A value that changes along its effect: points from 0, its start, to
+    /// 1, its end, each a time and a value as rationals over 1000.
+    static func varying(_ definition: AUID, points: [(time: Int32, value: Int32)]) -> AAFTestObject {
+        AAFTestObject(AAFClass.varyingValue)
+            .set(AAFProperty.ID.parameterDefinition, auid: definition)
+            .vector(AAFProperty.ID.pointList, points.map { point in
+                AAFTestObject(AUID("0d010101-0101-1900-060e-2b3402060101"))
+                    .set(AAFProperty.ID.controlPointTime, rational: point.time, 1000)
+                    .set(AAFProperty.ID.controlPointValue, indirectRational: point.value, 1000)
+            })
+    }
+
     static func scopeReference(_ kind: AUID, length: Int64) -> AAFTestObject {
         component(AAFClass.scopeReference, kind, length: length)
     }
