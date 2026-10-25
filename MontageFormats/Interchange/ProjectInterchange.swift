@@ -124,4 +124,18 @@ public enum ProjectInterchange {
     public static func clipsLeftOutOfFCPXML(in project: Project) -> [Clip.ID] {
         project.tracks.flatMap(\.clips).filter(FCPXMLExporter.isLeftOut).map(\.id)
     }
+
+    /// The project as a CMX 3600 EDL: its first video track and up to two
+    /// audio tracks. `mediaResolver` finds the media's files, so the editor
+    /// reading the list can find them too.
+    public static func edl(for project: Project, named name: String, mediaResolver: MediaResolver) -> Data {
+        EDLExporter(project: project, name: name, mediaResolver: mediaResolver).document()
+    }
+
+    /// The clips an EDL can't carry, which are left out: those on video
+    /// tracks past the first and audio tracks past what it holds, and text
+    /// and shapes.
+    public static func clipsLeftOutOfEDL(in project: Project) -> [Clip.ID] {
+        EDLExporter.clipsLeftOut(in: project)
+    }
 }
