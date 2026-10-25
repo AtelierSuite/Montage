@@ -185,6 +185,8 @@ struct TimelineView: View {
         .onChange(of: isDragGestureActive) { _, isActive in
             if !isActive { endDrag() }
         }
+        // Taken away mid-drag, the drag still ends.
+        .onDisappear { endDrag() }
         .onContinuousHover(coordinateSpace: .named(Self.space)) { phase in
             switch phase {
             case .active(let location):

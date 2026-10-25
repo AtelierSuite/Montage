@@ -79,6 +79,9 @@ struct ParameterSlider<Value: Interpolatable>: View {
             .labelsHidden()
             .accessibilityLabel(Text(title))
             .accessibilityValue(Text(verbatim: format(value)))
+            // Taken away mid-drag, as when the selection changes, the drag
+            // still ends.
+            .onDisappear { if isDragging { editing.endChange() } }
         }
     }
 }
