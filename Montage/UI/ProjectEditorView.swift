@@ -77,6 +77,7 @@ struct ProjectEditorView: View {
             // Media is found in the package wherever it's moved to.
             .onChange(of: fileURL) { _, fileURL in locateMedia(at: fileURL) }
             .onChange(of: ObjectIdentifier(document.media)) { _, _ in locateMedia(at: fileURL) }
+            .task(id: fileURL) { await downloadMedia(at: fileURL) }
             .onDisappear {
                 // Only the access is given up: the package is still where it is.
                 accessedURL?.stopAccessingSecurityScopedResource()
@@ -95,6 +96,27 @@ struct ProjectEditorView: View {
         document.cache.packageURL = url
         editor.mediaResolver = document.media.resolver
         importer.store = document.media
+    }
+
+    /// Brings an iCloud package's media down, and builds the preview again
+    /// once it's here. The document is read before its media is, so the
+    /// media may not be on the device yet, or readable, when the editor
+    /// first builds the preview, which then plays its clips as empty time.
+    private func downloadMedia(at url: URL?) async {
+        guard let url, await Self.readCoordinated(url), !Task.isCancelled else { return }
+        editor.mediaResolver = document.media.resolver
+    }
+
+    /// Reads the package as a file coordinator does, which downloads all of
+    /// it from iCloud first, off the main actor. False when it isn't in
+    /// iCloud, so there's nothing to wait for.
+    @concurrent
+    private nonisolated static func readCoordinated(_ url: URL) async -> Bool {
+        guard (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]))?.isUbiquitousItem == true else { return false }
+        var error: NSError?
+        var isRead = false
+        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &error) { _ in isRead = true }
+        return isRead
     }
 
     private func attach(to undoManager: UndoManager?) {
