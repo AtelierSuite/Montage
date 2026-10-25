@@ -5,18 +5,45 @@ import MontageEngine
 extension ProjectEditor {
     /// Looks for every media item's file, noting which can't be found, and
     /// puts in fresh bookmarks for any that turned out stale.
-    func checkMedia() {
-        let resolver = mediaResolver
-        let missing = Set(project.media.filter { item in
+    ///
+    /// The look is made off the main actor, as resolving bookmarks and
+    /// reaching files on other volumes can take a while, and a project's
+    /// worth of them longer. A look started while another's under way
+    /// replaces it. Returns the look, for whoever needs `missingMediaIDs` to
+    /// be up to date to wait for it.
+    @discardableResult
+    func checkMedia() -> Task<Void, Never> {
+        mediaCheck?.cancel()
+        let resolver = mediaResolver, media = project.media
+        let check = Task { [weak self] in
+            let missing = await Self.missingMedia(in: media, resolver: resolver)
+            guard !Task.isCancelled, let self else { return }
+            if missing != missingMediaIDs { missingMediaIDs = missing }
+
+            let fresh = takeRefreshedBookmarks()
+            if !fresh.isEmpty {
+                amend { $0.replaceBookmarks(fresh) }
+            }
+        }
+        mediaCheck = check
+        return check
+    }
+
+    /// Waits for the look under way, and any started meanwhile in its place,
+    /// such as for the fresh bookmarks it found.
+    func mediaChecked() async {
+        while let check = mediaCheck {
+            await check.value
+            if mediaCheck == check { return }
+        }
+    }
+
+    @concurrent
+    private nonisolated static func missingMedia(in media: [MediaItem], resolver: MediaResolver) async -> Set<MediaItem.ID> {
+        Set(media.filter { item in
             guard let url = resolver.url(for: item) else { return true }
             return (try? url.checkResourceIsReachable()) != true
         }.map(\.id))
-        if missing != missingMediaIDs { missingMediaIDs = missing }
-
-        let fresh = takeRefreshedBookmarks()
-        if !fresh.isEmpty {
-            amend { $0.replaceBookmarks(fresh) }
-        }
     }
 
     /// The media whose files can't be found, in library order.
@@ -44,5 +71,7 @@ extension ProjectEditor {
                 project.media[index].metadata = relink.metadata
             }
         }
+        // Done once the relinked media is no longer missing.
+        await mediaChecked()
     }
 }

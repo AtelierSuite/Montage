@@ -34,9 +34,11 @@ final class ProjectEditor {
         }
     }
     /// The media whose files can't be found, as of the last `checkMedia()`,
-    /// which is what sets it. Their clips stay on the timeline, and play as
-    /// empty time, until the media is relinked.
+    /// which is what sets it once it has looked. Their clips stay on the
+    /// timeline, and play as empty time, until the media is relinked.
     var missingMediaIDs: Set<MediaItem.ID> = []
+    /// The look for the media's files under way, if one is.
+    @ObservationIgnored var mediaCheck: Task<Void, Never>?
 
     /// Plays the project in the preview, following every change to it. Made
     /// the first time a view asks for it, so an editor that's never shown
@@ -198,6 +200,7 @@ final class ProjectEditor {
     func close() {
         playbackController?.invalidate()
         stopMakingDerivedMedia()
+        mediaCheck?.cancel()
         if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }
         settingsObserver = nil
     }
