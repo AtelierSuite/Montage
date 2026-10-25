@@ -511,7 +511,7 @@ struct PremiereProjectImporter {
         let relative = media.child("RelativePath").flatMap { element -> URL? in
             let path = element.text.replacingOccurrences(of: "\\", with: "/")
             guard !path.isEmpty, !path.hasPrefix("/"), path.firstIndex(of: ":") == nil, let base else { return nil }
-            return URL(fileURLWithPath: path, relativeTo: base).absoluteURL.standardizedFileURL
+            return base.appending(path: path, directoryHint: .notDirectory).standardizedFileURL
         }
         let candidates = absolute + [relative].compactMap { $0 }
         return candidates.first { FileManager.default.fileExists(atPath: $0.path) } ?? candidates.first
