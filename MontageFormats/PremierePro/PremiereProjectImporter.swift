@@ -303,7 +303,9 @@ struct PremiereProjectImporter {
             }.map(\.id))
         }
 
-        // Keyframes are timed in the media, as in and out points are.
+        // Keyframes are timed in the media, as in and out points are: in
+        // real projects a fade's last keyframe falls on the clip's out point
+        // in the media, and a still's keyframes an hour in, with its in point.
         let toClip: (Int64) -> CMTime = { PremiereProject.time($0) - sourceIn }
         for components in settingsFrom {
             apply(components, to: &clip, item: mediaItem, toClip: toClip, clipName: name)
@@ -353,9 +355,10 @@ struct PremiereProjectImporter {
         }
     }
 
-    /// Premiere's audio levels are written as a fraction of the fader's
+    /// Premiere's audio levels are written as gain scaled to the fader's
     /// range, which tops out at +15 dB: 1 is +15 dB, and unity gain, 0 dB,
-    /// is 10^(-15/20).
+    /// is 10^(-15/20), the level every untouched clip has. A level set to
+    /// -20 dB is written as a tenth of that.
     static let unityLevel = pow(10, -15.0 / 20)
 
     private mutating func apply(

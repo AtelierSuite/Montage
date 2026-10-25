@@ -496,6 +496,36 @@ struct PremiereRealProjectRegressionTests {
         #expect(kept.map(\.name) == [unnamed])
     }
 
+    @Test func timesKeyframesInTheMediaEvenForAStill() throws {
+        // Premiere puts a still's in point an hour in, and its keyframes
+        // with it: a 2025 project has a still from 3600.04s with keyframes
+        // at 3600s and 3600.44s.
+        let hour: Int64 = 3600 * PremiereProject.ticksPerSecond
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: "Interview.mov", with: "Still.jpg")
+            .replacingOccurrences(of: "<InPoint>508032000000</InPoint>", with: "<InPoint>\(hour + 508_032_000_000)</InPoint>")
+            .replacingOccurrences(of: "<Keyframes>635040000000,", with: "<Keyframes>\(hour + 635_040_000_000),")
+            .replacingOccurrences(of: ";889056000000,", with: ";\(hour + 889_056_000_000),")
+        let still = try #require(try PremiereFixtures.read(xml).clip("Still.jpg", on: .video)).clip
+        #expect(still.sourceRange.start == .zero)
+        #expect(still.opacity.keyframes.map(\.time) == [CMTime(value: 1, timescale: 2), CMTime(value: 3, timescale: 2)])
+    }
+
+    @Test func readsLevelsAsAFaderToPlus15dB() throws {
+        // A 2025 project's music at -20 dB, a tenth of unity gain.
+        let xml = PremiereFixtures.xml.replacingOccurrences(
+            of: "<Keyframes>508032000000,0.17782793939113617,0,0,0,0,0,0;1016064000000,0.088913969695568085,0,0,0,0,0,0;</Keyframes>",
+            with: ""
+        ).replacingOccurrences(
+            of: "<StartKeyframe>-91445760000000000,0.17782793939113617,", with: "<StartKeyframe>-91445760000000000,0.017782794312,"
+        )
+        let interview = try #require(try PremiereFixtures.read(xml).clip("Interview.mov", on: .video)).clip
+        #expect(!interview.volume.isAnimated)
+        #expect(abs(interview.volume.value - 0.1) < 0.00001)
+        // The top of the fader, 1, is +15 dB.
+        #expect(abs(1 / PremiereProjectImporter.unityLevel - pow(10, 15.0 / 20)) < 0.000001)
+    }
+
     @Test func refusesAProjectWithClipsButNoSequence() {
         // Media in the bin and nothing on a timeline, as in a project only
         // imported into.
