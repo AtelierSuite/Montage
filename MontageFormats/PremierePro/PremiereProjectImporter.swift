@@ -49,12 +49,14 @@ struct PremiereProjectImporter {
     }
 
     private mutating func run() throws -> ImportedProject {
-        // As with Final Cut 7 XML, the first sequence is the one imported;
-        // those only used nested in others aren't counted as others.
+        // As with Final Cut 7 XML, the first sequence is the one imported,
+        // though one with nothing on it is passed over: a project lists its
+        // sequences in no order the user chose. Those only used nested in
+        // others aren't counted as others.
         let nested = nestedSequenceUIDs()
         let topLevel = graph.sequences.filter { !nested.contains($0["ObjectUID"] ?? "") }
         let candidates = topLevel.isEmpty ? graph.sequences : topLevel
-        guard let sequence = candidates.first else { throw InterchangeError.noTimeline }
+        guard let sequence = candidates.first(where: hasClips) ?? candidates.first else { throw InterchangeError.noTimeline }
         if candidates.count > 1 { report.add(.otherTimelines(count: candidates.count - 1)) }
 
         if let video = trackGroups(of: sequence).first(where: { $0.kind == .video })?.group {
@@ -119,6 +121,14 @@ struct PremiereProjectImporter {
             for (index, track) in kindTracks.enumerated() {
                 importTrack(track, kind: kind, lane: kind == .video ? lane + index : lane - index, placement: placement,
                             audioItems: kind == .video ? audioItems : [])
+            }
+        }
+    }
+
+    private func hasClips(_ sequence: MarkupElement) -> Bool {
+        trackGroups(of: sequence).contains { group in
+            (group.group.descendant("TrackGroup", "Tracks")?.children("Track") ?? []).compactMap(graph.resolve).contains {
+                $0.descendant("ClipTrack", "ClipItems", "TrackItems")?.child("TrackItem") != nil
             }
         }
     }
