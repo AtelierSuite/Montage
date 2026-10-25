@@ -239,25 +239,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This file isn’t a project Montage can import. Montage imports FCPXML from Final Cut Pro or LumaFusion, and Final Cut Pro 7 XML from Premiere Pro."
+            "value" : "This file isn’t a project Montage can import. Exporting FCPXML or Final Cut Pro 7 XML from the other editor is the most dependable way to bring a project in."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このファイルはMontageで読み込めるプロジェクトではありません。Montageでは、Final Cut ProまたはLumaFusionのFCPXMLと、Premiere ProのFinal Cut Pro 7 XMLを読み込めます。"
+            "value" : "このファイルはMontageで読み込めるプロジェクトではありません。元の編集アプリからFCPXMLまたはFinal Cut Pro 7 XMLを書き出して読み込むのが、最も確実な方法です。"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此文件不是 Montage 可导入的项目。Montage 可导入来自 Final Cut Pro 或 LumaFusion 的 FCPXML，以及来自 Premiere Pro 的 Final Cut Pro 7 XML。"
+            "value" : "此文件不是 Montage 可导入的项目。从原来的剪辑应用导出 FCPXML 或 Final Cut Pro 7 XML 再导入，是最可靠的方式。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此檔案不是 Montage 可輸入的專案。Montage 可輸入來自 Final Cut Pro 或 LumaFusion 的 FCPXML，以及來自 Premiere Pro 的 Final Cut Pro 7 XML。"
+            "value" : "此檔案不是 Montage 可輸入的專案。從原本的剪輯 App 輸出 FCPXML 或 Final Cut Pro 7 XML 再輸入，是最可靠的方式。"
           }
         }
       }
