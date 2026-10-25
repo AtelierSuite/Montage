@@ -445,6 +445,31 @@ struct PremiereRealProjectRegressionTests {
         #expect(try !PremiereFixtures.read().issues(.notImported).contains(.setting(name: "Crop")))
     }
 
+    /// Music.wav with Channel Volume as a 2024 project writes it: unnamed
+    /// channels past the two, at zero.
+    private func channelVolume(left: String) -> String {
+        PremiereFixtures.xml
+            .replacingOccurrences(of: #"<Component Index="0" ObjectRef="680"/>"#,
+                                  with: #"<Component Index="0" ObjectRef="680"/><Component Index="1" ObjectRef="690"/>"#)
+            .replacingOccurrences(of: "<!-- A2, muted: Music.wav again -->", with: """
+                <AudioFilterComponent ObjectID="690" ClassID="2d4e8c1a-0000-4000-8000-000000000690" Version="3">
+                <AudioComponent Version="3"><Component Version="6"><Params Version="1">
+                <Param Index="0" ObjectRef="691"/><Param Index="1" ObjectRef="692"/><Param Index="2" ObjectRef="693"/>
+                </Params><ID>3</ID></Component></AudioComponent>
+                <FilterMatchName>Internal Channel Volume Stereo</FilterMatchName></AudioFilterComponent>
+                <AudioComponentParam ObjectID="691" Version="9"><Name>Left</Name><StartKeyframe>-91445760000000000,\(left),0,0,0,0,0,0</StartKeyframe></AudioComponentParam>
+                <AudioComponentParam ObjectID="692" Version="9"><Name>Right</Name><StartKeyframe>-91445760000000000,0.177827939391,0,0,0,0,0,0</StartKeyframe></AudioComponentParam>
+                <AudioComponentParam ObjectID="693" Version="9"><StartKeyframe>-91445760000000000,0.,0,0,0,0,0,0</StartKeyframe></AudioComponentParam>
+                """)
+    }
+
+    @Test func reportsChannelVolumeOnlyWhereANamedChannelChanged() throws {
+        let untouched = try PremiereFixtures.read(channelVolume(left: "0.177827939391"))
+        #expect(!untouched.report.items.contains { if case .setting(let name) = $0.issue { name.contains("Channel") } else { false } })
+        let lowered = try PremiereFixtures.read(channelVolume(left: "0.0889139697"))
+        #expect(lowered.issues(.notImported).contains(.setting(name: "Channel Volume")))
+    }
+
     @Test func refusesAProjectWithClipsButNoSequence() {
         // Media in the bin and nothing on a timeline, as in a project only
         // imported into.

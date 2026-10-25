@@ -386,8 +386,11 @@ struct PremiereProjectImporter {
                     report.add(.setting(name: "Pan"), clipName: clipName, time: clip.timelineStart)
                 }
             } else if !component.isVideo, lowerName.contains("channel volume") || lowerMatch.contains("channel volume") {
+                // Only the named channels: Premiere 24 and later write
+                // unnamed ones beyond a stereo clip's two, some at zero.
                 let isChanged = component.parameters.contains { parameter in
-                    guard parameter.child("Name")?.text.lowercased() != "bypass",
+                    let name = parameter.child("Name")?.text.lowercased() ?? ""
+                    guard !name.isEmpty, name != "bypass", name != "mute",
                           let level = PremiereKeyframes.animatable(parameter, toClip: toClip, PremiereKeyframes.number) else {
                         return false
                     }
