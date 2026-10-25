@@ -42,14 +42,16 @@ enum ExportSavePanel {
                 lastSettings = model.settings
                 let name = destination.deletingPathExtension().lastPathComponent
                 ExportCenter.queue.enqueue(title: name, settings: model.settings, delivery: .deliver { file in
-                    try moveFile(at: file, to: destination)
+                    try await moveFile(at: file, to: destination)
                 }, makeSource: makeSource)
                 ExportsWindowController.shared.showWindow(nil)
             }
         }
     }
 
-    private static func moveFile(at file: URL, to destination: URL) throws {
+    /// Off the main actor: to another volume, a move copies the whole movie.
+    @concurrent
+    private nonisolated static func moveFile(at file: URL, to destination: URL) async throws {
         let manager = FileManager.default
         if manager.fileExists(atPath: destination.path) {
             _ = try manager.replaceItemAt(destination, withItemAt: file)
