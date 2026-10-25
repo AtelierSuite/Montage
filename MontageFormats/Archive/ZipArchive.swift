@@ -5,6 +5,9 @@ import Foundation
 /// an archive of several gigabytes is never held in memory. Entries stored
 /// as they are or compressed with deflate are read, ZIP64 included.
 /// Encrypted entries and other compression methods aren't.
+///
+/// An archive already in memory, as a project file read whole is, can be
+/// read the same way with `init(data:)`.
 final class ZipArchive {
     struct Entry: Equatable, Sendable {
         /// The entry's path in the archive, with forward slashes.
@@ -36,16 +39,24 @@ final class ZipArchive {
     static let stored: UInt16 = 0
     static let deflated: UInt16 = 8
 
-    let url: URL
+    /// The file the archive was read from; nil for one read from memory.
+    let url: URL?
     private(set) var entries: [Entry] = []
-    private let handle: FileHandle
+    private let source: Source
     private let fileSize: UInt64
+
+    /// Where the archive's bytes come from.
+    private enum Source {
+        case file(FileHandle)
+        case memory(Data)
+    }
 
     private static let chunkSize = 256 * 1024
 
     init(url: URL) throws {
         self.url = url
-        handle = try FileHandle(forReadingFrom: url)
+        let handle = try FileHandle(forReadingFrom: url)
+        source = .file(handle)
         do {
             fileSize = try handle.seekToEnd()
             entries = try readCentralDirectory()
@@ -55,8 +66,29 @@ final class ZipArchive {
         }
     }
 
+    /// An archive held in memory.
+    init(data: Data) throws {
+        url = nil
+        // Indexed from zero, whatever slice it came from.
+        source = .memory(Data(data))
+        fileSize = UInt64(data.count)
+        entries = try readCentralDirectory()
+    }
+
     deinit {
-        try? handle.close()
+        if case .file(let handle) = source { try? handle.close() }
+    }
+
+    /// Whether data starts as a ZIP archive does: with a local file header,
+    /// or with the end record of an empty archive.
+    static func hasSignature(_ data: Data) -> Bool {
+        let head = [UInt8](data.prefix(4))
+        return head == [0x50, 0x4B, 0x03, 0x04] || head == [0x50, 0x4B, 0x05, 0x06]
+    }
+
+    /// The entry at a path in the archive.
+    func entry(at path: String) -> Entry? {
+        entries.first { $0.path == path }
     }
 
     // MARK: - Reading entries
@@ -141,13 +173,14 @@ final class ZipArchive {
     }
 
     private func copyStored(from offset: UInt64, count: UInt64, consume: (UnsafeRawBufferPointer) throws -> Void) throws {
-        try handle.seek(toOffset: offset)
+        var position = offset
         var remaining = count
         while remaining > 0 {
-            let chunk = try handle.read(upToCount: Int(min(remaining, UInt64(Self.chunkSize)))) ?? Data()
+            let chunk = try bytes(at: position, upTo: Int(min(remaining, UInt64(Self.chunkSize))))
             guard !chunk.isEmpty else { throw Error.damaged }
             try chunk.withUnsafeBytes(consume)
             remaining -= UInt64(chunk.count)
+            position += UInt64(chunk.count)
         }
     }
 
@@ -164,15 +197,16 @@ final class ZipArchive {
         let output = UnsafeMutablePointer<UInt8>.allocate(capacity: Self.chunkSize)
         defer { output.deallocate() }
 
-        try handle.seek(toOffset: offset)
+        var position = offset
         var remaining = compressedSize
         stream.pointee.src_ptr = UnsafePointer(input)
         stream.pointee.src_size = 0
         var status = COMPRESSION_STATUS_OK
         repeat {
             if stream.pointee.src_size == 0, remaining > 0 {
-                let chunk = try handle.read(upToCount: Int(min(remaining, UInt64(Self.chunkSize)))) ?? Data()
+                let chunk = try bytes(at: position, upTo: Int(min(remaining, UInt64(Self.chunkSize))))
                 guard !chunk.isEmpty else { throw Error.damaged }
+                position += UInt64(chunk.count)
                 chunk.copyBytes(to: input, count: chunk.count)
                 stream.pointee.src_ptr = UnsafePointer(input)
                 stream.pointee.src_size = chunk.count
@@ -203,10 +237,22 @@ final class ZipArchive {
 
     private func bytes(at offset: UInt64, count: Int) throws -> Data {
         guard offset <= fileSize, UInt64(count) <= fileSize - offset else { throw Error.damaged }
-        try handle.seek(toOffset: offset)
-        let data = try handle.read(upToCount: count) ?? Data()
+        let data = try bytes(at: offset, upTo: count)
         guard data.count == count else { throw Error.damaged }
         return data
+    }
+
+    /// Up to `count` bytes from `offset`, fewer at the end of the archive.
+    private func bytes(at offset: UInt64, upTo count: Int) throws -> Data {
+        guard offset <= fileSize else { throw Error.damaged }
+        switch source {
+        case .file(let handle):
+            try handle.seek(toOffset: offset)
+            return try handle.read(upToCount: count) ?? Data()
+        case .memory(let data):
+            let end = Int(min(fileSize, offset + UInt64(count)))
+            return data.subdata(in: Int(offset)..<end)
+        }
     }
 
     private func readCentralDirectory() throws -> [Entry] {

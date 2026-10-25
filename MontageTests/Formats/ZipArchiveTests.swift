@@ -90,6 +90,41 @@ struct ZipArchiveTests {
         #expect(!FileManager.default.fileExists(atPath: folder.appending(path: "Escaped.txt").path))
     }
 
+    @Test(arguments: [false, true])
+    func readsAnArchiveInMemory(zip64: Bool) throws {
+        let binary = Data((0..<300_000).map { UInt8(truncatingIfNeeded: $0 &* 31) })
+        let data = try TestZip.archive([
+            TestZip.File("Project/Stored.txt", Self.text),
+            TestZip.File("Media/Binary.bin", binary, deflated: true),
+        ], zip64: zip64)
+        // From a slice that doesn't start at zero, as data read whole may be.
+        let archive = try ZipArchive(data: (Data([1, 2, 3]) + data).dropFirst(3))
+        #expect(archive.url == nil)
+        #expect(archive.entries.map(\.path) == ["Project/Stored.txt", "Media/Binary.bin"])
+        let stored = try #require(archive.entry(at: "Project/Stored.txt"))
+        #expect(try archive.data(for: stored, limit: 1 << 20) == Data(Self.text.utf8))
+        let deflated = try #require(archive.entry(at: "Media/Binary.bin"))
+        #expect(try archive.data(for: deflated, limit: 1 << 20) == binary)
+        #expect(archive.entry(at: "Missing.txt") == nil)
+    }
+
+    @Test func refusesDamagedArchivesInMemory() throws {
+        #expect(throws: ZipArchive.Error.notAnArchive) { try ZipArchive(data: Data("<xml/>".utf8)) }
+        #expect(throws: ZipArchive.Error.notAnArchive) { try ZipArchive(data: Data()) }
+        var data = try TestZip.archive([TestZip.File("A.txt", Self.text, deflated: true)])
+        #expect(throws: ZipArchive.Error.self) { try ZipArchive(data: data.prefix(data.count / 2)) }
+        data[60] ^= 0xFF
+        let archive = try ZipArchive(data: data)
+        #expect(throws: ZipArchive.Error.self) { try archive.data(for: archive.entries[0], limit: 1 << 20) }
+    }
+
+    @Test func recognizesArchivesByTheirSignature() throws {
+        #expect(ZipArchive.hasSignature(try TestZip.archive([TestZip.File("A.txt", "a")])))
+        #expect(ZipArchive.hasSignature(try TestZip.archive([])))
+        #expect(!ZipArchive.hasSignature(Data("<fcpxml/>".utf8)))
+        #expect(!ZipArchive.hasSignature(Data()))
+    }
+
     @Test func checksumsMatchZlibs() {
         #expect(CRC32.checksum(Data("123456789".utf8)) == 0xCBF4_3926)
         #expect(CRC32.checksum(Data()) == 0)
