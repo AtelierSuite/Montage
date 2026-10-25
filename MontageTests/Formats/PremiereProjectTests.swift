@@ -219,13 +219,13 @@ struct PremiereProjectImportTests {
 }
 
 struct PremiereProjectVersionTests {
-    @Test(arguments: ["37", "40", "44"])
+    @Test(arguments: ["18", "23", "37", "40", "45"])
     func readsTheVersionsItWasWrittenFor(version: String) throws {
         let imported = try PremiereFixtures.read(PremiereFixtures.xml(version: version))
         #expect(imported.name == "Main Edit")
     }
 
-    @Test(arguments: ["1", "36", "45", "120", "forty"])
+    @Test(arguments: ["1", "17", "46", "120", "forty"])
     func refusesOtherVersions(version: String) {
         #expect(throws: PremiereProjectError.unsupportedVersion) {
             try PremiereFixtures.read(PremiereFixtures.xml(version: version))

@@ -13,10 +13,13 @@ enum PremiereProject {
     static let ticksPerSecond: Int64 = 254_016_000_000
 
     /// The project versions (the `Version` of the file's `Project` object)
-    /// whose structure the importer was written against. Older and newer
-    /// projects are refused, pointing to Final Cut Pro XML instead: 37 was
-    /// written by Premiere Pro 2020 (14.0), and 44 by Premiere Pro 25.6.
-    static let supportedVersions = 37...44
+    /// the importer has read real projects of. Newer ones are refused,
+    /// pointing to Final Cut Pro XML instead, until projects saved by them
+    /// have been tried. Among those read: 18 was written by Premiere Pro 2.0
+    /// (2006), 19 by CS3, 22 by CC 2014, 23 by CC 2015, 37 by 13.1, 38 by
+    /// 14.0, 42 by 24.4, 43 by 25.1 and 25.2, and 45 by 26.3. The structure
+    /// the importer reads hasn't changed across them.
+    static let supportedVersions = 18...45
 
     /// The kinds of file a Premiere project is offered as: Montage's own
     /// declaration, and Premiere's, where Premiere is installed and has
