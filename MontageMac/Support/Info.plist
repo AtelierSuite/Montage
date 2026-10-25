@@ -53,7 +53,24 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.xml</string>
+				<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
 			</array>
+			<key>UTTypeDescription</key>
+			<string>DaVinci Resolve Project</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.blackmagic-design.resolve.project</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>drp</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 			<key>UTTypeDescription</key>
 			<string>Final Cut Pro XML</string>
 			<key>UTTypeIdentifier</key>
