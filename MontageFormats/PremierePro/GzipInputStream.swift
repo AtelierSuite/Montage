@@ -25,7 +25,7 @@ final class GzipInputStream: InputStream {
     )
     private var isStreamReady = false
     private var status: Stream.Status = .notOpen
-    private var crc = CRC32()
+    private var crc = GzipCRC32()
     private var length: UInt32 = 0
 
     init(gzipped data: Data) {
@@ -163,7 +163,7 @@ enum GzipError: Error, Equatable {
 }
 
 /// The CRC-32 gzip ends with, made a buffer at a time.
-struct CRC32 {
+struct GzipCRC32 {
     private static let table: [UInt32] = (0..<256).map { index in
         (0..<8).reduce(UInt32(index)) { value, _ in value & 1 == 1 ? 0xEDB8_8320 ^ (value >> 1) : value >> 1 }
     }

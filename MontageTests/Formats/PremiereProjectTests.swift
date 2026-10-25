@@ -42,7 +42,7 @@ enum PremiereFixtures {
             }
         }
         output += compressed.prefix(size)
-        var crc = CRC32()
+        var crc = GzipCRC32()
         data.withUnsafeBytes { crc.update($0) }
         for word in [crc.value, UInt32(truncatingIfNeeded: data.count)] {
             output += withUnsafeBytes(of: word.littleEndian) { Data($0) }
