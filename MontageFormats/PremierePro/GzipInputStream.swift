@@ -143,11 +143,12 @@ final class GzipInputStream: InputStream {
         return offset < count ? offset : nil
     }
 
-    /// Whether the eight bytes after the stream hold its checksum and its
-    /// length, as they must.
+    /// Whether the file's last eight bytes hold the stream's checksum and
+    /// length, as they must. Compression may read ahead past the stream's
+    /// end, so where it stopped doesn't say where the trailer is.
     private func checkTrailer() -> Bool {
-        let end = count - stream.src_size
-        guard end + 8 <= count else { return false }
+        let end = count - 8
+        guard end >= 10 else { return false }
         func word(_ at: Int) -> UInt32 {
             (0..<4).reduce(UInt32(0)) { $0 | UInt32(input[at + $1]) << (8 * UInt32($1)) }
         }
