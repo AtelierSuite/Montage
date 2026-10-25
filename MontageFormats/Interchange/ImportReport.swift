@@ -148,6 +148,8 @@ public enum InterchangeFormat: String, Sendable {
     case xmeml
     /// LumaFusion's own project file, inside its project packages.
     case lumaFusion
+    /// OpenTimelineIO, written by Resolve, Premiere Pro and others.
+    case otio
 
     /// The format's name, for the report.
     public var displayName: String {
@@ -155,6 +157,7 @@ public enum InterchangeFormat: String, Sendable {
         case .fcpxml: String(localized: "Interchange.Format.FCPXML", bundle: #bundle)
         case .xmeml: String(localized: "Interchange.Format.XMEML", bundle: #bundle)
         case .lumaFusion: String(localized: "Interchange.Format.LumaFusion", bundle: #bundle)
+        case .otio: String(localized: "Interchange.Format.OTIO", bundle: #bundle)
         }
     }
 }
