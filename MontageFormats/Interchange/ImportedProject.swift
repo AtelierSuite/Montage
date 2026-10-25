@@ -47,7 +47,12 @@ struct ImportedMedia {
     /// A file reference as a URL: a URL as written, or a path, which is
     /// taken from beside the file being read when it isn't absolute.
     static func url(from reference: String?, relativeTo base: URL?) -> URL? {
-        guard let reference = reference?.trimmingCharacters(in: .whitespacesAndNewlines), !reference.isEmpty else { return nil }
+        guard var reference = reference?.trimmingCharacters(in: .whitespacesAndNewlines), !reference.isEmpty else { return nil }
+        if let path = windowsPath(reference) {
+            // Not on this Mac, but its last component names the file to look for.
+            if path.hasPrefix("/") { return URL(fileURLWithPath: path) }
+            reference = path
+        }
         // Final Cut 7 wrote "file://localhost/Volumes/…".
         let normalized = reference.replacingOccurrences(of: "file://localhost/", with: "file:///")
         if let url = URL(string: normalized), url.scheme != nil {
@@ -58,5 +63,25 @@ struct ImportedMedia {
         }
         if normalized.hasPrefix("/") { return URL(fileURLWithPath: normalized) }
         return base.map { URL(fileURLWithPath: normalized, relativeTo: $0).absoluteURL.standardizedFileURL }
+    }
+
+    /// A path written on Windows, with forward slashes: "D:\Media\a.mov" as
+    /// "/D:/Media/a.mov", "\\server\share\a.mov" as "/server/share/a.mov",
+    /// and "Media\a.mov" as "Media/a.mov". Nil for anything else. Resolve and
+    /// Premiere Pro on Windows write paths like these, even in file URLs.
+    static func windowsPath(_ reference: String) -> String? {
+        var path = reference
+        for prefix in ["file://localhost/", "file:///", "file://"] where path.lowercased().hasPrefix(prefix) {
+            path = String(path.dropFirst(prefix.count))
+            path = path.removingPercentEncoding ?? path
+            break
+        }
+        let isDrive = path.count >= 3 && path.first!.isLetter && path.dropFirst().first == ":"
+            && "\\/".contains(path[path.index(path.startIndex, offsetBy: 2)])
+        let isUNC = path.hasPrefix("\\\\")
+        guard isDrive || isUNC || (path.contains("\\") && !path.contains("/")) else { return nil }
+        let slashed = path.replacingOccurrences(of: "\\", with: "/")
+        if isUNC { return "/" + slashed.drop { $0 == "/" } }
+        return isDrive ? "/" + slashed : slashed
     }
 }
