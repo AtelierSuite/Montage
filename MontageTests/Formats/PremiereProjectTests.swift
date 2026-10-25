@@ -377,3 +377,21 @@ struct GzipInputStreamTests {
         #expect(throws: (any Error).self) { try ProjectInterchange.read(gzipped) }
     }
 }
+
+/// What real projects turned up.
+struct PremiereRealProjectRegressionTests {
+    @Test func takesARateAHairOffStandardAsStandard() throws {
+        // A 2024 project made from a phone's clip, at 30.005 fps.
+        #expect(PremiereProject.frameDuration(ticksPerFrame: 8_465_845_248) == CMTime(value: 1, timescale: 30))
+        #expect(PremiereProject.frameDuration(ticksPerFrame: 8_475_667_200) == CMTime(value: 1001, timescale: 30000))
+        #expect(PremiereProject.frameDuration(ticksPerFrame: 10_160_640_000) == CMTime(value: 1, timescale: 25))
+        // Rates that aren't near a standard one stay as they are.
+        #expect(PremiereProject.frameDuration(ticksPerFrame: 16_934_400_000) == CMTime(value: 1, timescale: 15))
+        #expect(PremiereProject.frameDuration(ticksPerFrame: 20_321_280_000) == CMTime(value: 2, timescale: 25))
+
+        let xml = PremiereFixtures.xml.replacingOccurrences(
+            of: "<FrameRate>8475667200</FrameRate>\n\t\t\t<NextTrackID>", with: "<FrameRate>8465845248</FrameRate>\n\t\t\t<NextTrackID>"
+        )
+        #expect(try PremiereFixtures.read(xml).project.settings.frameDuration == CMTime(value: 1, timescale: 30))
+    }
+}

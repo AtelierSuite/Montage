@@ -63,7 +63,7 @@ struct PremiereProjectImporter {
 
         if let video = trackGroups(of: sequence).first(where: { $0.kind == .video })?.group {
             if let rate = PremiereProject.ticks(video.descendant("TrackGroup", "FrameRate")?.text), rate > 0 {
-                settings.frameDuration = PremiereProject.time(rate)
+                settings.frameDuration = PremiereProject.frameDuration(ticksPerFrame: rate)
             }
             if let size = Self.size(video.child("FrameRect")?.text) { settings.renderSize = size }
         }

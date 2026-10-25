@@ -35,6 +35,23 @@ enum PremiereProject {
         InterchangeTime.time(ticks, over: ticksPerSecond)
     }
 
+    /// The length of a frame, from ticks per frame. A sequence made to
+    /// match a phone's variable-rate clip can be a hair off a standard rate,
+    /// such as 30.005 fps; within 0.03% of one, which no two standard rates
+    /// are, it's taken as that rate.
+    static func frameDuration(ticksPerFrame: Int64) -> CMTime {
+        let exact = time(ticksPerFrame)
+        let rate = Double(ticksPerSecond) / Double(ticksPerFrame)
+        let standard: [(frames: Int64, seconds: Int64)] = [
+            (24000, 1001), (24, 1), (25, 1), (30000, 1001), (30, 1), (48, 1), (50, 1), (60000, 1001), (60, 1),
+            (100, 1), (120000, 1001), (120, 1),
+        ]
+        for candidate in standard where abs(rate / (Double(candidate.frames) / Double(candidate.seconds)) - 1) < 0.0003 {
+            return InterchangeTime.time(candidate.seconds, over: candidate.frames)
+        }
+        return exact
+    }
+
     /// A count of ticks as written, nil if it isn't one.
     static func ticks(_ text: String?) -> Int64? {
         text.flatMap { Int64($0.trimmingCharacters(in: .whitespaces)) }
