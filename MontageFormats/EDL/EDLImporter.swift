@@ -43,8 +43,8 @@ struct EDLImporter {
         var imported = importer.run(rateIsGuessed: guessed)
         if guessed {
             let metadata = imported.project.media.map(\.metadata)
-            imported.conformToMedia = { gathered in
-                conform(gathered, data: data, baseURL: baseURL, document: document, unprobed: metadata)
+            imported.conformToMedia = { gathered, store in
+                await conform(gathered, store: store, data: data, baseURL: baseURL, document: document, unprobed: metadata)
             }
         }
         return imported
@@ -182,7 +182,6 @@ struct EDLImporter {
         var name: String
         var hasVideo = false
         var hasAudio = false
-        var end = 0
     }
 
     /// The key an event's file is known by: its path, else its clip name,
@@ -210,8 +209,6 @@ struct EDLImporter {
             let index = indices[key]!
             uses[index].hasVideo = uses[index].hasVideo || event.hasVideo
             uses[index].hasAudio = uses[index].hasAudio || !event.audioChannels.isEmpty
-            let range = sourceRange(of: event)
-            uses[index].end = max(uses[index].end, range.start + range.duration)
         }
 
         var items: [String: MediaItem] = [:]
@@ -221,7 +218,9 @@ struct EDLImporter {
                 else if fileType?.conforms(to: .audio) == true { .audio }
                 else if use.hasVideo { .video }
                 else { .audio }
-            var metadata = MediaMetadata(duration: kind == .image ? .zero : rate.time(use.end))
+            // Its length isn't known until it's found: the list's source
+            // points are timecode, which may start anywhere.
+            var metadata = MediaMetadata()
             if kind != .audio { metadata.naturalSize = renderSize }
             if kind != .image, use.hasAudio || kind == .audio {
                 metadata.audioChannelCount = 2
@@ -406,7 +405,24 @@ struct EDLImporter {
     /// Reads the list again at the rate of its media, once that's been
     /// found and probed, if it's not the rate that was guessed. The media
     /// as found is kept.
+    /// Lines the list up with its media once that's been found: read at the
+    /// media's rate, and with each found file's clips moved back by the
+    /// timecode it starts at, as source points are given in it.
     private static func conform(
+        _ gathered: ImportedProject, store: PackageMediaStore, data: Data, baseURL: URL?, document: EDLDocument,
+        unprobed: [MediaMetadata]
+    ) async -> ImportedProject {
+        var conformed = conformRate(gathered, data: data, baseURL: baseURL, document: document, unprobed: unprobed)
+        for (index, item) in conformed.project.media.enumerated()
+        where index < unprobed.count && item.metadata != unprobed[index] && item.kind != .image {
+            guard case .package(let path) = item.location, let url = store.stagedURL(forPackagePath: path),
+                  let start = await MediaTimecode.start(of: url) else { continue }
+            conformed.project.shiftSourceRanges(of: item.id, by: start)
+        }
+        return conformed
+    }
+
+    private static func conformRate(
         _ gathered: ImportedProject, data: Data, baseURL: URL?, document: EDLDocument, unprobed: [MediaMetadata]
     ) -> ImportedProject {
         let probed = gathered.project.media.enumerated().filter { index, item in

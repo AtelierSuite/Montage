@@ -19,8 +19,9 @@ public struct ImportedProject: Sendable {
     public var mediaSources: [MediaItem.ID: URL]
     /// Reads the file again once its media has been found, for formats
     /// that need something only the media says, such as an EDL's frame
-    /// rate. `ProjectInterchange.gatherMedia` calls it last.
-    var conformToMedia: (@Sendable (ImportedProject) -> ImportedProject)?
+    /// rate or the timecode its files start at. `ProjectInterchange.gatherMedia`
+    /// calls it last, with the store the media was staged in.
+    var conformToMedia: (@Sendable (ImportedProject, PackageMediaStore) async -> ImportedProject)?
 }
 
 /// The media an importer comes across, one item for each file however many

@@ -176,13 +176,13 @@ struct EDLImportTests {
         #expect(throws: InterchangeError.self) { try ProjectInterchange.read(Data("hello\nworld".utf8)) }
     }
 
-    @Test func readsTheMediaRateOnceItsFound() throws {
+    @Test func readsTheMediaRateOnceItsFound() async throws {
         // The list as read at 30, then with its first file found at 25.
         var gathered = imported
         gathered.project.media[0].metadata.nominalFrameRate = 25
         gathered.project.media[0].location = .package(path: "Media/IMG_1805.MOV")
         let conform = try #require(gathered.conformToMedia)
-        let conformed = conform(gathered)
+        let conformed = await conform(gathered, PackageMediaStore())
         #expect(conformed.project.settings.frameDuration == seconds(1, 25))
         #expect(conformed.issues(.changed).contains(.frameRateFromMedia("25")))
         #expect(!conformed.issues(.changed).contains(.frameRateAssumed("30")))
