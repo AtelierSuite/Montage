@@ -35,43 +35,43 @@ struct ZIPTestWriter {
 
             var extra = Data()
             if zip64 {
-                extra.append(le: UInt16(0x0001))
-                extra.append(le: UInt16(24))
-                extra.append(le: UInt64(file.contents.count))
-                extra.append(le: UInt64(compressed.count))
-                extra.append(le: offset)
+                extra.appendDRP(littleEndian: UInt16(0x0001))
+                extra.appendDRP(littleEndian: UInt16(24))
+                extra.appendDRP(littleEndian: UInt64(file.contents.count))
+                extra.appendDRP(littleEndian: UInt64(compressed.count))
+                extra.appendDRP(littleEndian: offset)
             }
             let small32: (Int) -> UInt32 = { zip64 ? 0xFFFF_FFFF : UInt32($0) }
 
-            output.append(le: UInt32(0x0403_4B50))
-            output.append(le: UInt16(zip64 ? 45 : 20))
-            output.append(le: UInt16(0x0800))
-            output.append(le: method)
-            output.append(le: UInt32(0))
-            output.append(le: crc)
-            output.append(le: small32(compressed.count))
-            output.append(le: small32(file.contents.count))
-            output.append(le: UInt16(name.count))
-            output.append(le: UInt16(0))
+            output.appendDRP(littleEndian: UInt32(0x0403_4B50))
+            output.appendDRP(littleEndian: UInt16(zip64 ? 45 : 20))
+            output.appendDRP(littleEndian: UInt16(0x0800))
+            output.appendDRP(littleEndian: method)
+            output.appendDRP(littleEndian: UInt32(0))
+            output.appendDRP(littleEndian: crc)
+            output.appendDRP(littleEndian: small32(compressed.count))
+            output.appendDRP(littleEndian: small32(file.contents.count))
+            output.appendDRP(littleEndian: UInt16(name.count))
+            output.appendDRP(littleEndian: UInt16(0))
             output.append(name)
             output.append(compressed)
 
-            directory.append(le: UInt32(0x0201_4B50))
-            directory.append(le: UInt16(zip64 ? 45 : 20))
-            directory.append(le: UInt16(zip64 ? 45 : 20))
-            directory.append(le: UInt16(0x0800))
-            directory.append(le: method)
-            directory.append(le: UInt32(0))
-            directory.append(le: crc)
-            directory.append(le: small32(compressed.count))
-            directory.append(le: small32(file.contents.count))
-            directory.append(le: UInt16(name.count))
-            directory.append(le: UInt16(extra.count))
-            directory.append(le: UInt16(0))
-            directory.append(le: UInt16(0))
-            directory.append(le: UInt16(0))
-            directory.append(le: UInt32(0))
-            directory.append(le: zip64 ? 0xFFFF_FFFF : UInt32(offset))
+            directory.appendDRP(littleEndian: UInt32(0x0201_4B50))
+            directory.appendDRP(littleEndian: UInt16(zip64 ? 45 : 20))
+            directory.appendDRP(littleEndian: UInt16(zip64 ? 45 : 20))
+            directory.appendDRP(littleEndian: UInt16(0x0800))
+            directory.appendDRP(littleEndian: method)
+            directory.appendDRP(littleEndian: UInt32(0))
+            directory.appendDRP(littleEndian: crc)
+            directory.appendDRP(littleEndian: small32(compressed.count))
+            directory.appendDRP(littleEndian: small32(file.contents.count))
+            directory.appendDRP(littleEndian: UInt16(name.count))
+            directory.appendDRP(littleEndian: UInt16(extra.count))
+            directory.appendDRP(littleEndian: UInt16(0))
+            directory.appendDRP(littleEndian: UInt16(0))
+            directory.appendDRP(littleEndian: UInt16(0))
+            directory.appendDRP(littleEndian: UInt32(0))
+            directory.appendDRP(littleEndian: zip64 ? 0xFFFF_FFFF : UInt32(offset))
             directory.append(name)
             directory.append(extra)
         }
@@ -79,29 +79,29 @@ struct ZIPTestWriter {
         output.append(directory)
         if zip64 {
             let recordOffset = UInt64(output.count)
-            output.append(le: UInt32(0x0606_4B50))
-            output.append(le: UInt64(44))
-            output.append(le: UInt16(45))
-            output.append(le: UInt16(45))
-            output.append(le: UInt32(0))
-            output.append(le: UInt32(0))
-            output.append(le: UInt64(files.count))
-            output.append(le: UInt64(files.count))
-            output.append(le: UInt64(directory.count))
-            output.append(le: directoryOffset)
-            output.append(le: UInt32(0x0706_4B50))
-            output.append(le: UInt32(0))
-            output.append(le: recordOffset)
-            output.append(le: UInt32(1))
+            output.appendDRP(littleEndian: UInt32(0x0606_4B50))
+            output.appendDRP(littleEndian: UInt64(44))
+            output.appendDRP(littleEndian: UInt16(45))
+            output.appendDRP(littleEndian: UInt16(45))
+            output.appendDRP(littleEndian: UInt32(0))
+            output.appendDRP(littleEndian: UInt32(0))
+            output.appendDRP(littleEndian: UInt64(files.count))
+            output.appendDRP(littleEndian: UInt64(files.count))
+            output.appendDRP(littleEndian: UInt64(directory.count))
+            output.appendDRP(littleEndian: directoryOffset)
+            output.appendDRP(littleEndian: UInt32(0x0706_4B50))
+            output.appendDRP(littleEndian: UInt32(0))
+            output.appendDRP(littleEndian: recordOffset)
+            output.appendDRP(littleEndian: UInt32(1))
         }
-        output.append(le: UInt32(0x0605_4B50))
-        output.append(le: UInt16(0))
-        output.append(le: UInt16(0))
-        output.append(le: zip64 ? 0xFFFF : UInt16(files.count))
-        output.append(le: zip64 ? 0xFFFF : UInt16(files.count))
-        output.append(le: zip64 ? 0xFFFF_FFFF : UInt32(directory.count))
-        output.append(le: zip64 ? 0xFFFF_FFFF : UInt32(directoryOffset))
-        output.append(le: UInt16(0))
+        output.appendDRP(littleEndian: UInt32(0x0605_4B50))
+        output.appendDRP(littleEndian: UInt16(0))
+        output.appendDRP(littleEndian: UInt16(0))
+        output.appendDRP(littleEndian: zip64 ? 0xFFFF : UInt16(files.count))
+        output.appendDRP(littleEndian: zip64 ? 0xFFFF : UInt16(files.count))
+        output.appendDRP(littleEndian: zip64 ? 0xFFFF_FFFF : UInt32(directory.count))
+        output.appendDRP(littleEndian: zip64 ? 0xFFFF_FFFF : UInt32(directoryOffset))
+        output.appendDRP(littleEndian: UInt16(0))
         return output
     }
 
@@ -122,11 +122,11 @@ struct ZIPTestWriter {
 }
 
 extension Data {
-    mutating func append<Value: FixedWidthInteger>(le value: Value) {
+    mutating func appendDRP<Value: FixedWidthInteger>(littleEndian value: Value) {
         Swift.withUnsafeBytes(of: value.littleEndian) { append(contentsOf: $0) }
     }
 
-    mutating func append<Value: FixedWidthInteger>(be value: Value) {
+    mutating func appendDRP<Value: FixedWidthInteger>(bigEndian value: Value) {
         Swift.withUnsafeBytes(of: value.bigEndian) { append(contentsOf: $0) }
     }
 }

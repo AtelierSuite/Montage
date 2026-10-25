@@ -10,22 +10,22 @@ enum ResolveBlobWriter {
 
     static func frameRate(_ rate: Double) -> Data {
         var data = Data()
-        data.append(le: rate.bitPattern)
-        data.append(le: UInt64(0))
+        data.appendDRP(littleEndian: rate.bitPattern)
+        data.appendDRP(littleEndian: UInt64(0))
         return data
     }
 
     static func resolution(width: Int, height: Int) -> Data {
         var data = Data()
-        data.append(be: UInt64(width))
-        data.append(be: UInt64(height))
+        data.appendDRP(bigEndian: UInt64(width))
+        data.appendDRP(bigEndian: UInt64(height))
         return data
     }
 
     static func extents(start: Double, duration: Double) -> Data {
         var data = Data()
-        data.append(le: start.bitPattern)
-        data.append(le: duration.bitPattern)
+        data.appendDRP(littleEndian: start.bitPattern)
+        data.appendDRP(littleEndian: duration.bitPattern)
         return data
     }
 
@@ -38,27 +38,27 @@ enum ResolveBlobWriter {
 
     static func keyedDictionary(_ entries: [(String, Value)]) -> Data {
         var data = Data()
-        data.append(be: UInt32(1))
-        data.append(be: UInt32(entries.count))
+        data.appendDRP(bigEndian: UInt32(1))
+        data.appendDRP(bigEndian: UInt32(entries.count))
         for (key, value) in entries {
             qString(key, into: &data)
             switch value {
             case .int32(let number):
-                data.append(be: UInt32(0x02))
+                data.appendDRP(bigEndian: UInt32(0x02))
                 data.append(UInt8(0))
-                data.append(be: number)
+                data.appendDRP(bigEndian: number)
             case .double(let number):
-                data.append(be: UInt32(0x06))
+                data.appendDRP(bigEndian: UInt32(0x06))
                 data.append(UInt8(0))
-                data.append(be: number.bitPattern)
+                data.appendDRP(bigEndian: number.bitPattern)
             case .string(let string):
-                data.append(be: UInt32(0x0A))
+                data.appendDRP(bigEndian: UInt32(0x0A))
                 data.append(UInt8(0))
                 qString(string, into: &data)
             case .bytes(let bytes):
-                data.append(be: UInt32(0x0C))
+                data.appendDRP(bigEndian: UInt32(0x0C))
                 data.append(UInt8(0))
-                data.append(be: UInt32(bytes.count))
+                data.appendDRP(bigEndian: UInt32(bytes.count))
                 data.append(bytes)
             }
         }
@@ -67,7 +67,7 @@ enum ResolveBlobWriter {
 
     private static func qString(_ string: String, into data: inout Data) {
         let utf16 = string.data(using: .utf16BigEndian)!
-        data.append(be: UInt32(utf16.count))
+        data.appendDRP(bigEndian: UInt32(utf16.count))
         data.append(utf16)
     }
 
@@ -112,7 +112,7 @@ enum ResolveBlobWriter {
         var data = Data([0x28, 0xB5, 0x2F, 0xFD])
         // Single segment, four-byte content size.
         data.append(0xA0)
-        data.append(le: UInt32(payload.count))
+        data.appendDRP(littleEndian: UInt32(payload.count))
         let header = UInt32(payload.count) << 3 | 1
         data.append(UInt8(header & 0xFF))
         data.append(UInt8((header >> 8) & 0xFF))
@@ -125,8 +125,8 @@ enum ResolveBlobWriter {
     static func envelope(_ message: Data, version: UInt32 = 10001, zstd: Bool = true) -> Data {
         let payload = zstd ? zstdRaw(message) : message
         var data = Data()
-        data.append(be: version)
-        data.append(be: UInt32(payload.count + 1))
+        data.appendDRP(bigEndian: version)
+        data.appendDRP(bigEndian: UInt32(payload.count + 1))
         data.append(zstd ? 0x81 : 0x80)
         data.append(payload)
         return data
@@ -143,8 +143,8 @@ enum ResolveBlobWriter {
             let detail = protobuf([.varint(1, 2), .text(3, marker.note), .text(3, "1"), .text(3, marker.name)])
             let inner = protobuf([.bytes(1, detail)])
             var body = Data()
-            body.append(be: UInt32(2))
-            body.append(be: UInt32(inner.count))
+            body.appendDRP(bigEndian: UInt32(2))
+            body.appendDRP(bigEndian: UInt32(inner.count))
             body.append(inner)
             return protobuf([.bytes(1, protobuf([.varint(1, marker.frame), .bytes(2, body)]))])
         }
