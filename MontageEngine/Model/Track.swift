@@ -33,6 +33,18 @@ public struct Track: Identifiable, Equatable, Sendable, Codable {
         clips.first { $0.id == id }
     }
 
+    /// The clips that share some time with a range, such as one a selection
+    /// rectangle is drawn across. Clips that only touch it at an end are
+    /// left out. An empty range takes the clip it's in, if any.
+    public func clips(overlapping range: CMTimeRange) -> [Clip] {
+        let start = range.start
+        let end = range.end
+        if end <= start {
+            return clips.filter { $0.timelineStart <= start && start < $0.timelineRange.end }
+        }
+        return clips.filter { $0.timelineStart < end && start < $0.timelineRange.end }
+    }
+
     /// Adds a clip, keeping the clips in timeline order. The caller makes
     /// room for it first; overlapping clips aren't resolved here.
     public mutating func insert(_ clip: Clip) {

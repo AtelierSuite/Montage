@@ -133,4 +133,22 @@ struct TrackTests {
         #expect(clip.sourceTime(CMTime(value: 3, timescale: 1)) == CMTime(value: 11, timescale: 1))
         #expect(clip.localTime(CMTime(value: 3, timescale: 1)) == CMTime(value: 1, timescale: 1))
     }
+
+    @Test func findsTheClipsOverlappingARange() {
+        // Clips over 0–2, 4–6 and 8–10.
+        let track = Track(kind: .video, clips: [clip(at: 0), clip(at: 4), clip(at: 8)])
+        func starts(_ start: Int64, _ end: Int64) -> [Double] {
+            let range = CMTimeRange(start: CMTime(value: start, timescale: 1), end: CMTime(value: end, timescale: 1))
+            return track.clips(overlapping: range).map(\.timelineStart.seconds)
+        }
+        #expect(starts(1, 5) == [0, 4])
+        #expect(starts(3, 11) == [4, 8])
+        // Touching a clip's end, or the next one's start, isn't overlapping.
+        #expect(starts(2, 4) == [])
+        #expect(starts(6, 8) == [])
+        // An empty range takes the clip it's in.
+        #expect(starts(5, 5) == [4])
+        #expect(starts(4, 4) == [4])
+        #expect(starts(6, 6) == [])
+    }
 }
