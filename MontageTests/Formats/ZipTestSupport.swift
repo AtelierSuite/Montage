@@ -103,7 +103,7 @@ enum TestZip {
     }
 }
 
-extension Data {
+fileprivate extension Data {
     mutating func append<T: FixedWidthInteger>(le value: T) {
         Swift.withUnsafeBytes(of: value.littleEndian) { append(contentsOf: $0) }
     }
