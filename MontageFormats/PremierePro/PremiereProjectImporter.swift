@@ -117,7 +117,11 @@ struct PremiereProjectImporter {
             (group.kind, (group.group.descendant("TrackGroup", "Tracks")?.children("Track") ?? []).compactMap(graph.resolve))
         }
         let audioItems = tracks.filter { $0.0 == .audio }.flatMap { $0.1 }.flatMap { clipItems(of: $0) }
-        for (kind, kindTracks) in tracks where kinds.contains(kind) {
+        // Pictures first, so the sound in step with them is taken into their
+        // clips before the audio tracks are read, whichever order the
+        // groups are in.
+        let ordered = tracks.filter { $0.0 == .video } + tracks.filter { $0.0 == .audio }
+        for (kind, kindTracks) in ordered where kinds.contains(kind) {
             for (index, track) in kindTracks.enumerated() {
                 importTrack(track, kind: kind, lane: kind == .video ? lane + index : lane - index, placement: placement,
                             audioItems: kind == .video ? audioItems : [])
