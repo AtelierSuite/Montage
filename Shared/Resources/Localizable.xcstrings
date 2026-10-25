@@ -11893,6 +11893,35 @@
         }
       }
     },
+    "Mac.Menu.ExportEDL" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export EDL…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLを書き出す…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出 EDL…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸出 EDL⋯"
+          }
+        }
+      }
+    },
     "Mac.Menu.ExportFCPXML" : {
       "extractionState" : "manual",
       "localizations" : {
