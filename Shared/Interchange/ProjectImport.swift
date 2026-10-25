@@ -75,6 +75,9 @@ final class ProjectImport {
         if ProjectInterchange.isLumaFusionPackage(url) {
             return try await ProjectInterchange.importLumaFusionPackage(at: url, into: store, takenPaths: takenPaths)
         }
+        if ProjectInterchange.isOTIOBundle(url) {
+            return try await ProjectInterchange.importOTIOBundle(at: url, into: store, takenPaths: takenPaths)
+        }
         let imported = try ProjectInterchange.read(contentsOf: url)
         // Media is looked for beside the file, and inside it if it's a bundle.
         var folders = [url.deletingLastPathComponent()]
