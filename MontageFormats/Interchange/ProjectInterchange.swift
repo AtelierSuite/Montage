@@ -7,6 +7,8 @@ extension UTType {
     public static let fcpxml = UTType(importedAs: "com.apple.finalcutpro.xml", conformingTo: .xml)
     /// Final Cut Pro's FCPXML as a bundle, with `Info.fcpxml` inside.
     public static let fcpxmlBundle = UTType(importedAs: "com.apple.finalcutpro.xmld", conformingTo: .package)
+    /// The Advanced Authoring Format, by the identifier macOS declares it under.
+    public static let aaf = UTType(importedAs: "org.aafassociation.advanced-authoring-format", conformingTo: .compositeContent)
 }
 
 /// Projects to and from other editors: Final Cut Pro and LumaFusion through
@@ -14,7 +16,7 @@ extension UTType {
 public enum ProjectInterchange {
     /// The kinds of file a project can be imported from. Final Cut Pro 7 XML
     /// has no type of its own, so any XML file is offered.
-    public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle, .xml]
+    public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle, .xml, .aaf]
 
     // MARK: - Importing
 
@@ -26,12 +28,15 @@ public enum ProjectInterchange {
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             file = url.appending(path: "Info.fcpxml", directoryHint: .notDirectory)
         }
-        return try read(try Data(contentsOf: file), baseURL: file.deletingLastPathComponent())
+        // Mapped, as an AAF file can carry its media inside.
+        return try read(try Data(contentsOf: file, options: .mappedIfSafe), baseURL: file.deletingLastPathComponent())
     }
 
     /// Reads another editor's project. Media referred to by relative paths
     /// is taken from `baseURL`, the folder the file was in.
     public static func read(_ data: Data, baseURL: URL? = nil) throws -> ImportedProject {
+        // AAF is binary, in a compound file.
+        if CompoundFile.isCompoundFile(data) { return try AAFImporter.read(data, baseURL: baseURL) }
         let root = try MarkupElement.parse(data)
         switch root.name {
         case "fcpxml": return try FCPXMLImporter.read(root, baseURL: baseURL)

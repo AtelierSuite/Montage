@@ -138,6 +138,24 @@
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.composite-content</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Advanced Authoring Format</string>
+			<key>UTTypeIdentifier</key>
+			<string>org.aafassociation.advanced-authoring-format</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>aaf</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 </dict>
 </plist>

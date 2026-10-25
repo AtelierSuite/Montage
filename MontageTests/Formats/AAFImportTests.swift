@@ -4,6 +4,7 @@ import Foundation
 import MontageEngine
 @testable import MontageFormats
 import Testing
+import UniformTypeIdentifiers
 
 private typealias F = AAFTestFile
 
@@ -390,5 +391,23 @@ struct AAFImportTests {
                 #expect(error is InterchangeError)
             }
         }
+    }
+}
+
+struct AAFRegistrationTests {
+    @Test func readsAAFThroughProjectInterchange() throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 50, mob: alphaMaster)])),
+        ])]
+        let imported = try ProjectInterchange.read(file.data())
+        #expect(imported.report.format == .aaf)
+        #expect(imported.clip("Alpha.mov") != nil)
+    }
+
+    @Test func offersAAFFilesForImport() throws {
+        #expect(ProjectInterchange.importableTypes.contains(.aaf))
+        let type = try #require(UTType(filenameExtension: "aaf"))
+        #expect(type.conforms(to: .aaf))
     }
 }
