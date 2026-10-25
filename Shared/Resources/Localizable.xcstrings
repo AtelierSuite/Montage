@@ -14781,6 +14781,35 @@
         }
       }
     },
+    "Toolbar.ExportOTIO" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export OpenTimelineIO…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIOを書き出す…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出 OpenTimelineIO…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸出 OpenTimelineIO⋯"
+          }
+        }
+      }
+    },
     "Toolbar.Exports" : {
       "extractionState" : "manual",
       "localizations" : {
