@@ -162,6 +162,15 @@ struct EDLImportTests {
         #expect(gap.project.tracks.first?.clips.first?.timelineStart == seconds(5))
     }
 
+    @Test func readsA25FPSListByItsFrameNumbers() throws {
+        let list = try InterchangeFixtures.read("TwentyFive.edl")
+        #expect(list.project.settings.frameDuration == seconds(1, 25))
+        #expect(list.issues(.changed).contains(.frameRateAssumed("25")))
+        let video = try #require(list.project.tracks.first).clips
+        #expect(video.map(\.timelineStart) == [.zero, seconds(64, 25), seconds(101, 25), seconds(146, 25), seconds(177, 25)])
+        #expect(video[2].sourceRange == CMTimeRange(start: seconds(274, 25), duration: seconds(45, 25)))
+    }
+
     @Test func refusesWhatIsntAnEDL() {
         #expect(throws: InterchangeError.noTimeline) { try ProjectInterchange.read(Data("TITLE: Empty\nFCM: NON-DROP FRAME\n".utf8)) }
         #expect(throws: InterchangeError.self) { try ProjectInterchange.read(Data("hello\nworld".utf8)) }

@@ -8,11 +8,11 @@ import UniformTypeIdentifiers
 /// most editors export.
 ///
 /// An EDL doesn't say what frame rate its timecode counts, so the rate is
-/// taken from its FCM lines: drop frame is 29.97, and otherwise 30 is
-/// assumed, unless a frame number is too high for it. Once the media is
-/// found (see `ProjectInterchange.gatherMedia`) the list is read again at
-/// the media's own rate, if that's different. Either way the report says
-/// which rate was used.
+/// taken from its FCM lines and its frame numbers: drop frame is 29.97,
+/// and otherwise 30 is assumed unless the frame numbers point elsewhere.
+/// Once the media is found (see `ProjectInterchange.gatherMedia`) the list
+/// is read again at the media's own rate, if that's different. Either way
+/// the report says which rate was used.
 ///
 /// Record timecode is counted from the hour the list starts in, so a list
 /// starting at 01:00:00:00, as most do, starts at the start of the
@@ -68,11 +68,21 @@ struct EDLImporter {
     /// The rate to read the list at with nothing else to go on: 29.97 in
     /// drop frame, else 30, unless the frame numbers go past what that
     /// rate counts.
-    private static func guessRate(for document: EDLDocument) -> EDLRate {
-        let highestFrame = document.events.flatMap { [$0.sourceIn, $0.sourceOut, $0.recordIn, $0.recordOut] }
-            .map(\.frames).max() ?? 0
+    ///
+    /// Frame numbers can show a lower rate too, given enough of them: a
+    /// list at 30 with 16 frame numbers past zero all but surely has one at
+    /// 25 or more, so if the highest is 24 it's taken as 25. Telling 24 from
+    /// 25 by a highest of 23 takes many more, 72. Lists with fewer, or
+    /// whose cuts are all on whole seconds, stay at 30.
+    static func guessRate(for document: EDLDocument) -> EDLRate {
+        let frames = document.events.flatMap { [$0.sourceIn, $0.sourceOut, $0.recordIn, $0.recordOut] }.map(\.frames)
+        let highestFrame = frames.max() ?? 0
         if document.hasDropFrame { return highestFrame >= 30 ? .ntsc60 : .ntsc30 }
-        return highestFrame >= 30 ? .fps60 : .fps30
+        if highestFrame >= 30 { return .fps60 }
+        let counted = frames.filter { $0 > 0 }.count
+        if highestFrame == 24, counted >= 16 { return EDLRate(frameDuration: CMTime(value: 1, timescale: 25)) }
+        if highestFrame <= 23, counted >= 72 { return EDLRate(frameDuration: CMTime(value: 1, timescale: 24)) }
+        return .fps30
     }
 
     /// The record timecode at the start of the timeline: the hour the list
