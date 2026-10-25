@@ -119,6 +119,8 @@ struct DRPImportTests {
         #expect(alternate.name == "Alternate")
         #expect(alternate.project.tracks.flatMap(\.clips).count == 1)
         #expect(alternate.project.markers.isEmpty)
+        // Its empty marker blob, and a media pool clip's blob, have no markers to report.
+        #expect(!alternate.report.items.contains { if case .marker = $0.issue { true } else { false } })
     }
 
     @Test func readsAWindowsPathsFileName() throws {

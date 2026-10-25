@@ -120,8 +120,12 @@ struct DRPImporter {
             throw ResolveProjectError.unsupportedVersion(version.app ?? String(schema))
         }
 
-        for element in project.allDescendants where element.name.hasSuffix("LockableBlob") {
-            if let owner = element.child("BlobOwner")?.text, !owner.isEmpty, let blob = element.child("FieldsBlob")?.text {
+        // Markers are in the blobs of timelines and of clips on them; one
+        // with an empty FieldsBlob, as real exports have, holds none.
+        for element in project.allDescendants
+        where element.name == "Sm2SequenceLockableBlob" || element.name == "Sm2TiItemLockableBlob" {
+            if let owner = element.child("BlobOwner")?.text, !owner.isEmpty, let blob = element.child("FieldsBlob")?.text,
+               !blob.isEmpty {
                 markerBlobs[owner] = blob
             }
         }
@@ -419,9 +423,10 @@ struct DRPImporter {
             sourceRange: CMTimeRange(start: mediaItem.kind == .image ? .zero : placement.duration(inPoint ?? 0), duration: duration),
             timelineStart: timelineStart
         )
-        if let timeMap = item.child("MediaTimemapBA").flatMap({ ResolveBlobs.hex($0.text) }),
+        if mediaItem.kind != .image, let timeMap = item.child("MediaTimemapBA").flatMap({ ResolveBlobs.hex($0.text) }),
            timeMap.starts(with: [0, 0, 0, 1]) {
             // A retimed clip's map; a clip at its own speed has a short one.
+            // Stills always have the long one, holding their one frame.
             report.add(.speedChange, clipName: name, time: timelineStart)
         }
 

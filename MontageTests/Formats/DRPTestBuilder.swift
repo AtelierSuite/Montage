@@ -128,8 +128,10 @@ struct DRPTestBuilder {
                           media: "media-a001", name: "A001.mov", extra: "<MediaTimemapBA>\(retimed)</MediaTimemapBA>"),
             ]),
             Self.track(0, sequence: "seq-edit", items: [
-                Self.item("Sm2TiVideoClip", id: "item-logo", start: 86412, duration: 24, inPoint: "0", media: "media-logo",
-                          name: "Logo.png", extra: "<MediaFilePath>/Users/editor/Logo.png</MediaFilePath>"),
+                // Real exports give a still an in point at its timeline
+                // start, and the long time map a retimed clip has.
+                Self.item("Sm2TiVideoClip", id: "item-logo", start: 86412, duration: 24, inPoint: "86412", media: "media-logo",
+                          name: "Logo.png", extra: "<MediaFilePath>/Users/editor/Logo.png</MediaFilePath><MediaTimemapBA>\(retimed)</MediaTimemapBA>"),
                 Self.item("Sm2TiGenerator", id: "item-solid", start: 86448, duration: 12, extra: "<PrettyType>Solid Color</PrettyType>"),
                 Self.item("Sm2TiVideoClip", id: "item-title", start: 86472, duration: 24, name: "Text+",
                           extra: "<PrettyType>Fusion Title</PrettyType>"),
@@ -174,7 +176,11 @@ struct DRPTestBuilder {
             <LocableBlobSet><Element><Sm2SequenceLockableBlob DbId="blob-1"><BlobOwner>seq-edit</BlobOwner>\
             <FieldsBlob>\(hex(timelineMarkers))</FieldsBlob></Sm2SequenceLockableBlob></Element>\
             <Element><Sm2TiItemLockableBlob DbId="blob-2"><BlobOwner>item-a001</BlobOwner>\
-            <FieldsBlob>\(hex(clipMarkers))</FieldsBlob></Sm2TiItemLockableBlob></Element></LocableBlobSet></SM_Project>
+            <FieldsBlob>\(hex(clipMarkers))</FieldsBlob></Sm2TiItemLockableBlob></Element>\
+            <Element><Sm2SequenceLockableBlob DbId="blob-3"><BlobOwner>seq-alt</BlobOwner><FieldsBlob/></Sm2SequenceLockableBlob></Element>\
+            <Element><Sm2MpItemLockableBlob DbId="blob-4"><BlobOwner>item-alt</BlobOwner>\
+            <FieldsBlob>\(hex(ResolveBlobWriter.keyedDictionary([("Other", .int32(1))])))</FieldsBlob></Sm2MpItemLockableBlob></Element>\
+            </LocableBlobSet></SM_Project>
             """
     }
 
