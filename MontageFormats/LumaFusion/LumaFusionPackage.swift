@@ -61,14 +61,16 @@ struct LumaFusionPackage {
     }
 
     /// Whether a file is a LumaFusion package: by its type or extension, or,
-    /// failing those, by being a ZIP archive.
+    /// failing those, by being a ZIP archive with a LumaFusion project file
+    /// in it. Other formats are ZIP archives too, so being one isn't enough.
     static func isPackage(_ url: URL) -> Bool {
         if fileExtensions.contains(url.pathExtension.lowercased()) { return true }
         if let type = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType,
            type.conforms(to: .lumaFusionPackage) { return true }
-        guard !url.hasDirectoryPath, let handle = try? FileHandle(forReadingFrom: url) else { return false }
-        defer { try? handle.close() }
-        return (try? handle.read(upToCount: 4)) == Data([0x50, 0x4B, 0x03, 0x04])
+        guard !url.hasDirectoryPath, let archive = try? ZipArchive(url: url) else { return false }
+        return archive.entries.contains {
+            !$0.isDirectory && ($0.fileName as NSString).pathExtension.lowercased() == projectFileExtension
+        }
     }
 
     private static func shallowest(_ files: [URL]) -> URL? {

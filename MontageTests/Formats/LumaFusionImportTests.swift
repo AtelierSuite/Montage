@@ -66,6 +66,11 @@ struct LumaFusionImportTests {
         #expect(ProjectInterchange.isLumaFusionPackage(try TestZip.write(files, named: "A.LFZ", in: folder)))
         // By content, whatever it's called.
         #expect(ProjectInterchange.isLumaFusionPackage(try TestZip.write(files, named: "A.bin", in: folder)))
+        // Other formats are ZIP archives too, such as DaVinci Resolve's
+        // projects: only one with a LumaFusion project file in it is taken.
+        let resolve = [TestZip.File("project.xml", "<project/>"), TestZip.File("Media/Clip.mov", "clip")]
+        #expect(!ProjectInterchange.isLumaFusionPackage(try TestZip.write(resolve, named: "A.drp", in: folder)))
+        #expect(!ProjectInterchange.isLumaFusionPackage(try TestZip.write(resolve, named: "A.zip", in: folder)))
         let xml = folder.appending(path: "A.fcpxml")
         try Data(Self.fcpxml.utf8).write(to: xml)
         #expect(!ProjectInterchange.isLumaFusionPackage(xml))
