@@ -104,7 +104,9 @@ struct XMEMLImporter {
         let isTrackEnabled = track.child("enabled")?.text.uppercased() != "FALSE"
         // The last transition, for a clip that starts inside it.
         var transitionStart: CMTime?
-        for item in track.children {
+        // Where the last transition put its cut, for a clip that starts inside it.
+        var transitionCut: CMTime?
+        for (index, item) in track.children.enumerated() {
             switch item.name {
             case "transitionitem":
                 let start = frames(item.child("start")?.text, placement.rate) ?? .zero
@@ -113,12 +115,21 @@ struct XMEMLImporter {
                 assembler.addTransition(range, lane: lane)
                 report.add(.transition(name: item.descendant("effect", "name")?.text ?? "Transition"), time: range.start)
                 transitionStart = start
+                transitionCut = Self.cut(of: item, start: start, end: end)
             case "clipitem":
                 guard isTrackEnabled else {
                     report.add(.disabledClip, clipName: item.child("name")?.text, time: frames(item.child("start")?.text, placement.rate))
                     continue
                 }
-                importClipItem(item, kind: kind, lane: lane, placement: placement, transitionStart: transitionStart,
+                // The transition the clip ends inside, if it does.
+                let next = track.children[(index + 1)...].prefix { $0.name != "clipitem" }.first { $0.name == "transitionitem" }
+                let nextCut = next.flatMap { transition in
+                    frames(transition.child("start")?.text, placement.rate).map { start in
+                        Self.cut(of: transition, start: start, end: frames(transition.child("end")?.text, placement.rate) ?? start)
+                    }
+                }
+                let cuts = transitionCut.flatMap { previous in nextCut.map { (previous, $0) } }
+                importClipItem(item, kind: kind, lane: lane, placement: placement, transitionStart: transitionStart, cuts: cuts,
                                audioItems: audioItems)
             case "generatoritem":
                 report.add(.generator(name: item.descendant("effect", "name")?.text ?? item.child("name")?.text ?? ""),
@@ -134,6 +145,7 @@ struct XMEMLImporter {
 
     private mutating func importClipItem(
         _ item: MarkupElement, kind: Track.Kind, lane: Int, placement: Placement, transitionStart: CMTime?,
+        cuts: (CMTime, CMTime)? = nil,
         audioItems: [MarkupElement]
     ) {
         if let id = item["id"], mergedAudio.contains(id) { return }
@@ -145,7 +157,13 @@ struct XMEMLImporter {
         // Inside a transition, the start or end is written as -1.
         let start = frames(item.child("start")?.text, placement.rate)
         let end = frames(item.child("end")?.text, placement.rate)
-        guard let sequenceStart = start ?? end.map({ $0 - duration }) ?? transitionStart, duration > .zero else { return }
+        // Between two transitions, Final Cut 7 and Premiere count a clip
+        // from where the first starts, its overlap included. Resolve counts
+        // only what plays from cut to cut, so a clip exactly that long
+        // starts at the first cut.
+        var inside = transitionStart
+        if let (previous, next) = cuts, start == nil, end == nil, next - previous == duration { inside = previous }
+        guard let sequenceStart = start ?? end.map({ $0 - duration }) ?? inside, duration > .zero else { return }
         let timelineStart = placement.timeline(sequenceStart)
 
         for marker in item.children("marker") {
@@ -357,6 +375,16 @@ struct XMEMLImporter {
     }
 
     // MARK: - Times
+
+    /// Where a transition puts the cut between its clips: its middle,
+    /// unless it's aligned to start or end there.
+    private static func cut(of transition: MarkupElement, start: CMTime, end: CMTime) -> CMTime {
+        switch transition.child("alignment")?.text.lowercased() {
+        case "start", "start-black": start
+        case "end", "end-black": end
+        default: start + CMTimeMultiplyByRatio(end - start, multiplier: 1, divisor: 2)
+        }
+    }
 
     private static func frameDuration(of element: MarkupElement) -> CMTime {
         let rate = element.name == "rate" ? element : element.child("rate")
