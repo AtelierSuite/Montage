@@ -31,16 +31,18 @@ import UniformTypeIdentifiers
 ///
 /// Settings are `{value: {type, value}, keyframes}`. Volume, opacity and pan
 /// are read as they are; scale and position as far as they can be, the
-/// position assumed to run from -1 to 1 across the frame, up being positive;
-/// everything else that's changed from its default goes in the report.
+/// position running from -1 to 1 across the frame, down being positive;
+/// everything else that's changed from its default goes in the report. The
+/// Android samples' overlays sit near the frame's edges only under -1 to 1;
+/// their vertical offsets are too small to show which way is down, so the
+/// sign is taken from LumaFusion for iOS's templates, below.
 ///
 /// LumaFusion for iOS 3.1 keeps scale, position and rotation in one
 /// setting, `videoTransform`, whose value is `{scaling, translation,
 /// anchorPoint, rotation}`, keyframed at `clipTime`, from the clip's start.
 /// That's read with its keyframes. Its translation runs from -1 to 1 across
-/// the frame as Android's does, but down is positive: lower-third templates
-/// sit at about 0.5 to 0.8 and grow from points inside the frame only under
-/// that reading. Its rotation is in radians, taken to be clockwise, as a
+/// the frame, down being positive: lower-third templates sit at about 0.5
+/// to 0.8 and grow from points inside the frame only under that reading. Its rotation is in radians, taken to be clockwise, as a
 /// positive angle is in a frame whose y axis runs down. Beside the settings
 /// each stream has a flat `parameters`, which holds their defaults rather
 /// than the clip's own values, so it isn't read.
@@ -267,7 +269,7 @@ struct LumaFusionTimelineReader {
         }
         if let translation = Self.setting(attributes["videoTranslation"]), translation.numbers.count == 2 {
             let (x, y) = (translation.numbers[0], translation.numbers[1])
-            clip.transform.position = Animatable(CGPoint(x: 0.5 + x / 2, y: 0.5 - y / 2))
+            clip.transform.position = Animatable(CGPoint(x: 0.5 + x / 2, y: 0.5 + y / 2))
             if translation.isKeyframed { notes.append("Position keyframes") }
         }
         // A turn by a quarter is the file's own orientation, which the

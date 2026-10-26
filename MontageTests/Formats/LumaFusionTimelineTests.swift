@@ -216,7 +216,7 @@ struct LumaFusionTimelineTests {
             Fixture.track(type: 0, offset: 2, [], iOS: iOS),
             Fixture.track(type: 0, offset: 1, [
                 .init(file: "Dub.mp4", start: 600, duration: 3000, sourceStart: 1200, volume: 0.5, pan: -0.25,
-                      alpha: 0.75, scale: [0.5, 0.5], translation: [0.5, 0]),
+                      alpha: 0.75, scale: [0.5, 0.5], translation: [0.5, 0.5]),
             ], iOS: iOS),
             Fixture.track(type: 0, offset: 0, anchor: true, volume: -1, [
                 .init(file: "Main.mkv", start: 0, duration: 6000),
@@ -258,7 +258,8 @@ struct LumaFusionTimelineTests {
         #expect(overlay.volume == Animatable(0.5))
         #expect(overlay.opacity == Animatable(0.75))
         #expect(overlay.transform.scale == Animatable(0.5))
-        #expect(overlay.transform.position == Animatable(CGPoint(x: 0.75, y: 0.5)))
+        // In the bottom-right quarter: down is positive.
+        #expect(overlay.transform.position == Animatable(CGPoint(x: 0.75, y: 0.75)))
         #expect(overlay.effects.count == 1)
         guard case .pan(let pan) = overlay.effects.first?.kind else { Issue.record("No pan"); return }
         #expect(pan.position == Animatable(-0.25))
@@ -283,6 +284,9 @@ struct LumaFusionTimelineTests {
             }
         }
         #expect(summary(iOS) == summary(android))
+        // Placed the same way, though iOS writes it as one transform.
+        let positions = { (imported: ImportedProject) in imported.project.tracks.flatMap { $0.clips.map(\.transform) } }
+        #expect(positions(iOS) == positions(android))
         #expect(iOS.report.isEmpty)
     }
 
