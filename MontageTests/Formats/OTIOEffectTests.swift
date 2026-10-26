@@ -1,5 +1,7 @@
+import CoreGraphics
 import CoreMedia
 import Foundation
+import ImageIO
 import MontageEngine
 @testable import MontageFormats
 import Testing
@@ -143,5 +145,60 @@ struct OTIOEffectTests {
                                      "metadata": ["Resolve_OTIO": ["Speed Ratio": 0.33]]]
         let imported = try read(clipEffects: [retime])
         #expect(imported.report.items.map(\.issue) == [.speedChange])
+    }
+
+    // MARK: - Picture sizes
+
+    /// A movie with just enough of a movie box for its picture track's
+    /// header: `ftyp`, then `moov` holding one `trak`.
+    static func movieData(width: Int, height: Int, quarterTurn: Bool = false, version: UInt8 = 0) -> Data {
+        func box(_ type: String, _ body: Data) -> Data {
+            var data = Data()
+            withUnsafeBytes(of: UInt32(body.count + 8).bigEndian) { data.append(contentsOf: $0) }
+            data.append(contentsOf: Array(type.utf8))
+            return data + body
+        }
+        func word(_ value: Int32) -> Data { withUnsafeBytes(of: value.bigEndian) { Data($0) } }
+        var header = Data([version, 0, 0, 7])
+        header += Data(count: version == 1 ? 32 : 20) + Data(count: 16)
+        let one: Int32 = 0x10000
+        let matrix: [Int32] = quarterTurn ? [0, one, 0, -one, 0, 0, 0, 0, 0x4000_0000] : [one, 0, 0, 0, one, 0, 0, 0, 0x4000_0000]
+        header += matrix.reduce(Data()) { $0 + word($1) }
+        header += word(Int32(width) << 16) + word(Int32(height) << 16)
+        let handler = box("hdlr", Data(count: 8) + Data("vide".utf8) + Data(count: 13))
+        let sound = box("trak", box("mdia", box("hdlr", Data(count: 8) + Data("soun".utf8) + Data(count: 13))))
+        let picture = box("trak", box("tkhd", header) + box("mdia", handler))
+        return box("ftyp", Data("isom".utf8) + Data(count: 4)) + box("mdat", Data(count: 32)) + box("moov", sound + picture)
+    }
+
+    static func writePNG(width: Int, height: Int, to url: URL) throws {
+        let context = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                             space: CGColorSpaceCreateDeviceRGB(),
+                                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        let image = try #require(context.makeImage())
+        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, nil)
+        #expect(CGImageDestinationFinalize(destination))
+    }
+
+    @Test func readsAPicturesSizeFromItsFile() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let still = folder.appendingPathComponent("Bar.png")
+        try Self.writePNG(width: 192, height: 15, to: still)
+        let movie = folder.appendingPathComponent("Phone.mov")
+        try Self.movieData(width: 1920, height: 1080, quarterTurn: true).write(to: movie)
+        let wide = folder.appendingPathComponent("Wide.mp4")
+        try Self.movieData(width: 4096, height: 1716, version: 1).write(to: wide)
+
+        #expect(OTIOPictureSize.read(at: still)?.size == CGSize(width: 192, height: 15))
+        #expect(OTIOPictureSize.read(at: movie)?.size == CGSize(width: 1920, height: 1080))
+        #expect(OTIOPictureSize.read(at: movie)?.rotation == 90)
+        #expect(OTIOPictureSize.read(at: wide)?.size == CGSize(width: 4096, height: 1716))
+        #expect(OTIOPictureSize.read(at: wide)?.rotation == 0)
+        #expect(OTIOPictureSize.read(at: folder.appendingPathComponent("Gone.mov")) == nil)
+        try Data("not a movie".utf8).write(to: folder.appendingPathComponent("Text.mov"))
+        #expect(OTIOPictureSize.read(at: folder.appendingPathComponent("Text.mov")) == nil)
     }
 }

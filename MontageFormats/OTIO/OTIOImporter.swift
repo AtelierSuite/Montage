@@ -31,6 +31,8 @@ struct OTIOImporter {
     private var settings = ProjectSettings()
     private var markers: [(time: CMTime, name: String)] = []
     private var placed: [PlacedClip] = []
+    /// The pictures' sizes read so far, by file, nil where one couldn't be.
+    private var pictureSizes: [URL: (size: CGSize, rotation: Int)?] = [:]
 
     /// A clip read from the file, before it's put on a track.
     private struct PlacedClip {
@@ -492,16 +494,31 @@ struct OTIOImporter {
         }
 
         // What the file holds is read from it once it's found; until then,
-        // what the other app said, and the project's shape.
+        // what the other app said, and the project's shape. A picture's
+        // size is read now where the file is there, as Resolve moves a clip
+        // by fractions of its picture.
         let available = OTIOTime.range(reference?["available_range"])
         var metadata = MediaMetadata(duration: kind == .image ? .zero : available?.duration ?? .zero)
-        if kind != .audio { metadata.naturalSize = settings.renderSize }
+        if kind != .audio {
+            metadata.naturalSize = settings.renderSize
+            if let url, let picture = pictureSize(at: url) {
+                metadata.naturalSize = picture.size
+                metadata.rotation = picture.rotation
+            }
+        }
         if kind == .video { metadata.nominalFrameRate = settings.frameRate }
         if kind != .image {
             metadata.audioChannelCount = 2
             metadata.audioSampleRate = 48000
         }
         return media.item(key: referenceName ?? name, url: url, name: name, kind: kind, metadata: metadata)
+    }
+
+    private mutating func pictureSize(at url: URL) -> (size: CGSize, rotation: Int)? {
+        if let known = pictureSizes[url] { return known }
+        let picture = OTIOPictureSize.read(at: url)
+        pictureSizes[url] = picture
+        return picture
     }
 
     /// The clip as Montage saved it into the clip's metadata, if it did.
