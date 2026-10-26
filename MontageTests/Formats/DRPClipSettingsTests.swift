@@ -54,6 +54,24 @@ struct DRPClipSettingsTests {
         #expect(read[2].plugin == "com.blackmagicdesign.resolvefx.dropshadow")
     }
 
+    /// Pitches the Fairlight Audio Post book gives as -24, -12 and -7
+    /// semitones and its project keeps as 47, 23 and 13, and a cents
+    /// value of -100 kept as 199. Enumerations aren't zigzag encoded.
+    @Test func readsNumbersZigzagEncoded() throws {
+        let read = try filters([
+            Writer.filter(134, [
+                Writer.parameter(140, .integer(47)), Writer.parameter(141, .integer(199)), Writer.parameter(142, .integer(26)),
+            ]),
+            Writer.filter(2, [Writer.parameter(0, .enumeration(6))]),
+        ])
+        #expect(read[0].parameters[140]?.number == -24)
+        #expect(read[0].parameters[141]?.number == -100)
+        #expect(read[0].parameters[142]?.number == 13)
+        #expect(try filters([Writer.filter(134, [Writer.parameter(140, .integer(23))])])[0].parameters[140]?.number == -12)
+        #expect(try filters([Writer.filter(134, [Writer.parameter(140, .integer(13))])])[0].parameters[140]?.number == -7)
+        #expect(read[1].parameters[0]?.number == 6)
+    }
+
     @Test func refusesKeyframesWhoseLengthIsWrong() throws {
         var list = Writer.keyframeList([.init(frame: 0, value: 1)])
         #expect(try ResolveBlobs.keyframes(list).count == 1)

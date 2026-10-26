@@ -316,7 +316,10 @@ enum ResolveBlobs {
 
     /// A parameter's value: a double in field 2, a number in field 1, an
     /// enumeration in field 4, a flag in field 5, or something else, such
-    /// as a pair of numbers, as bytes.
+    /// as a pair of numbers, as bytes. A number is zigzag encoded, as a
+    /// protocol buffer's `sint64` is: the Fairlight Audio Post book's
+    /// pitches of -24, -12 and -7 semitones are kept as 47, 23 and 13. An
+    /// enumeration isn't: its composite modes count up from Normal's 0.
     private static func filterValue(_ data: Data) throws -> Value? {
         guard let field = try protobuf(data).first else { return nil }
         switch field.number {
@@ -324,7 +327,8 @@ enum ResolveBlobs {
             guard let bytes = field.bytes, bytes.count == 8, let bits: UInt64 = bytes.littleEndianInteger(at: 0)
             else { throw Failure.malformed }
             return .double(Double(bitPattern: bits))
-        case 1, 4: return field.varint.map { .integer(Int64(bitPattern: $0)) }
+        case 1: return field.varint.map { .integer(Int64(bitPattern: $0 >> 1) ^ -Int64(bitPattern: $0 & 1)) }
+        case 4: return field.varint.map { .integer(Int64(bitPattern: $0)) }
         case 5: return field.varint.map { .bool($0 != 0) }
         default: return field.bytes.map(Value.bytes) ?? .other
         }
