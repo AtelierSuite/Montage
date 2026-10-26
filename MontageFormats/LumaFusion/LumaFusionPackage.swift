@@ -4,7 +4,9 @@ import UniformTypeIdentifiers
 extension UTType {
     /// LumaFusion's project package: a ZIP archive of the project and the
     /// media it uses. LumaFusion's guide calls it `.lfpackage`, and `.lfz`
-    /// is accepted as well. LumaFusion publishes no type of its own.
+    /// is accepted as well, as is `.spryzip`, which LumaFusion for iOS used
+    /// for the same package before 2020. LumaFusion publishes no type of its
+    /// own.
     public static let lumaFusionPackage = UTType(importedAs: "com.luma-touch.lumafusion.package", conformingTo: .zip)
 }
 
@@ -14,16 +16,26 @@ extension UTType {
 /// archive, ZIP64 past 4 GB, holding a single `*.lfarchive` file, the
 /// project as JSON, with the media beside it at the top, deflated. An
 /// open-source reader describes packages from LumaFusion for iOS 5.5 the
-/// same way, with the media stored uncompressed. Other versions may use
+/// same way, with the media stored uncompressed, as a real package from
+/// LumaFusion for iOS 3.1 is. Packages from LumaFusion for iOS 3.0.9 and
+/// earlier hold a keyed archive, `*.spryArchive`, in place of the JSON,
+/// with names in UTF-8 not flagged as such and the same file listed more
+/// than once; they're recognised, and refused. Other versions may use
 /// folders, so media is looked for by name wherever it is in the archive.
 struct LumaFusionPackage {
-    static let fileExtensions = ["lfpackage", "lfz"]
+    static let fileExtensions = ["lfpackage", "lfz", "spryzip"]
     static let projectFileExtension = "lfarchive"
+    /// The project file of LumaFusion for iOS 3.0.9 and earlier: a keyed
+    /// archive, which isn't read.
+    static let keyedArchiveExtension = "spryarchive"
 
     /// The folder the package was unpacked into.
     let folder: URL
     /// The project file, if the package has one.
     let projectFile: URL?
+    /// The project file of an older version of LumaFusion, if the package
+    /// has one.
+    let keyedArchiveFile: URL?
     /// An FCPXML document, if the package has one beside or instead of the
     /// project file, as LumaFusion's own FCPXML export, zipped, does.
     let fcpxmlFile: URL?
@@ -46,6 +58,7 @@ struct LumaFusionPackage {
         }
         self.folder = folder
         projectFile = Self.shallowest(files.filter { $0.pathExtension.lowercased() == Self.projectFileExtension })
+        keyedArchiveFile = Self.shallowest(files.filter { $0.pathExtension.lowercased() == Self.keyedArchiveExtension })
         fcpxmlFile = Self.shallowest(files.filter { $0.pathExtension.lowercased() == "fcpxml" })
     }
 
@@ -61,15 +74,17 @@ struct LumaFusionPackage {
     }
 
     /// Whether a file is a LumaFusion package: by its type or extension, or,
-    /// failing those, by being a ZIP archive with a LumaFusion project file
-    /// in it. Other formats are ZIP archives too, so being one isn't enough.
+    /// failing those, by being a ZIP archive with a LumaFusion project file,
+    /// of any version, in it. Other formats are ZIP archives too, so being
+    /// one isn't enough.
     static func isPackage(_ url: URL) -> Bool {
         if fileExtensions.contains(url.pathExtension.lowercased()) { return true }
         if let type = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType,
            type.conforms(to: .lumaFusionPackage) { return true }
         guard !url.hasDirectoryPath, let archive = try? ZipArchive(url: url) else { return false }
         return archive.entries.contains {
-            !$0.isDirectory && ($0.fileName as NSString).pathExtension.lowercased() == projectFileExtension
+            !$0.isDirectory && [projectFileExtension, keyedArchiveExtension]
+                .contains(($0.fileName as NSString).pathExtension.lowercased())
         }
     }
 

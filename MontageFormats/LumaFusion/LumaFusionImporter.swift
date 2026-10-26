@@ -12,6 +12,9 @@ public enum LumaFusionError: LocalizedError, Equatable {
     /// A project saved by a version of LumaFusion Montage hasn't been tested
     /// with, named where the project says.
     case unsupportedVersion(String?)
+    /// A project saved by LumaFusion for iOS 3.0.9 or earlier, as a keyed
+    /// archive (`*.spryArchive`) rather than JSON, which Montage can't read.
+    case olderVersion
 
     public var errorDescription: String? {
         switch self {
@@ -25,12 +28,15 @@ public enum LumaFusionError: LocalizedError, Equatable {
             String(format: String(localized: "LumaFusion.Error.UnsupportedVersion", bundle: #bundle), version)
         case .unsupportedVersion(nil):
             String(localized: "LumaFusion.Error.UnsupportedVersionUnknown", bundle: #bundle)
+        case .olderVersion:
+            String(localized: "LumaFusion.Error.OlderVersion", bundle: #bundle)
         }
     }
 
     public var recoverySuggestion: String? {
         switch self {
         case .noProject, .unsupportedVersion: String(localized: "LumaFusion.Error.ExportFCPXML", bundle: #bundle)
+        case .olderVersion: String(localized: "LumaFusion.Error.SaveAgain", bundle: #bundle)
         case .notAPackage, .damaged: nil
         }
     }
@@ -86,10 +92,15 @@ enum LumaFusionImporter {
         if let fcpxml = package.fcpxmlFile {
             return try ProjectInterchange.read(contentsOf: fcpxml)
         }
-        guard let url = package.projectFile else { throw LumaFusionError.noProject }
+        guard let url = package.projectFile else {
+            throw package.keyedArchiveFile == nil ? LumaFusionError.noProject : LumaFusionError.olderVersion
+        }
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         guard size <= projectFileLimit else { throw LumaFusionError.damaged }
-        let file = try LumaFusionProjectFile(data: Data(contentsOf: url))
+        let data = try Data(contentsOf: url)
+        // A keyed archive under the JSON project's name.
+        if data.starts(with: Data("bplist".utf8)) { throw LumaFusionError.olderVersion }
+        let file = try LumaFusionProjectFile(data: data)
         guard let version = file.appVersion, let decoder = decoders.first(where: { $0.supports(appVersion: version) }) else {
             throw LumaFusionError.unsupportedVersion(file.appVersion)
         }

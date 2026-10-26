@@ -958,6 +958,64 @@
         }
       }
     },
+    "LumaFusion.Error.OlderVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This project was saved by an older version of LumaFusion, which Montage can’t import from yet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトは古いバージョンのLumaFusionで保存されています。Montageはこのバージョンからの読み込みにまだ対応していません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目由旧版 LumaFusion 存储，Montage 暂不支持从此版本导入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案由舊版 LumaFusion 儲存，Montage 尚不支援從此版本輸入。"
+          }
+        }
+      }
+    },
+    "LumaFusion.Error.SaveAgain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the project in a current version of LumaFusion and share it as a project package again, or export it as Final Cut Pro XML (FCPXML), then import that file."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最新バージョンのLumaFusionでプロジェクトを開いてプロジェクトパッケージとして共有し直すか、Final Cut Pro XML（FCPXML）として書き出してから、そのファイルを読み込んでください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在最新版 LumaFusion 中打开项目，重新共享为项目包，或导出为 Final Cut Pro XML (FCPXML)，然后导入该文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在最新版 LumaFusion 中打開專案，重新分享為專案套件，或輸出為 Final Cut Pro XML（FCPXML），然後輸入該檔案。"
+          }
+        }
+      }
+    },
     "LumaFusion.Error.UnsupportedVersion" : {
       "extractionState" : "manual",
       "localizations" : {

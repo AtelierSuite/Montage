@@ -93,6 +93,37 @@ struct LumaFusionImportTests {
         #expect(error.recoverySuggestion?.contains("FCPXML") == true)
     }
 
+    @Test func refusesProjectsFromOlderVersions() throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        // As LumaFusion for iOS 3.0.9 and earlier wrote them: the project a
+        // keyed archive, names in UTF-8 without the flag that says so, and
+        // the same file listed twice.
+        let keyedArchive = Data("bplist00".utf8) + Data(repeating: 0, count: 32)
+        let files = [
+            TestZip.File("Tammy’s Title.spryArchive", keyedArchive, deflated: true, utf8Flag: false),
+            TestZip.File("Fonts/Title.ttf", "font", deflated: true, utf8Flag: false),
+            TestZip.File("Fonts/Title.ttf", "font", deflated: true, utf8Flag: false),
+        ]
+        for name in ["Tammy’s Title.lfpackage", "Intro.spryzip", "Intro.SPRYZIP", "Intro.bin"] {
+            #expect(ProjectInterchange.isLumaFusionPackage(try TestZip.write(files, named: name, in: folder)))
+        }
+        let package = try Self.unpack(files, in: folder, name: "Intro.spryzip")
+        #expect(package.keyedArchiveFile?.lastPathComponent == "Tammy’s Title.spryArchive")
+        #expect(package.projectFile == nil)
+        #expect(throws: LumaFusionError.olderVersion) { try LumaFusionImporter.read(package) }
+
+        // A keyed archive under the JSON project's name.
+        let renamed = try Self.unpack([TestZip.File("Intro.lfarchive", keyedArchive)], in: folder, name: "Renamed.lfz")
+        #expect(throws: LumaFusionError.olderVersion) { try LumaFusionImporter.read(renamed) }
+
+        // Its own message, which says what to do.
+        let error = LumaFusionError.olderVersion
+        #expect(error.errorDescription != LumaFusionError.noProject.errorDescription)
+        #expect(error.errorDescription != LumaFusionError.unsupportedVersion(nil).errorDescription)
+        #expect(error.recoverySuggestion?.contains("LumaFusion") == true)
+    }
+
     @Test func handsSupportedVersionsToTheirDecoder() throws {
         struct Decoder: LumaFusionProjectDecoder {
             func supports(appVersion: String) -> Bool { appVersion.hasPrefix("5.") }
@@ -189,7 +220,7 @@ struct LumaFusionImportTests {
         try corrupt.write(to: corruptURL)
         #expect(throws: LumaFusionError.damaged) { try LumaFusionPackage(unpacking: corruptURL, into: unpacked) }
 
-        let notJSON = try Self.unpack([TestZip.File("Holiday.lfarchive", "bplist00")], in: folder, name: "NotJSON.lfz")
+        let notJSON = try Self.unpack([TestZip.File("Holiday.lfarchive", "{\"tracks\": [")], in: folder, name: "NotJSON.lfz")
         #expect(throws: LumaFusionError.damaged) { try LumaFusionImporter.read(notJSON) }
 
         let empty = try Self.unpack([TestZip.File("Readme.txt", "hello")], in: folder, name: "Empty.lfz")

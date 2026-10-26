@@ -8,15 +8,19 @@ enum TestZip {
         var path: String
         var data: Data
         var deflated = false
+        /// Whether the name is flagged as UTF-8, as most tools do. It's
+        /// written in UTF-8 either way.
+        var utf8Flag = true
 
-        init(_ path: String, _ data: Data, deflated: Bool = false) {
+        init(_ path: String, _ data: Data, deflated: Bool = false, utf8Flag: Bool = true) {
             self.path = path
             self.data = data
             self.deflated = deflated
+            self.utf8Flag = utf8Flag
         }
 
-        init(_ path: String, _ text: String, deflated: Bool = false) {
-            self.init(path, Data(text.utf8), deflated: deflated)
+        init(_ path: String, _ text: String, deflated: Bool = false, utf8Flag: Bool = true) {
+            self.init(path, Data(text.utf8), deflated: deflated, utf8Flag: utf8Flag)
         }
     }
 
@@ -31,6 +35,7 @@ enum TestZip {
             let crc = CRC32.checksum(file.data)
             let offset = UInt64(output.count)
             let method: UInt16 = file.deflated ? 8 : 0
+            let flags: UInt16 = file.utf8Flag ? 0x0800 : 0
 
             var localExtra = Data()
             if zip64 {
@@ -38,7 +43,7 @@ enum TestZip {
                 localExtra.append(le: UInt64(file.data.count)); localExtra.append(le: UInt64(contents.count))
             }
             output.append(le: UInt32(0x0403_4B50))
-            output.append(le: UInt16(zip64 ? 45 : 20)); output.append(le: UInt16(0x0800)); output.append(le: method)
+            output.append(le: UInt16(zip64 ? 45 : 20)); output.append(le: flags); output.append(le: method)
             output.append(le: UInt32(0)) // time and date
             output.append(le: crc)
             output.append(le: zip64 ? UInt32.max : UInt32(contents.count))
@@ -55,7 +60,7 @@ enum TestZip {
             }
             central.append(le: UInt32(0x0201_4B50))
             central.append(le: UInt16(0x031E)); central.append(le: UInt16(zip64 ? 45 : 20))
-            central.append(le: UInt16(0x0800)); central.append(le: method)
+            central.append(le: flags); central.append(le: method)
             central.append(le: UInt32(0))
             central.append(le: crc)
             central.append(le: zip64 ? UInt32.max : UInt32(contents.count))
