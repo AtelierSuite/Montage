@@ -507,10 +507,20 @@ struct PremiereProjectImporter {
         let media = item.metadata.presentationSize
         let frame = settings.renderSize
         let fit = media.width > 0 && media.height > 0 ? min(frame.width / media.width, frame.height / media.height) : 1
-        let isUniform = component.parameter("Uniform Scale", id: "4").flatMap { PremiereKeyframes.value(of: $0) } != "false"
-        if let scale = number("Scale") {
-            clip.transform.scale = scale.mapped { $0 / 100 / fit }
-            if !isUniform, let width = number("Scale Width"), width.isAnimated || abs(width.value - scale.value) > 0.001 {
+        // Uniform Scale is left unnamed from CS6 on, as parameter 4, or 3
+        // in version 18, whose parameters are numbered from Scale's 1: the
+        // one unnamed flag among Motion's parameters.
+        let uniformScale = component.parameter("Uniform Scale", id: "4").flatMap { PremiereKeyframes.value(of: $0) }
+            ?? component.parameters.lazy.filter { ($0.child("Name")?.text ?? "").trimmingCharacters(in: .whitespaces).isEmpty }
+                .compactMap { PremiereKeyframes.value(of: $0) }.first { $0 == "true" || $0 == "false" }
+        let isUniform = uniformScale != "false"
+        // Not uniform, Scale is the height and Scale Width the width, and
+        // the width is the one used for both.
+        let height = number("Scale")
+        let width = isUniform ? height : number("Scale Width") ?? height
+        if let width {
+            clip.transform.scale = width.mapped { $0 / 100 / fit }
+            if !isUniform, let height, height.isAnimated || width.isAnimated || abs(width.value - height.value) > 0.001 {
                 report.add(.uneven(name: "Scale"), clipName: clipName, time: clip.timelineStart)
             }
         }
@@ -528,8 +538,6 @@ struct PremiereProjectImporter {
             // rotation hold still: Premiere's own tutorial project puts a
             // 500 px still's anchor on its corner, 0:1, and so its centre
             // on the frame's.
-            let height = number("Scale")
-            let width = isUniform ? height : number("Scale Width")
             let holdsStill = !anchor.isAnimated && !(rotation?.isAnimated ?? false)
                 && !(height?.isAnimated ?? false) && !(width?.isAnimated ?? false)
             if holdsStill, media.width > 0, media.height > 0, frame.width > 0, frame.height > 0 {

@@ -558,9 +558,32 @@ struct PremiereRealProjectRegressionTests {
             with: "<Name> </Name>\n\t\t<ParameterID>4</ParameterID>\n\t\t<StartKeyframe>-91445760000000000,false,"
         )
         #expect(xml != PremiereFixtures.xml)
-        // Scale 50 across, 100 down.
-        #expect(try PremiereFixtures.read(xml).issues(.changed).contains(.uneven(name: "Scale")))
+        // Scale is then the height, 50, and Scale Width 100 across, which
+        // is used for both: twice the 4K picture's fit to the frame.
+        let uneven = try PremiereFixtures.read(xml)
+        #expect(uneven.issues(.changed).contains(.uneven(name: "Scale")))
+        #expect(try #require(uneven.clip("Interview.mov", on: .video)).clip.transform.scale.value == 2)
         #expect(try !PremiereFixtures.read().issues(.changed).contains(.uneven(name: "Scale")))
+    }
+
+    @Test func findsUniformScaleInAVersion18Project() throws {
+        // Premiere's version 18 numbers Motion's parameters from Scale's 1,
+        // putting the unnamed Uniform Scale at 3.
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: "<Name>Scale</Name>\n\t\t<ParameterID>2</ParameterID>",
+                                  with: "<Name>Scale</Name>\n\t\t<ParameterID>1</ParameterID>")
+            .replacingOccurrences(of: "<Name>Scale Width</Name>\n\t\t<ParameterID>3</ParameterID>",
+                                  with: "<Name>Scale Width</Name>\n\t\t<ParameterID>2</ParameterID>")
+            .replacingOccurrences(
+                of: "<Name>Uniform Scale</Name>\n\t\t<ParameterID>4</ParameterID>\n\t\t<StartKeyframe>-91445760000000000,true,",
+                with: "<Name></Name>\n\t\t<ParameterID>3</ParameterID>\n\t\t<StartKeyframe>-91445760000000000,false,"
+            )
+            .replacingOccurrences(of: "<Name>Rotation</Name>\n\t\t<ParameterID>5</ParameterID>",
+                                  with: "<Name>Rotation</Name>\n\t\t<ParameterID>4</ParameterID>")
+        #expect(!xml.contains("<ParameterID>5</ParameterID>\n\t\t<StartKeyframe>-91445760000000000,90."))
+        let imported = try PremiereFixtures.read(xml)
+        #expect(imported.issues(.changed).contains(.uneven(name: "Scale")))
+        #expect(try #require(imported.clip("Interview.mov", on: .video)).clip.transform.scale.value == 2)
     }
 
     @Test func reportsCropInMotion() throws {
