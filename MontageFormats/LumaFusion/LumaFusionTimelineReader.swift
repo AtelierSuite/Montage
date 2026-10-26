@@ -33,6 +33,17 @@ import UniformTypeIdentifiers
 /// are read as they are; scale and position as far as they can be, the
 /// position assumed to run from -1 to 1 across the frame, up being positive;
 /// everything else that's changed from its default goes in the report.
+///
+/// LumaFusion for iOS 3.1 keeps scale, position and rotation in one
+/// setting, `videoTransform`, whose value is `{scaling, translation,
+/// anchorPoint, rotation}`, keyframed at `clipTime`, from the clip's start.
+/// That's read with its keyframes. Its translation runs from -1 to 1 across
+/// the frame as Android's does, but down is positive: lower-third templates
+/// sit at about 0.5 to 0.8 and grow from points inside the frame only under
+/// that reading. Its rotation is in radians, taken to be clockwise, as a
+/// positive angle is in a frame whose y axis runs down. Beside the settings
+/// each stream has a flat `parameters`, which holds their defaults rather
+/// than the clip's own values, so it isn't read.
 struct LumaFusionTimelineReader {
     private typealias Object = [String: Any]
 
@@ -239,6 +250,9 @@ struct LumaFusionTimelineReader {
             clip.opacity = Animatable(min(1, max(0, alpha.numbers.first ?? 1)))
             if alpha.isKeyframed { notes.append("Opacity keyframes") }
         }
+        if let transform = attributes["videoTransform"] as? Object {
+            applyTransform(transform, to: &clip, notes: &notes, name: name)
+        }
         if let scale = Self.setting(attributes["videoScale"]), scale.numbers.count == 2,
            scale.numbers.allSatisfy({ $0 > 0 }) {
             let (across, down) = (scale.numbers[0], scale.numbers[1])
@@ -268,6 +282,88 @@ struct LumaFusionTimelineReader {
             let changed = setting.numbers.count != value.count || zip(setting.numbers, value).contains { abs($0 - $1) > 0.0001 }
             if changed || setting.isKeyframed { notes.append(label) }
         }
+    }
+
+    /// One value of LumaFusion for iOS's `videoTransform`.
+    private struct Transform {
+        var scaling: [Double]
+        var translation: [Double]
+        var anchorPoint: [Double]
+        /// In radians.
+        var rotation: Double
+
+        init?(_ value: Any?) {
+            // A setting's value is `{type: 5, value: {scaling, ...}}`.
+            guard let outer = value as? [String: Any] else { return nil }
+            let object = outer["scaling"] == nil ? outer["value"] as? [String: Any] ?? [:] : outer
+            scaling = LumaFusionTimelineReader.numbers(object["scaling"])
+            translation = LumaFusionTimelineReader.numbers(object["translation"])
+            anchorPoint = LumaFusionTimelineReader.numbers(object["anchorPoint"])
+            let rotation = LumaFusionTimelineReader.numbers(object["rotation"])
+            guard scaling.count == 2, translation.count == 2, rotation.count <= 1 else { return nil }
+            if anchorPoint.count != 2 { anchorPoint = [0.5, 0.5] }
+            self.rotation = rotation.first ?? 0
+        }
+
+        /// Montage's scale: across and down averaged.
+        var scale: Double { (abs(scaling[0]) + abs(scaling[1])) / 2 }
+        /// The centre as a fraction of the frame, from a translation that
+        /// runs from -1 to 1 across it, down being positive.
+        var position: CGPoint { CGPoint(x: 0.5 + translation[0] / 2, y: 0.5 + translation[1] / 2) }
+        /// Clockwise, in degrees.
+        var degrees: Double { rotation * 180 / .pi }
+        var isUneven: Bool { abs(abs(scaling[0]) - abs(scaling[1])) > 0.0001 }
+        var isFlipped: Bool { scaling.contains { $0 < 0 } }
+        var isAnchorMoved: Bool { abs(anchorPoint[0] - 0.5) > 0.0001 || abs(anchorPoint[1] - 0.5) > 0.0001 }
+    }
+
+    /// LumaFusion for iOS's scale, position and rotation, with their
+    /// keyframes. An anchor point away from the middle, uneven or flipped
+    /// scale, eased keyframes and curved motion paths go in the report.
+    private mutating func applyTransform(_ setting: Object, to clip: inout Clip, notes: inout [String], name: String) {
+        guard let base = Transform(setting["value"]) else {
+            notes.append("Transform")
+            return
+        }
+        var keyframes: [(time: CMTime, value: Transform)] = []
+        for case let keyframe as Object in setting["keyframes"] as? [Any] ?? [] {
+            guard let time = Self.time(keyframe["clipTime"]) ?? Self.time(keyframe["time"]), time >= .zero,
+                  let value = Transform(keyframe["value"]) else {
+                notes.append("Transform keyframes")
+                continue
+            }
+            if Self.interpolationType(keyframe["interpolation"]) != 0 { notes.append("Keyframe easing") }
+            if Self.interpolationType(keyframe["spatialInterpolation"]) != 0 { notes.append("Motion path") }
+            keyframes.append((time, value))
+        }
+        let values = [base] + keyframes.map(\.value)
+        if values.contains(where: \.isUneven) {
+            report.add(.uneven(name: "Scale"), clipName: name, time: clip.timelineStart)
+        }
+        if values.contains(where: \.isFlipped) { notes.append("Flip") }
+        if values.contains(where: \.isAnchorMoved) { notes.append("Anchor point") }
+
+        clip.transform.scale = Self.animatable(base.scale, keyframes.map { ($0.time, $0.value.scale) })
+        clip.transform.position = Self.animatable(base.position, keyframes.map { ($0.time, $0.value.position) })
+        clip.transform.rotation = Self.animatable(base.degrees, keyframes.map { ($0.time, $0.value.degrees) })
+    }
+
+    /// A value keyframed where its keyframes differ; where they don't, the
+    /// one value they all hold. Of keyframes at the same time the last wins.
+    private static func animatable<Value: Interpolatable>(_ value: Value, _ keyframes: [(CMTime, Value)]) -> Animatable<Value> {
+        guard let first = keyframes.first else { return Animatable(value) }
+        if keyframes.allSatisfy({ $0.1 == first.1 }) { return Animatable(first.1) }
+        var animatable = Animatable(value)
+        for (time, value) in keyframes { animatable.setKeyframe(Keyframe(time: time, value: value)) }
+        return animatable
+    }
+
+    /// A keyframe's interpolation type: written as `{type, controlPointIn,
+    /// controlPointOut}`, or as a bare number. 0, linear, is the only one
+    /// seen; nil and 0 are both read as linear.
+    private static func interpolationType(_ value: Any?) -> Int {
+        if let object = value as? Object { return int(object["type"]) ?? 0 }
+        return int(value) ?? 0
     }
 
     private mutating func addEffect(_ effect: Object, isVideo: Bool, to clip: inout Clip, clipName: String) {
