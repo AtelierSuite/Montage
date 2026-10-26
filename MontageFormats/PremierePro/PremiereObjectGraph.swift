@@ -28,6 +28,10 @@ struct PremiereObjectGraph {
     var projectVersion: Int?
     /// The `Version` of the root `PremiereData` element.
     var documentVersion: Int?
+    /// Where the project was last saved, as its own properties record it
+    /// (`project.settings.lastknowngoodprojectpath`), with a Mac's or a
+    /// Windows PC's separators.
+    var savedPath: String?
     private(set) var objectsByID: [String: MarkupElement] = [:]
     private(set) var objectsByUID: [String: MarkupElement] = [:]
     /// The sequences, in the order the file has them.
@@ -102,6 +106,12 @@ struct PremiereObjectGraph {
         private var texts: [String] = []
         /// The depth of the element whose content is being skipped.
         private var skippingFrom: Int?
+        /// Whether what's skipped is the `Project`, whose saved path is
+        /// the one thing read from it.
+        private var skippingProject = false
+        /// The saved path, while its element is open.
+        private var savedPath: String?
+        private static let savedPathKey = "project.settings.lastknowngoodprojectpath"
 
         init(acceptsVersion: @escaping (Int) -> Bool) {
             self.acceptsVersion = acceptsVersion
@@ -112,7 +122,10 @@ struct PremiereObjectGraph {
             qualifiedName qName: String?, attributes: [String: String] = [:]
         ) {
             depth += 1
-            if skippingFrom != nil { return }
+            if skippingFrom != nil {
+                if skippingProject, elementName == Self.savedPathKey, graph.savedPath == nil { savedPath = "" }
+                return
+            }
             switch depth {
             case 1:
                 guard elementName == "PremiereData" else {
@@ -131,6 +144,7 @@ struct PremiereObjectGraph {
                     }
                     graph.projectVersion = version
                     skippingFrom = depth
+                    skippingProject = true
                     return
                 }
                 guard attributes["ObjectID"] != nil || attributes["ObjectUID"] != nil,
@@ -157,6 +171,7 @@ struct PremiereObjectGraph {
         }
 
         func parser(_ parser: XMLParser, foundCharacters string: String) {
+            if savedPath != nil { savedPath? += string }
             guard skippingFrom == nil, !texts.isEmpty else { return }
             texts[texts.count - 1] += string
         }
@@ -166,7 +181,15 @@ struct PremiereObjectGraph {
         ) {
             defer { depth -= 1 }
             if let skippingFrom {
-                if skippingFrom == depth { self.skippingFrom = nil }
+                if let path = savedPath, elementName == Self.savedPathKey {
+                    let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty { graph.savedPath = trimmed }
+                    savedPath = nil
+                }
+                if skippingFrom == depth {
+                    self.skippingFrom = nil
+                    skippingProject = false
+                }
                 return
             }
             guard depth >= 2, var element = stack.popLast() else { return }

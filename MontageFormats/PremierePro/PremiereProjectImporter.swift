@@ -51,14 +51,26 @@ struct PremiereProjectImporter {
     }
 
     private mutating func run() throws -> ImportedProject {
-        // As with Final Cut 7 XML, the first sequence is the one imported,
+        // The sequence named as the project is, where there's one with
+        // clips: a CS6 feature's "049-050A_mix.prproj" has 153 sequences,
+        // its "049-050A_mix" among dozens of synced takes. Otherwise, as
+        // with Final Cut 7 XML, the first sequence is the one imported,
         // though one with nothing on it is passed over: a project lists its
         // sequences in no order the user chose. Those only used nested in
         // others aren't counted as others.
         let nested = nestedSequenceUIDs()
         let topLevel = graph.sequences.filter { !nested.contains($0["ObjectUID"] ?? "") }
         let candidates = topLevel.isEmpty ? graph.sequences : topLevel
-        guard let sequence = candidates.first(where: hasClips) ?? candidates.first else { throw InterchangeError.noTimeline }
+        let projectName = Self.projectName(savedPath: graph.savedPath)
+        let named = projectName.flatMap { name in
+            candidates.first { sequence in
+                sequence.child("Name")?.text.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(name) == .orderedSame
+                    && hasClips(sequence)
+            }
+        }
+        guard let sequence = named ?? candidates.first(where: hasClips) ?? candidates.first else {
+            throw InterchangeError.noTimeline
+        }
         if candidates.count > 1 { report.add(.otherTimelines(count: candidates.count - 1)) }
 
         if let video = trackGroups(of: sequence).first(where: { $0.kind == .video })?.group {
@@ -129,6 +141,16 @@ struct PremiereProjectImporter {
                             audioItems: kind == .video ? audioItems : [])
             }
         }
+    }
+
+    /// The project's file name without its extension, from the path it
+    /// was saved at, a Mac's or a Windows PC's.
+    static func projectName(savedPath: String?) -> String? {
+        guard let last = savedPath?.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last else { return nil }
+        var name = String(last)
+        if name.lowercased().hasSuffix(".prproj") { name.removeLast(".prproj".count) }
+        name = name.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? nil : name
     }
 
     private func hasClips(_ sequence: MarkupElement) -> Bool {

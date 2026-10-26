@@ -79,6 +79,38 @@ struct PremiereProjectImportTests {
         #expect(imported.issues(.notImported).contains(.otherTimelines(count: 1)))
     }
 
+    @Test func prefersTheSequenceNamedAsTheProject() throws {
+        // A CS6 feature's reel has 153 sequences, the one named as the
+        // project among dozens of synced takes listed before it.
+        func saved(at path: String, roughCutHasClips: Bool) -> String {
+            var xml = PremiereFixtures.xml.replacingOccurrences(
+                of: "<MZ.BuildVersion.Created>",
+                with: "<project.settings.lastknowngoodprojectpath>\(path)</project.settings.lastknowngoodprojectpath>\n\t\t\t\t<MZ.BuildVersion.Created>"
+            )
+            if roughCutHasClips {
+                xml = xml.replacingOccurrences(of: """
+                		<TrackGroups Version="1">
+                		</TrackGroups>
+                		<ID>3</ID>
+                """, with: """
+                		<TrackGroups Version="1">
+                			<TrackGroup Version="1" Index="0">
+                				<First>228cda18-3625-4d2d-951e-348879e4ed93</First>
+                				<Second ObjectRef="102"/>
+                			</TrackGroup>
+                		</TrackGroups>
+                		<ID>3</ID>
+                """)
+            }
+            return xml
+        }
+        #expect(try PremiereFixtures.read(saved(at: "/Volumes/Edit/Rough Cut.prproj", roughCutHasClips: true)).name == "Rough Cut")
+        #expect(try PremiereFixtures.read(saved(at: #"\\?\D:\Edit\rough cut.PRPROJ"#, roughCutHasClips: true)).name == "Rough Cut")
+        // Not one with nothing on it, nor without a sequence of that name.
+        #expect(try PremiereFixtures.read(saved(at: "/Volumes/Edit/Rough Cut.prproj", roughCutHasClips: false)).name == "Main Edit")
+        #expect(try PremiereFixtures.read(saved(at: "/Volumes/Edit/Reel 1.prproj", roughCutHasClips: true)).name == "Main Edit")
+    }
+
     @Test func laysOutTracksWithTheirClipsAndTrims() throws {
         #expect(imported.project.tracks.map(\.kind) == [.video, .video, .audio])
         let interview = try #require(imported.clip("Interview.mov", on: .video))
