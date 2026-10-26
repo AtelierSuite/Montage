@@ -108,7 +108,7 @@ struct DRPImportTests {
         #expect(issues.contains(.unsupportedEffect(name: "Color grade")))
         #expect(issues.contains(.unsupportedEffect(name: "Resolve effects")))
         #expect(imported.report.items.contains { $0.issue == .marker(name: "Focus") && $0.clipName == "A001.mov" })
-        #expect(issues.filter { $0 == .setting(name: "Transform, opacity, cropping, volume and pan") }.count == 1)
+        #expect(!issues.contains { if case .setting = $0 { true } else { false } })
         #expect(!issues.contains(.movedToNewTrack))
         #expect(imported.report.items.first { $0.issue == .transition(name: "Cross Dissolve") }?.time == frames(36))
     }

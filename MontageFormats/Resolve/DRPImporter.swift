@@ -26,10 +26,11 @@ import UniformTypeIdentifiers
 /// - Timeline markers are a binary value in `project.xml`, owned by the
 ///   timeline's sequence.
 ///
-/// Clip settings (transform, opacity, cropping, volume, pan), effects,
-/// grades and Fusion compositions are in binary values nobody has decoded
-/// yet. They're left alone, and the report says so, rather than guessed at.
-/// That's the seam for reading them later: `applySettings(of:to:)`.
+/// Clip settings are in each clip's `EffectFiltersBA`, a filter for each
+/// Inspector group and effect. Zoom, position, opacity, composite mode,
+/// volume and fades are read, and anything else that's set is reported
+/// (see `ResolveClipSettings`). Grades and Fusion compositions are reported
+/// too, and kept on their clips turned off.
 struct DRPImporter {
     /// The project schema versions open-source readers have checked their
     /// reading of the layout against real exports of: 14 (Resolve 19.1),
@@ -53,7 +54,6 @@ struct DRPImporter {
     private var markerBlobs: [String: String] = [:]
     /// Audio clips made part of a picture's clip, by ID.
     private var mergedAudio: Set<String> = []
-    private var importedAnyClip = false
 
     static func read(_ data: Data, baseURL: URL?) throws -> ImportedProject {
         let archive: ZipArchive
@@ -186,10 +186,6 @@ struct DRPImporter {
         importTracks(of: sequenceID, placement: placement, lane: 0, visiting: [sequenceID])
         importMarkers(of: sequenceID, frameDuration: frameDuration)
 
-        if importedAnyClip {
-            // Where the seam is: see `applySettings(of:to:)`.
-            report.add(.setting(name: "Transform, opacity, cropping, volume and pan"))
-        }
         var montage = Project(settings: settings, media: media.items)
         montage.tracks = assembler.tracks(report: &report)
         for marker in markers { montage.addMarker(at: marker.time, name: marker.name) }
@@ -449,6 +445,7 @@ struct DRPImporter {
             report.add(.speedChange, clipName: name, time: timelineStart)
         }
 
+        var linkedAudio: MarkupElement?
         if track == .video, mediaItem.kind != .audio {
             // Its own sound, linked to it in step on an audio track.
             let inStep = audioItems.filter { audio in
@@ -459,39 +456,59 @@ struct DRPImporter {
             }
             if let first = inStep.first, let id = first["DbId"] {
                 mergedAudio.insert(id)
+                linkedAudio = first
             } else if mediaItem.metadata.hasAudio {
                 clip.isAudioDetached = true
             }
         }
-        applySettings(of: item, to: &clip, isVideo: track == .video, clipName: name ?? mediaItem.name)
+        applySettings(
+            of: item, linkedAudio: linkedAudio, to: &clip, isVideo: track == .video, clipName: name ?? mediaItem.name,
+            frameDuration: placement.frameDuration
+        )
 
         if let trimmed = clip.trimmed(to: window) {
-            importedAnyClip = true
             assembler.add(trimmed, kind: mediaItem.kind == .audio || track == .audio ? .audio : .video, lane: lane,
                           name: name ?? mediaItem.name)
         }
     }
 
-    /// The seam for a clip's settings and effects. Resolve keeps transform,
-    /// opacity, cropping, volume and pan in the clip's `FieldsBlob` and its
-    /// effects in `EffectFiltersBA`, binary values whose layout nobody has
-    /// published, so for now only what's plainly there is noted: effects,
-    /// grades and Fusion compositions, kept turned off so the report can
-    /// list them.
-    private mutating func applySettings(of item: MarkupElement, to clip: inout Clip, isVideo: Bool, clipName: String) {
-        var kept: [(identifier: String, name: String)] = []
-        if !(item.child("EffectFiltersBA")?.text ?? "").isEmpty { kept.append(("EffectFiltersBA", "Resolve effects")) }
+    /// A clip's settings and effects, with those of the sound linked to it
+    /// when that's part of the same clip. Effects, grades and Fusion
+    /// compositions are kept turned off so the report can list them.
+    private mutating func applySettings(
+        of item: MarkupElement, linkedAudio: MarkupElement?, to clip: inout Clip, isVideo: Bool, clipName: String,
+        frameDuration: CMTime
+    ) {
+        var kept: [(identifier: String, name: String, isVideo: Bool)] = []
+        for (element, elementIsVideo) in [(item, isVideo)] + [linkedAudio].compactMap({ $0.map { ($0, false) } }) {
+            guard let text = element.child("EffectFiltersBA")?.text, !text.isEmpty else { continue }
+            guard let data = ResolveBlobs.hex(text), let filters = try? ResolveBlobs.filters(data) else {
+                kept.append(("EffectFiltersBA", "Resolve effects", elementIsVideo))
+                continue
+            }
+            let inPoint = ResolveBlobs.frames(element.child("In")?.text)?.whole ?? 0
+            let notes = ResolveClipSettings.apply(
+                filters, to: &clip, isVideo: elementIsVideo, inPoint: inPoint, frameDuration: frameDuration
+            )
+            for note in notes {
+                switch note {
+                case .setting(let name): report.add(.setting(name: name), clipName: clipName, time: clip.timelineStart)
+                case .uneven(let name): report.add(.uneven(name: name), clipName: clipName, time: clip.timelineStart)
+                case .effect(let identifier, let name): kept.append((identifier, name, elementIsVideo))
+                }
+            }
+        }
         if isVideo, item.allDescendants.contains(where: { $0.name == "HasCorrection" && $0.text == "true" }) {
-            kept.append(("pLmVerTable", "Color grade"))
+            kept.append(("pLmVerTable", "Color grade", true))
         }
         if isVideo, let composition = item.child("CompositionTable"), !composition.children.isEmpty {
-            kept.append(("CompositionTable", "Fusion"))
+            kept.append(("CompositionTable", "Fusion", true))
         }
         for effect in kept {
             report.add(.unsupportedEffect(name: effect.name), clipName: clipName, time: clip.timelineStart)
             clip.effects.append(Effect(isEnabled: false, .unsupported(UnsupportedEffect(
                 format: InterchangeFormat.drp.rawValue, identifier: effect.identifier, name: effect.name,
-                isVideo: isVideo, parameters: [], original: nil
+                isVideo: effect.isVideo, parameters: [], original: nil
             ))))
         }
     }

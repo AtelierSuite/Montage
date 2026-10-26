@@ -10,8 +10,24 @@ import Testing
 struct DRPClipSettingsTests {
     private typealias Writer = ResolveBlobWriter
 
+    private func frames(_ count: Int64) -> CMTime {
+        CMTime(value: count, timescale: 24)
+    }
+
     private func filters(_ filters: [Data], zstd: Bool = true) throws -> [ResolveBlobs.Filter] {
         try ResolveBlobs.filters(Writer.effectFilters(filters, zstd: zstd))
+    }
+
+    private func clip(duration: Int64 = 48) -> Clip {
+        Clip(mediaID: UUID(), sourceRange: CMTimeRange(start: frames(24), duration: frames(duration)))
+    }
+
+    private func apply(
+        _ list: [Data], to clip: inout Clip, isVideo: Bool = true, inPoint: Int64 = 24
+    ) throws -> [ResolveClipSettings.Note] {
+        ResolveClipSettings.apply(
+            try filters(list), to: &clip, isVideo: isVideo, inPoint: inPoint, frameDuration: frames(1)
+        )
     }
 
     // MARK: - The blob
@@ -48,5 +64,192 @@ struct DRPClipSettingsTests {
         curved.removeLast(48)
         curved.replaceSubrange(0..<4, with: [0xFF, 0xFF, 0xFF, 0xF0])
         #expect(throws: ResolveBlobs.Failure.malformed) { try ResolveBlobs.keyframes(curved) }
+    }
+
+    // MARK: - What they come to
+
+    /// The groups Resolve lists on a clip with nothing changed, as in a
+    /// real project: Transform, Cropping, Composite and Retime and Scaling
+    /// with every parameter empty.
+    @Test func leavesAClipWithDefaultGroupsAsItIs() throws {
+        var clip = clip()
+        let notes = try apply([
+            Writer.filter(4, Array(repeating: nil, count: 12)), Writer.filter(6, Array(repeating: nil, count: 6)),
+            Writer.filter(2, [nil, nil]), Writer.filter(44, Array(repeating: nil, count: 5)),
+        ], to: &clip)
+        #expect(notes.isEmpty)
+        #expect(clip.transform == ClipTransform() && clip.opacity == Animatable(1) && clip.volume == Animatable(1))
+        #expect(clip.blendMode == .normal && clip.effects.isEmpty)
+    }
+
+    @Test func readsZoomAndPosition() throws {
+        var clip = clip()
+        let notes = try apply([
+            Writer.filter(4, [
+                Writer.parameter(42, .double(0.3)), Writer.parameter(43, .double(0.3)), nil, nil,
+                Writer.parameter(41, .double(-0.285)),
+            ]),
+        ], to: &clip)
+        #expect(notes.isEmpty)
+        #expect(clip.transform.scale == Animatable(0.3))
+        let position = clip.transform.position.value
+        #expect(abs(position.x - 0.5) < 1e-9 && abs(position.y - 0.785) < 1e-9)
+    }
+
+    /// Keyframes count frames of the source, as the clip's in point does,
+    /// and X and Y have keyframes of their own.
+    @Test func keyframesPositionFromTheClipsInPoint() throws {
+        var clip = clip()
+        _ = try apply([
+            Writer.filter(4, [
+                nil, nil, nil,
+                Writer.parameter(40, .double(0.25), keyframes: [.init(frame: 26, value: 0.25), .init(frame: 50, value: -0.25)]),
+                Writer.parameter(41, keyframes: [.init(frame: 26, value: 0.5), .init(frame: 38, value: 0, curved: true)]),
+            ]),
+        ], to: &clip)
+        let keyframes = clip.transform.position.keyframes
+        #expect(keyframes.map(\.time) == [frames(2), frames(14), frames(26)])
+        #expect(keyframes.map(\.value) == [CGPoint(x: 0.75, y: 0), CGPoint(x: 0.5, y: 0.5), CGPoint(x: 0.25, y: 0.5)])
+        #expect(clip.transform.position.value == CGPoint(x: 0.75, y: 0))
+    }
+
+    @Test func reportsUnevenZoomAndOtherTransformSettings() throws {
+        var clip = clip()
+        let notes = try apply([
+            Writer.filter(4, [
+                Writer.parameter(42, .double(2)), Writer.parameter(43, .double(1)), nil, nil, nil, nil,
+                Writer.parameter(48, .pair(0.1, -0.5)),
+            ]),
+        ], to: &clip)
+        #expect(clip.transform.scale == Animatable(2))
+        #expect(notes == [.uneven("Zoom"), .setting("Rotation, anchor point, pitch, yaw or flip")])
+    }
+
+    @Test func readsOpacityAndCompositeMode() throws {
+        var clip = clip()
+        let notes = try apply([Writer.filter(2, [Writer.parameter(0, .enumeration(6)), Writer.parameter(1, .double(60))])], to: &clip)
+        #expect(notes.isEmpty)
+        #expect(clip.opacity == Animatable(0.6))
+        #expect(clip.blendMode == .overlay)
+
+        var keyed = self.clip()
+        let others = try apply([
+            Writer.filter(2, [
+                Writer.parameter(0, .enumeration(27)),
+                Writer.parameter(1, .double(100), keyframes: [.init(frame: 24, value: 100), .init(frame: 48, value: 25)]),
+            ]),
+        ], to: &keyed)
+        #expect(keyed.opacity.keyframes.map(\.value) == [1, 0.25])
+        #expect(keyed.blendMode == .normal)
+        #expect(others == [.setting("Composite mode")])
+        #expect(ResolveClipSettings.blendModes[4] == .multiply && ResolveClipSettings.blendModes[5] == .screen)
+    }
+
+    @Test func fadesThePictureInAndOut() throws {
+        var clip = clip()
+        let notes = try apply([Writer.filter(72, [Writer.parameter(137, .double(12)), Writer.parameter(138, .double(24))])], to: &clip)
+        #expect(notes.isEmpty)
+        #expect(clip.opacity.keyframes.map(\.time) == [.zero, frames(12), frames(24), frames(48)])
+        #expect(clip.opacity.keyframes.map(\.value) == [0, 1, 1, 0])
+
+        // Opacity keyframed already: the fade is reported instead.
+        var keyed = self.clip()
+        let keyedNotes = try apply([
+            Writer.filter(2, [nil, Writer.parameter(1, keyframes: [.init(frame: 24, value: 100), .init(frame: 30, value: 50)])]),
+            Writer.filter(72, [Writer.parameter(137, .double(12)), nil]),
+        ], to: &keyed)
+        #expect(keyed.opacity.keyframes.count == 2)
+        #expect(keyedNotes == [.setting("Fade")])
+    }
+
+    @Test func readsVolumeInDecibelsWithFades() throws {
+        var clip = clip()
+        let notes = try apply([
+            Writer.filter(124, [
+                Writer.parameter(95, .double(-6), keyframes: [.init(frame: 30, value: -6), .init(frame: 40, value: -100)]),
+                nil, nil, nil, nil,
+            ]),
+        ], to: &clip, isVideo: false)
+        #expect(notes.isEmpty)
+        #expect(abs(clip.volume.value - 0.501187) < 1e-6)
+        #expect(clip.volume.keyframes.map(\.time) == [frames(6), frames(16)])
+        #expect(clip.volume.keyframes.last?.value == 0)
+
+        var faded = self.clip()
+        let fadeNotes = try apply([
+            Writer.filter(124, [
+                Writer.parameter(95, .double(6)), Writer.parameter(97, .double(10)), nil, Writer.parameter(99, .pair(44, -32)), nil,
+            ]),
+        ], to: &faded, isVideo: false)
+        #expect(faded.volume.keyframes.map(\.time) == [.zero, frames(10)])
+        #expect(abs((faded.volume.keyframes.last?.value ?? 0) - 1.995262) < 1e-6)
+        #expect(fadeNotes == [.setting("Fade curve")])
+    }
+
+    @Test func reportsWhatHasNoCounterpart() throws {
+        var clip = clip()
+        let notes = try apply([
+            Writer.filter(6, [Writer.parameter(54, .double(0.1)), nil, nil, nil, nil, nil]),
+            Writer.filter(44, [nil, nil, Writer.parameter(92, .enumeration(2)), nil, nil]),
+            Writer.filter(44, [nil, nil, Writer.parameter(92, .enumeration(3)), nil, nil]),
+            Writer.filter(118, [Writer.parameter(59, .enumeration(2)), nil, nil]),
+            Writer.openFX("com.blackmagicdesign.resolvefx.videocollage"),
+            Writer.filter(126, [Writer.parameter(102, .double(1000))]),
+        ], to: &clip)
+        #expect(notes == [
+            .setting("Crop"), .setting("Retime and scaling"), .setting("Dynamic zoom"),
+            .effect(identifier: "com.blackmagicdesign.resolvefx.videocollage", name: "videocollage"),
+            .effect(identifier: "EffectFiltersBA", name: "Resolve effects"),
+        ])
+    }
+
+    // MARK: - Through the importer
+
+    @Test func importsSettingsWithLinkedSound() throws {
+        let transform = Writer.hex(Writer.effectFilters([
+            Writer.filter(4, [Writer.parameter(42, .double(1.5)), Writer.parameter(43, .double(1.5)), nil, Writer.parameter(40, .double(0.25))]),
+            Writer.filter(2, [nil, Writer.parameter(1, .double(50))]),
+        ]))
+        let volume = Writer.hex(Writer.effectFilters([Writer.filter(124, [Writer.parameter(95, .double(-6)), nil, nil, nil, nil])]))
+        let defaults = Writer.hex(Writer.effectFilters([Writer.filter(4, [nil, nil]), Writer.filter(2, [nil, nil])]))
+        let compound = Writer.hex(Writer.effectFilters([Writer.filter(4, [Writer.parameter(42, .double(0.5))])]))
+        var builder = DRPTestBuilder()
+        builder.overrides["SeqContainer/0b6f0e2c-edit.xml"] = DRPTestBuilder.container(id: "container-edit", video: [
+            DRPTestBuilder.track(0, sequence: "seq-edit", items: [
+                DRPTestBuilder.item("Sm2TiVideoClip", id: "item-a001", start: 86400, duration: 48, inPoint: "24",
+                                    media: "media-a001", name: "A001.mov", extra: "<EffectFiltersBA>\(transform)</EffectFiltersBA>"),
+                DRPTestBuilder.item("Sm2TiVideoClip", id: "item-compound", start: 86448, duration: 24, inPoint: "0",
+                                    media: "media-compound", name: "Compound Clip 1",
+                                    extra: "<EffectFiltersBA>\(compound)</EffectFiltersBA>"),
+                DRPTestBuilder.item("Sm2TiVideoClip", id: "item-plain", start: 86472, duration: 24, inPoint: "0",
+                                    media: "media-a001", name: "A001.mov", extra: "<EffectFiltersBA>\(defaults)</EffectFiltersBA>"),
+            ]),
+        ], audio: [
+            DRPTestBuilder.track(1, sequence: "seq-edit", items: [
+                DRPTestBuilder.item("Sm2TiAudioClip", id: "item-a001-sound", start: 86400, duration: 48, inPoint: "24",
+                                    media: "media-a001", name: "A001.mov", extra: "<EffectFiltersBA>\(volume)</EffectFiltersBA>"),
+            ]),
+        ])
+        let imported = try DRPImporter.read(builder.archive(), baseURL: nil)
+        let clips = imported.project.tracks.filter { $0.kind == .video }.flatMap(\.clips)
+        let opening = try #require(clips.first { $0.timelineStart == .zero })
+        #expect(opening.transform.scale == Animatable(1.5))
+        #expect(opening.transform.position.value == CGPoint(x: 0.75, y: 0.5))
+        #expect(opening.opacity == Animatable(0.5))
+        #expect(abs(opening.volume.value - 0.501187) < 1e-6)
+        #expect(opening.effects.isEmpty)
+        #expect(imported.project.tracks.filter { $0.kind == .audio }.flatMap(\.clips).isEmpty)
+
+        let inner = try #require(clips.first { $0.timelineStart == frames(48) })
+        #expect(inner.transform.scale == Animatable(1))
+        let issues = imported.report.items
+        #expect(!issues.contains {
+            switch $0.issue {
+            case .setting, .uneven, .unsupportedEffect: true
+            default: false
+            }
+        })
+        let plain = try #require(clips.first { $0.timelineStart == frames(72) })
+        #expect(plain.effects.isEmpty && plain.opacity == Animatable(1))
     }
 }
