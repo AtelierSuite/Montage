@@ -530,7 +530,9 @@ struct OTIOImporter {
 
     /// How far a pan or tilt of 1 moves a picture of a size, as fractions
     /// of the frame's width and height: as far as the picture reaches
-    /// across and down once fitted into the frame.
+    /// across and down once fitted into the frame. The frame is the
+    /// project's: the size Montage wrote into the timeline's metadata, or
+    /// else 1920 by 1080, as Resolve's file holds no frame size.
     private func reach(of picture: CGSize) -> CGSize {
         let frame = settings.renderSize
         guard picture.width > 0, picture.height > 0, frame.width > 0, frame.height > 0 else { return CGSize(width: 1, height: 1) }

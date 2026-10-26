@@ -20,7 +20,7 @@ struct OTIOEffectTests {
     /// on the clip and on the timeline's stack.
     private func read(
         clipEffects: [[String: Any]], stackEffects: [[String: Any]] = [], name: String = "",
-        target: String = "file:///Volumes/Footage/Shot.mov"
+        target: String = "file:///Volumes/Footage/Shot.mov", metadata: [String: Any] = [:]
     ) throws -> ImportedProject {
         let clip: [String: Any] = [
             "OTIO_SCHEMA": "Clip.2", "name": "Shot",
@@ -32,7 +32,7 @@ struct OTIOEffectTests {
             "active_media_reference_key": "DEFAULT_MEDIA",
         ]
         let timeline: [String: Any] = [
-            "OTIO_SCHEMA": "Timeline.1", "name": name, "global_start_time": time(0),
+            "OTIO_SCHEMA": "Timeline.1", "name": name, "global_start_time": time(0), "metadata": metadata,
             "tracks": [
                 "OTIO_SCHEMA": "Stack.1", "effects": stackEffects,
                 "children": [["OTIO_SCHEMA": "Track.1", "kind": "Video", "children": [clip]]],
@@ -144,6 +144,26 @@ struct OTIOEffectTests {
         let position = try clip(imported).transform.position.value
         #expect(abs(position.x - 0.5) < 1e-9)
         #expect(abs(position.y * 1080 - (540 + 241)) < 0.001)
+    }
+
+    /// In a portrait project, whose size Montage wrote into the timeline,
+    /// a landscape still fitted into the frame spans its width but not its
+    /// height, so pan moves it by the frame's width and tilt by less than
+    /// the frame's height.
+    @Test func movesAClipByFractionsOfThePictureFittedIntoTheProjectsFrame() throws {
+        let folder = try folder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let still = folder.appendingPathComponent("Wide.png")
+        try Self.writePNG(width: 192, height: 108, to: still)
+        let imported = try read(clipEffects: [resolve("Transform", [
+            parameter("transformationPan", 0.25, default: 0.0, keyframes: [:]),
+            parameter("transformationTilt", 0.5, default: 0.0, keyframes: [:]),
+        ])], target: still.absoluteString, metadata: ["Montage": ["width": 1080.0, "height": 1920.0]])
+        #expect(imported.project.settings.renderSize == CGSize(width: 1080, height: 1920))
+        // Fitted, it's 1080 by 607.5.
+        let position = try clip(imported).transform.position.value
+        #expect(abs(position.x * 1080 - (540 + 0.25 * 1080)) < 0.001)
+        #expect(abs(position.y * 1920 - (960 - 0.5 * 607.5)) < 0.001)
     }
 
     /// A portrait movie fitted into a landscape frame is narrower than the
