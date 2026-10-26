@@ -236,6 +236,30 @@ struct DRPClipSettingsTests {
         #expect(fadeNotes == [.setting("Fade curve")])
     }
 
+    /// Clip pan, -100 taken as fully left, keyframed as volume is.
+    @Test func readsPanAsAPanEffect() throws {
+        var clip = clip()
+        let notes = try apply([Writer.filter(144, [Writer.parameter(96, .double(-100))])], to: &clip, isVideo: false)
+        #expect(notes.isEmpty)
+        guard case .pan(let pan) = clip.effects.first?.kind else { Issue.record("No pan"); return }
+        #expect(clip.effects.count == 1 && clip.effects[0].isEnabled)
+        #expect(pan.position == Animatable(-1))
+
+        var keyed = self.clip()
+        _ = try apply([
+            Writer.filter(144, [Writer.parameter(96, keyframes: [.init(frame: 24, value: 0), .init(frame: 48, value: 50)])]),
+        ], to: &keyed, isVideo: false)
+        guard case .pan(let keyedPan) = keyed.effects.first?.kind else { Issue.record("No pan"); return }
+        #expect(keyedPan.position.keyframes.map(\.time) == [.zero, frames(24)])
+        #expect(keyedPan.position.keyframes.map(\.value) == [0, 0.5])
+
+        // Centred, as an empty group is, adds nothing.
+        var centred = self.clip()
+        #expect(try apply([Writer.filter(144, [nil])], to: &centred, isVideo: false).isEmpty)
+        #expect(try apply([Writer.filter(144, [Writer.parameter(96, .double(0))])], to: &centred, isVideo: false).isEmpty)
+        #expect(centred.effects.isEmpty)
+    }
+
     @Test func reportsWhatHasNoCounterpart() throws {
         var clip = clip()
         let notes = try apply([

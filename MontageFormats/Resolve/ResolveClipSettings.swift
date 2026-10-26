@@ -20,6 +20,9 @@ import MontageEngine
 /// - The fade handles of a picture (72: 137 in, 138 out) and of a sound
 ///   (124: 97 in, 98 out), in frames.
 /// - Volume (124: 95), in decibels.
+/// - Pan (144: 96), from -100 to 100. Its filter number is twice the
+///   "Fairlight Clip Pan" effect's type in Resolve's OTIO, as every other
+///   filter's is.
 /// - Open FX effects (50), naming their plugin.
 ///
 /// Anything else that's set is reported rather than guessed at.
@@ -41,6 +44,7 @@ enum ResolveClipSettings {
         static let videoFades = 72
         static let dynamicZoom = 118
         static let audio = 124
+        static let pan = 144
     }
 
     /// Applies the filters to the clip, timing keyframes from `inPoint`,
@@ -147,6 +151,18 @@ enum ResolveClipSettings {
                     notes.append(.setting("Fade curve"))
                 }
                 if !parameters.isEmpty { notes.append(.setting("Audio")) }
+            case Filter.pan:
+                // -100 is taken to be fully left, as on Resolve's track pan.
+                // That's an assumption: the one clip pan seen, -100 on the
+                // swamp ambience in the Fairlight Audio Post book's project,
+                // has no text saying which way it goes. It comes in as a
+                // pan effect, so it shows on the clip and can be turned.
+                if let pan = animatable(parameters.removeValue(forKey: 96), default: 0), pan.isAnimated || pan.value != 0 {
+                    var parameters = Pan()
+                    parameters.position = pan.mapped { min(1, max(-1, $0 / 100)) }
+                    clip.effects.append(Effect(.pan(parameters)))
+                }
+                if !parameters.isEmpty { notes.append(.setting("Pan")) }
             case Filter.openFX:
                 let plugin = filter.plugin ?? "EffectFiltersBA"
                 notes.append(.effect(identifier: plugin, name: plugin.split(separator: ".").last.map(String.init) ?? plugin))
