@@ -10,12 +10,12 @@ extension UTType {
 
 /// A LumaFusion project package, unpacked into a folder.
 ///
-/// What's known of the format, from LumaFusion's reference guide and one
-/// open-source reader checked against packages from LumaFusion 5.5: the
-/// package is a ZIP archive, possibly ZIP64, its media stored uncompressed
-/// beside a single `*.lfarchive` file, which holds the project as JSON. How
-/// the media is laid out in folders isn't known, so it's looked for by name
-/// wherever it is in the archive.
+/// As real packages from LumaFusion for Android 2.6 are laid out: a ZIP
+/// archive, ZIP64 past 4 GB, holding a single `*.lfarchive` file, the
+/// project as JSON, with the media beside it at the top, deflated. An
+/// open-source reader describes packages from LumaFusion for iOS 5.5 the
+/// same way, with the media stored uncompressed. Other versions may use
+/// folders, so media is looked for by name wherever it is in the archive.
 struct LumaFusionPackage {
     static let fileExtensions = ["lfpackage", "lfz"]
     static let projectFileExtension = "lfarchive"
