@@ -194,6 +194,32 @@ struct DRPClipSettingsTests {
         #expect(ResolveClipSettings.blendModes[4] == .multiply && ResolveClipSettings.blendModes[5] == .screen)
     }
 
+    /// A second value in field 4: read, but not taken as the value. Alone,
+    /// as the Wyoming grading timelines have an opacity of 50, it's reported.
+    @Test func keepsAParametersSecondValueApart() throws {
+        let read = try filters([
+            Writer.filter(126, [Writer.parameter(102, .integer(418), reference: .integer(1000))]),
+            Writer.filter(2, [nil, Writer.parameter(1, reference: .double(50))]),
+        ])
+        #expect(read[0].parameters[102]?.number == 209)
+        #expect(read[0].parameters[102]?.reference == .integer(500))
+        #expect(read[1].parameters[1]?.number == nil && read[1].parameters[1]?.reference == .double(50))
+
+        var clip = clip()
+        let notes = try apply([Writer.filter(2, [nil, Writer.parameter(1, reference: .double(50))])], to: &clip)
+        #expect(clip.opacity == Animatable(1))
+        #expect(notes == [.setting("Opacity")])
+
+        // With a value, the value is taken, whatever field 4 says.
+        var both = self.clip()
+        let bothNotes = try apply([Writer.filter(2, [nil, Writer.parameter(1, .double(60), reference: .double(50))])], to: &both)
+        #expect(both.opacity == Animatable(0.6))
+        #expect(bothNotes.isEmpty)
+        var zoomed = self.clip()
+        _ = try apply([Writer.filter(4, [Writer.parameter(42, .double(1.15), reference: .double(1.15))])], to: &zoomed)
+        #expect(zoomed.transform.scale == Animatable(1.15))
+    }
+
     @Test func fadesThePictureInAndOut() throws {
         var clip = clip()
         let notes = try apply([Writer.filter(72, [Writer.parameter(137, .double(12)), Writer.parameter(138, .double(24))])], to: &clip)

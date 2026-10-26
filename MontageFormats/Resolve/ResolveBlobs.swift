@@ -261,6 +261,14 @@ enum ResolveBlobs {
     struct Parameter: Equatable {
         var value: Value?
         var keyframes: [Keyframe]
+        /// A second value some parameters carry in field 4, shaped as the
+        /// value is. It isn't the one the clip shows: where both are there,
+        /// it's often the same, but it's 1000 on an equaliser band whose
+        /// value is 418, as if it were the band's starting or default
+        /// value. On its own it's on every clip of the Beginner's Guide's
+        /// Wyoming grading timelines as an opacity of 50, which nothing in
+        /// the book asks for.
+        var reference: Value? = nil
 
         var number: Double? {
             switch value {
@@ -303,6 +311,11 @@ enum ResolveBlobs {
                     if filter.plugin == nil, let effect = held.first(where: { $0.number == 2 })?.bytes {
                         filter.plugin = (try? protobuf(effect))?.first { $0.number == 2 }?.text
                     }
+                }
+                // Not needed to read the clip, so a damaged one is passed over.
+                if let holder = parts.first(where: { $0.number == 4 })?.bytes,
+                   let valueBytes = (try? protobuf(holder))?.first(where: { $0.number == 1 })?.bytes {
+                    parameter.reference = (try? filterValue(valueBytes)) ?? nil
                 }
                 if let keyframes = parts.first(where: { $0.number == 10 })?.bytes {
                     parameter.keyframes = try Self.keyframes(keyframes)

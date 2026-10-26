@@ -118,8 +118,14 @@ enum ResolveClipSettings {
                 if parameters.removeValue(forKey: 48) != nil { notes.append(.setting("Anchor point")) }
                 if !parameters.isEmpty { notes.append(.setting("Pitch, yaw or flip")) }
             case Filter.composite where isVideo:
-                if let opacity = animatable(parameters.removeValue(forKey: 1), default: 100) {
+                let opacityParameter = parameters.removeValue(forKey: 1)
+                if let opacity = animatable(opacityParameter, default: 100) {
                     clip.opacity = opacity.mapped { min(1, max(0, $0 / 100)) }
+                } else if let reference = opacityParameter?.reference, reference != .double(100) {
+                    // An opacity only in field 4 (see `Parameter.reference`),
+                    // which may or may not be what Resolve shows: kept at
+                    // 100 % and reported rather than guessed.
+                    notes.append(.setting("Opacity"))
                 }
                 if let mode = parameters.removeValue(forKey: 0) {
                     if let blendMode = mode.number.flatMap({ Self.blendModes[Int($0)] }) {

@@ -167,9 +167,13 @@ enum ResolveBlobWriter {
 
     /// A parameter of a filter: its number in field 1, its value in field 3
     /// and its keyframes in field 10.
-    static func parameter(_ number: Int, _ value: FilterValue? = nil, keyframes: [FilterKeyframe] = []) -> Data {
+    static func parameter(
+        _ number: Int, _ value: FilterValue? = nil, reference: FilterValue? = nil, keyframes: [FilterKeyframe] = []
+    ) -> Data {
         var fields: [Field] = [.varint(1, UInt64(number))]
-        if let value {
+        // The value in field 3, and the second value some carry in field 4.
+        for (field, value) in [(3, value), (4, reference)] {
+            guard let value else { continue }
             let inner: Field
             switch value {
             case .double(let value): inner = .double(2, value)
@@ -182,7 +186,7 @@ enum ResolveBlobWriter {
                 bytes.appendDRP(bigEndian: second.bitPattern)
                 inner = .bytes(7, bytes)
             }
-            fields.append(.bytes(3, protobuf([.bytes(1, protobuf([inner]))])))
+            fields.append(.bytes(field, protobuf([.bytes(1, protobuf([inner]))])))
         }
         if !keyframes.isEmpty { fields.append(.bytes(10, keyframeList(keyframes))) }
         return protobuf(fields)
