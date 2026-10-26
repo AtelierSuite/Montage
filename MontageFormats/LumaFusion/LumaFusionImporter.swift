@@ -67,36 +67,33 @@ protocol LumaFusionProjectDecoder: Sendable {
 
 /// Reads LumaFusion project packages.
 ///
-/// Projects saved by a version of LumaFusion a decoder supports are read by
-/// it, onto the same intermediate project as FCPXML, sharing the import
-/// report and media gathering. Until a decoder has been written against real
-/// packages there are none, so a package is read from the FCPXML it carries,
-/// if any, or else refused with a message pointing to LumaFusion's FCPXML
+/// A package that carries an FCPXML document, as LumaFusion's zipped FCPXML
+/// export does, is read from that, through the FCPXML importer. Otherwise
+/// its own project file is read, by the decoder for the version of
+/// LumaFusion that saved it, onto the same intermediate project as FCPXML,
+/// sharing the import report and media gathering. A project file no decoder
+/// can read is refused with a message pointing to LumaFusion's FCPXML
 /// export.
 enum LumaFusionImporter {
-    /// The decoders, one for each range of LumaFusion versions tested.
-    static let decoders: [any LumaFusionProjectDecoder] = []
+    /// The decoders, one for each layout of LumaFusion's project file.
+    static let decoders: [any LumaFusionProjectDecoder] = [LumaFusionNativeDecoder()]
 
     /// Largest project file read: a project's JSON, not its media.
     static let projectFileLimit = 256 * 1024 * 1024
 
     /// Reads an unpacked package's project.
     static func read(_ package: LumaFusionPackage, decoders: [any LumaFusionProjectDecoder] = decoders) throws -> ImportedProject {
-        var projectFile: LumaFusionProjectFile?
-        if let url = package.projectFile {
-            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            guard size <= projectFileLimit else { throw LumaFusionError.damaged }
-            let file = try LumaFusionProjectFile(data: Data(contentsOf: url))
-            if let version = file.appVersion, let decoder = decoders.first(where: { $0.supports(appVersion: version) }) {
-                return try decoder.decode(file, in: package)
-            }
-            projectFile = file
-        }
         if let fcpxml = package.fcpxmlFile {
             return try ProjectInterchange.read(contentsOf: fcpxml)
         }
-        if let projectFile { throw LumaFusionError.unsupportedVersion(projectFile.appVersion) }
-        throw LumaFusionError.noProject
+        guard let url = package.projectFile else { throw LumaFusionError.noProject }
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        guard size <= projectFileLimit else { throw LumaFusionError.damaged }
+        let file = try LumaFusionProjectFile(data: Data(contentsOf: url))
+        guard let version = file.appVersion, let decoder = decoders.first(where: { $0.supports(appVersion: version) }) else {
+            throw LumaFusionError.unsupportedVersion(file.appVersion)
+        }
+        return try decoder.decode(file, in: package)
     }
 }
 

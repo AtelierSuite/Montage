@@ -3,9 +3,8 @@ import MontageEngine
 @testable import MontageFormats
 import Testing
 
-/// LumaFusion packages made at test time. There are no real ones to test
-/// against yet: these follow what's known of the format, a ZIP archive of a
-/// JSON `*.lfarchive` and the media it uses.
+/// LumaFusion packages made at test time, laid out as real ones are: a ZIP
+/// archive of a JSON `*.lfarchive` and the media it uses.
 struct LumaFusionImportTests {
     private static func projectFile(version: String?) -> String {
         let attributes = version.map { #"{"appVersion":"\#($0)"}"# } ?? "{}"
@@ -76,11 +75,12 @@ struct LumaFusionImportTests {
         #expect(!ProjectInterchange.isLumaFusionPackage(xml))
     }
 
-    @Test func refusesVersionsItHasntBeenTestedWith() throws {
+    @Test func refusesProjectsItCantRead() throws {
         let folder = try TestZip.temporaryFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
-        let package = try Self.unpack([TestZip.File("Holiday.lfarchive", Self.projectFile(version: "5.5.2"))], in: folder)
-        #expect(throws: LumaFusionError.unsupportedVersion("5.5.2")) { try LumaFusionImporter.read(package) }
+        // Laid out as no version of LumaFusion this was written against.
+        let package = try Self.unpack([TestZip.File("Holiday.lfarchive", #"{"attributes":{"appVersion":"9.0"}}"#)], in: folder)
+        #expect(throws: LumaFusionError.unsupportedVersion("9.0")) { try LumaFusionImporter.read(package) }
 
         let unknown = try Self.unpack(
             [TestZip.File("Holiday.lfarchive", Self.projectFile(version: nil))], in: folder, name: "Unknown.lfz"
@@ -120,6 +120,53 @@ struct LumaFusionImportTests {
         let imported = try LumaFusionImporter.read(package)
         #expect(imported.name == "Holiday")
         #expect(imported.project.media.map(\.name) == ["Clip.mov"])
+    }
+
+    /// The FCPXML document's timeline as LumaFusion's own project file.
+    private static func nativeProject() throws -> Data {
+        try LumaFusionFixture.project([
+            LumaFusionFixture.track(type: 0, offset: 0, anchor: true, [.init(file: "Clip.mov", start: 0, duration: 3000)]),
+        ], resolution: [1920, 1080], step: LumaFusionFixture.time(1001, 30000))
+    }
+
+    @Test func readsItsOwnProjectWithoutFCPXML() throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let package = try Self.unpack([
+            TestZip.File("Holiday.lfarchive", try Self.nativeProject(), deflated: true),
+            TestZip.File("Clip.mov", Data(repeating: 1, count: 1000)),
+        ], in: folder)
+        let imported = try LumaFusionImporter.read(package)
+        #expect(imported.report.format == .lumaFusion)
+        #expect(imported.name == "Holiday")
+        #expect(imported.project.media.map(\.name) == ["Clip.mov"])
+        #expect(imported.project.tracks.flatMap(\.clips).count == 1)
+    }
+
+    /// Where a package carries both, the FCPXML is read, and LumaFusion's
+    /// own project file comes out the same.
+    @Test func crossChecksItsOwnProjectAgainstFCPXML() throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let package = try Self.unpack([
+            TestZip.File("Holiday.lfarchive", try Self.nativeProject()),
+            TestZip.File("Holiday.fcpxml", Self.fcpxml),
+        ], in: folder)
+        let fromFCPXML = try LumaFusionImporter.read(package)
+        #expect(fromFCPXML.report.format == .fcpxml)
+        let native = try LumaFusionTimelineReader.read(try Self.nativeProject(), appVersion: "2.6.0")
+
+        func summary(_ imported: ImportedProject) -> [String] {
+            imported.project.tracks.flatMap { track in
+                track.clips.map { clip in
+                    "\(track.kind) \(imported.project.mediaItem(id: clip.mediaID)?.name ?? "") \(clip.timelineStart.seconds) "
+                        + "\(clip.sourceRange.start.seconds) \(clip.duration.seconds)"
+                }
+            }
+        }
+        #expect(summary(native) == summary(fromFCPXML))
+        #expect(native.name == fromFCPXML.name)
+        #expect(native.project.settings == fromFCPXML.project.settings)
     }
 
     @Test func refusesMalformedPackages() throws {
@@ -168,6 +215,30 @@ struct LumaFusionImportTests {
         let staged = try #require(store.resolver.url(for: item))
         #expect(try Data(contentsOf: staged) == clip)
         #expect(item.kind == .video)
+    }
+
+    @Test(.enabled(if: Samples.isAvailable))
+    func copiesInTheMediaItsOwnProjectUses() async throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let clip = try Data(contentsOf: Samples.url("IMG_1805.MOV"))
+        // As LumaFusion stores it: beside the project file, named in its
+        // media map.
+        let project = try LumaFusionFixture.project([
+            LumaFusionFixture.track(type: 0, offset: 0, anchor: true, [.init(file: "Clip.mov", start: 0, duration: 600)]),
+        ], mediaMap: ["IMG_1805.MOV": LumaFusionFixture.assetID("Clip.mov")])
+        let url = try TestZip.write([
+            TestZip.File("Holiday.lfarchive", project, deflated: true),
+            TestZip.File("IMG_1805.MOV", clip, deflated: true),
+        ], named: "Holiday.lfpackage", in: folder)
+
+        let store = PackageMediaStore()
+        let imported = try await ProjectInterchange.importLumaFusionPackage(at: url, into: store)
+        #expect(imported.issues(.missingMedia).isEmpty)
+        let item = try #require(imported.project.media.first)
+        #expect(item.name == "IMG_1805.MOV")
+        #expect(item.kind == .video)
+        #expect(try Data(contentsOf: try #require(store.resolver.url(for: item))) == clip)
     }
 
     @Test func leavesMediaThePackageLacksReadyToRelink() async throws {
