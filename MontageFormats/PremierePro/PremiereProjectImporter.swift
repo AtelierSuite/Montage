@@ -383,12 +383,16 @@ struct PremiereProjectImporter {
                 guard component.isEnabled, !bypassed, let level = number("Level") else { continue }
                 clip.volume = level.mapped { max(0, $0 / Self.unityLevel) }
             } else if !component.isVideo, lowerName == "panner" || lowerName == "pan" || lowerMatch.contains("panner") {
-                // Which way the balance runs isn't known: no public project
-                // has a clip panned off centre, and the track mixer's
-                // Balance is flagged inverted. So it's only reported.
-                if let balance = number("Balance") ?? number("Pan"), balance.isAnimated || abs(balance.value - 0.5) > 0.0001 {
-                    report.add(.setting(name: "Pan"), clipName: clipName, time: clip.timelineStart)
-                }
+                // Mono clips' Pan and stereo clips' Balance run from 0, full
+                // left, through 0.5, centred, to 1, full right, as a mixed
+                // feature's levels show, whatever `IsInverted` says: that's
+                // only how the timeline draws its rubber band.
+                let bypassed = component.parameter("Bypass").flatMap { PremiereKeyframes.value(of: $0) } == "true"
+                guard let balance = number("Balance") ?? number("Pan"),
+                      balance.isAnimated || abs(balance.value - 0.5) > 0.0001 else { continue }
+                var pan = Pan()
+                pan.position = balance.mapped { max(-1, min(1, 2 * $0 - 1)) }
+                clip.effects.append(Effect(isEnabled: component.isEnabled && !bypassed, .pan(pan)))
             } else if !component.isVideo, lowerName.contains("channel volume") || lowerMatch.contains("channel volume") {
                 // Only the named channels: Premiere 24 and later write
                 // unnamed ones beyond a stereo clip's two, some at zero.

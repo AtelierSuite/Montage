@@ -202,8 +202,49 @@ struct PremiereProjectImportTests {
         // The disabled clip, and the one on the muted track.
         #expect(notImported.filter { $0 == .disabledClip }.count == 2)
         #expect(notImported.contains(.generator(name: "Graphic")))
-        #expect(notImported.contains(.setting(name: "Pan")))
+        #expect(!notImported.contains(.setting(name: "Pan")))
         #expect(!notImported.contains(.setting(name: "Anchor point")))
+    }
+
+    private static func pans(_ clip: Clip) -> [Pan] {
+        clip.effects.compactMap { effect in
+            if case .pan(let pan) = effect.kind { pan } else { nil }
+        }
+    }
+
+    @Test func bringsInAStereoClipsBalance() throws {
+        // 0 is full left, 0.5 centred and 1 full right: 0.75 is halfway right.
+        let music = try #require(imported.clip("Music.wav", on: .audio)).clip
+        #expect(Self.pans(music).map(\.position) == [Animatable(0.5)])
+    }
+
+    @Test func bringsInAMonoClipsPan() throws {
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: "<Name>Balance</Name>", with: "<Name>Pan</Name>")
+            .replacingOccurrences(of: "-91445760000000000,0.75,", with: "-91445760000000000,0.25,")
+            .replacingOccurrences(of: "<CurrentValue>0.75</CurrentValue>", with: "<CurrentValue>0.25</CurrentValue>")
+        let music = try #require(try PremiereFixtures.read(xml).clip("Music.wav", on: .audio)).clip
+        #expect(Self.pans(music).map(\.position) == [Animatable(-0.5)])
+    }
+
+    @Test func leavesACentredClipUnpanned() throws {
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: "-91445760000000000,0.75,", with: "-91445760000000000,0.5,")
+        let music = try #require(try PremiereFixtures.read(xml).clip("Music.wav", on: .audio)).clip
+        #expect(Self.pans(music).isEmpty)
+    }
+
+    @Test func keepsABalancesKeyframes() throws {
+        // Full left 1s into the media, linear to full right at 3s.
+        let xml = PremiereFixtures.xml.replacingOccurrences(
+            of: "<CurrentValue>0.75</CurrentValue>",
+            with: "<CurrentValue>0.75</CurrentValue>\n\t\t<Keyframes>254016000000,0.,0,0,0,0,0,0;762048000000,1.,0,0,0,0,0,0;</Keyframes>"
+        )
+        let music = try #require(try PremiereFixtures.read(xml).clip("Music.wav", on: .audio)).clip
+        let position = try #require(Self.pans(music).first).position
+        #expect(position.keyframes.map(\.time) == [seconds(1), seconds(3)])
+        #expect(position.keyframes.map(\.value) == [-1, 1])
+        #expect(abs(position.value(at: seconds(2))) < 0.0001)
     }
 
     @Test func readsTheSameProjectUncompressed() throws {
