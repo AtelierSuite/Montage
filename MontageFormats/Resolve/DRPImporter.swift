@@ -56,6 +56,7 @@ struct DRPImporter {
     private var markerBlobs: [String: String] = [:]
     /// Audio clips made part of a picture's clip, by ID.
     private var mergedAudio: Set<String> = []
+    private var reportedMulticam = false
 
     static func read(_ data: Data, baseURL: URL?) throws -> ImportedProject {
         let archive: ZipArchive
@@ -348,9 +349,18 @@ struct DRPImporter {
         }
     }
 
-    private mutating func importTracks(of sequenceID: String, placement: Placement, lane: Int, visiting: Set<String>) {
-        let sequenceTracks = tracks[sequenceID] ?? []
-        let audioItems = sequenceTracks.filter { $0.kind == .audio }.flatMap { Self.items(of: $0.element) }
+    /// A sequence's tracks, or for a multicam clip only the track of the
+    /// angle it shows, of the kind of clip it is.
+    private mutating func importTracks(
+        of sequenceID: String, placement: Placement, lane: Int, visiting: Set<String>,
+        angle: (kind: ResolveTrack.Kind, id: String)? = nil
+    ) {
+        var sequenceTracks = tracks[sequenceID] ?? []
+        if let angle {
+            sequenceTracks = sequenceTracks.filter { $0.kind == angle.kind && Self.angleID(of: $0.element) == angle.id }
+        }
+        // An angle's picture plays without its sound, which is an angle of its own.
+        let audioItems = angle != nil ? [] : sequenceTracks.filter { $0.kind == .audio }.flatMap { Self.items(of: $0.element) }
         var videoIndex = 0, audioIndex = 0
         for track in sequenceTracks {
             let trackLane: Int
@@ -431,7 +441,25 @@ struct DRPImporter {
             return
         }
         if poolItem?.element == "Sm2MpMulticamClip" {
-            report.add(.setting(name: "Multicam clip"), clipName: name, time: timelineStart)
+            // The angle it shows, named in its FieldsBlob as the angle's track
+            // names it in the multicam clip's own sequence.
+            if let poolItem, let inner = poolItem.sequenceID, !visiting.contains(inner), track != .subtitle,
+               let angle = item.child("FieldsBlob").flatMap({ ResolveBlobs.hex($0.text) }).flatMap(ResolveBlobs.multicamAngle(fromFieldsBlob:)),
+               (tracks[inner] ?? []).contains(where: { $0.kind == track && Self.angleID(of: $0.element) == angle }) {
+                let rate = sequences[inner].flatMap(Self.frameRate)
+                let nested = Placement(
+                    base: timelineStart, origin: startFrame(of: inner, fps: rate ?? 24) + (inPoint ?? 0),
+                    frameDuration: rate.map(Self.frameDuration) ?? placement.frameDuration, window: window
+                )
+                importTracks(of: inner, placement: nested, lane: lane, visiting: visiting.union([inner]), angle: (track, angle))
+                if !reportedMulticam {
+                    report.add(.setting(name: "Multicam angles other than the one each clip shows"))
+                    reportedMulticam = true
+                }
+                if Self.hasSettings(item) { report.add(.nestedSettings, clipName: name, time: timelineStart) }
+            } else {
+                report.add(.setting(name: "Multicam clip"), clipName: name, time: timelineStart)
+            }
             return
         }
 
@@ -517,6 +545,11 @@ struct DRPImporter {
                 isVideo: effect.isVideo, parameters: [], original: nil
             ))))
         }
+    }
+
+    /// The angle a track of a multicam clip's sequence holds.
+    private static func angleID(of track: MarkupElement) -> String? {
+        track.child("FieldsBlob").flatMap { ResolveBlobs.hex($0.text) }.flatMap(ResolveBlobs.angleID(fromTrackFieldsBlob:))
     }
 
     /// Whether a clip has any Inspector setting or effect, which a compound

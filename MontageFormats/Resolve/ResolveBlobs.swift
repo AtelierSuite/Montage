@@ -229,6 +229,21 @@ enum ResolveBlobs {
         return markers
     }
 
+    /// The angle a multicam clip on a timeline shows, from its `FieldsBlob`:
+    /// a message whose field 1 gives the angle's ID, such as "Camera 2", in
+    /// its field 3.
+    static func multicamAngle(fromFieldsBlob data: Data) -> String? {
+        guard let fields = try? protobuf(try message(data)),
+              let selection = fields.first(where: { $0.number == 1 })?.bytes else { return nil }
+        return (try? protobuf(selection))?.first { $0.number == 3 }?.text
+    }
+
+    /// The angle a track in a multicam clip's sequence holds: `AngleId` in
+    /// the keyed dictionary of its `FieldsBlob`.
+    static func angleID(fromTrackFieldsBlob data: Data) -> String? {
+        (try? keyedDictionary(data))?.first { $0.key == "AngleId" }?.value.string
+    }
+
     /// One of the filters in a clip's `EffectFiltersBA`: an Inspector group
     /// such as Transform or Composite, an audio group, or an effect.
     struct Filter: Equatable {

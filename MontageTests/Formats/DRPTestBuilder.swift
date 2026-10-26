@@ -25,7 +25,7 @@ struct DRPTestBuilder {
 
     // MARK: - Pieces
 
-    private func sequence(id: String, start: Double) -> String {
+    func sequence(id: String, start: Double) -> String {
         """
         <Sm2Sequence DbId="\(id)"><FieldsBlob/><UniqueSequenceId>\(id)</UniqueSequenceId>\
         <MediaExtents>\(hex(ResolveBlobWriter.extents(start: start, duration: 10)))</MediaExtents>\
@@ -87,19 +87,21 @@ struct DRPTestBuilder {
 
     static func item(
         _ tag: String, id: String, start: Int, duration: Int, inPoint: String? = nil, media: String? = nil,
-        name: String = "", extra: String = ""
+        name: String = "", extra: String = "", fieldsBlob: Data? = nil
     ) -> String {
         let inElement = inPoint.map { $0.isEmpty ? "<In/>" : "<In>\($0)</In>" } ?? ""
         let mediaElement = media.map { "<MediaRef>\($0)</MediaRef>" } ?? ""
         return """
-            <Element><\(tag) DbId="\(id)"><FieldsBlob/><Name>\(name)</Name><Start>\(start)</Start>\
+            <Element><\(tag) DbId="\(id)">\(fieldsBlob.map { "<FieldsBlob>\(ResolveBlobWriter.hex($0))</FieldsBlob>" } ?? "<FieldsBlob/>")<Name>\(name)</Name><Start>\(start)</Start>\
             <Duration>\(duration)</Duration>\(inElement)\(mediaElement)\(extra)</\(tag)></Element>
             """
     }
 
-    static func track(_ type: Int, sequence: String, items: [String]) -> String {
-        """
-        <Element><Sm2TiTrack DbId="track-\(UUID().uuidString)"><FieldsBlob/><Type>\(type)</Type><SubType>0</SubType>\
+    /// A track; in a multicam clip's sequence, holding the angle `angle`.
+    static func track(_ type: Int, sequence: String, items: [String], angle: String? = nil) -> String {
+        let fields = angle.map { "<FieldsBlob>\(ResolveBlobWriter.hex(ResolveBlobWriter.keyedDictionary([("AngleId", .string($0))])))</FieldsBlob>" }
+        return """
+        <Element><Sm2TiTrack DbId="track-\(UUID().uuidString)">\(fields ?? "<FieldsBlob/>")<Type>\(type)</Type><SubType>0</SubType>\
         <Flags>0</Flags><Sequence>\(sequence)</Sequence><Items>\(items.joined())</Items></Sm2TiTrack></Element>
         """
     }

@@ -255,3 +255,84 @@ struct DRPClipSettingsTests {
         #expect(plain.effects.isEmpty && plain.opacity == Animatable(1))
     }
 }
+
+/// Multicam clips on a timeline, in the shape the Editor's Guide's
+/// multicam lessons have them, built at test time.
+struct DRPMulticamTests {
+    private typealias Writer = ResolveBlobWriter
+
+    private func frames(_ count: Int64) -> CMTime {
+        CMTime(value: count, timescale: 24)
+    }
+
+    /// A multicam clip's `FieldsBlob`, naming the angle it shows.
+    private func showing(_ angle: String) -> Data {
+        Writer.envelope(Writer.protobuf([.bytes(1, Writer.protobuf([.text(3, angle), .varint(4, 1)]))]), version: 2)
+    }
+
+    private func imported() throws -> ImportedProject {
+        var builder = DRPTestBuilder()
+        builder.overrides["MediaPool/Master/Multicam/MpFolder.xml"] = #"<?xml version="1.0" encoding="UTF-8"?>"# + """
+            <Sm2MpFolder DbId="bin-multicam"><Name>Multicam</Name><MpFolder>bin-master</MpFolder><MediaVec>\
+            <Element><Sm2MpMulticamClip DbId="media-multicam"><Name>Interview</Name><MpFolder>bin-multicam</MpFolder>\
+            <Sequence>\(builder.sequence(id: "seq-multicam", start: 3600))</Sequence></Sm2MpMulticamClip></Element>\
+            </MediaVec></Sm2MpFolder>
+            """
+        // Angle tracks in the order Resolve keeps them, which needn't be
+        // the order of their IDs.
+        builder.overrides["SeqContainer/7c01b1d9-multicam.xml"] = DRPTestBuilder.container(id: "container-multicam", video: [
+            DRPTestBuilder.track(0, sequence: "seq-multicam", items: [
+                DRPTestBuilder.item("Sm2TiVideoClip", id: "angle-2", start: 86410, duration: 400, inPoint: "100", media: "media-a001"),
+            ], angle: "Camera 2"),
+            DRPTestBuilder.track(0, sequence: "seq-multicam", items: [
+                DRPTestBuilder.item("Sm2TiVideoClip", id: "angle-1", start: 86400, duration: 400, inPoint: "", media: "media-a001"),
+            ], angle: "Camera 1"),
+        ], audio: [
+            DRPTestBuilder.track(1, sequence: "seq-multicam", items: [
+                DRPTestBuilder.item("Sm2TiAudioClip", id: "angle-1-sound", start: 86400, duration: 400, inPoint: "", media: "media-a001"),
+            ], angle: "Camera 1"),
+            DRPTestBuilder.track(1, sequence: "seq-multicam", items: [
+                DRPTestBuilder.item("Sm2TiAudioClip", id: "angle-2-sound", start: 86400, duration: 400, inPoint: "", media: "media-music"),
+            ], angle: "Camera 2"),
+        ])
+        builder.overrides["SeqContainer/0b6f0e2c-edit.xml"] = DRPTestBuilder.container(id: "container-edit", video: [
+            DRPTestBuilder.track(0, sequence: "seq-edit", items: [
+                DRPTestBuilder.item("Sm2TiVideoClip", id: "cut-1", start: 86400, duration: 24, inPoint: "30",
+                                    media: "media-multicam", name: "Interview", fieldsBlob: showing("Camera 2")),
+                DRPTestBuilder.item("Sm2TiVideoClip", id: "cut-2", start: 86424, duration: 24, inPoint: "54",
+                                    media: "media-multicam", name: "Interview", fieldsBlob: showing("Camera 1")),
+                DRPTestBuilder.item("Sm2TiVideoClip", id: "cut-3", start: 86448, duration: 24, inPoint: "78",
+                                    media: "media-multicam", name: "Interview", fieldsBlob: showing("Camera 9")),
+            ]),
+        ], audio: [
+            DRPTestBuilder.track(1, sequence: "seq-edit", items: [
+                DRPTestBuilder.item("Sm2TiAudioClip", id: "cut-sound", start: 86400, duration: 48, inPoint: "30",
+                                    media: "media-multicam", name: "Interview", fieldsBlob: showing("Camera 2")),
+            ]),
+        ])
+        return try DRPImporter.read(builder.archive(), baseURL: nil)
+    }
+
+    @Test func playsEachClipsAngleFromItsTrackInTheMulticamClip() throws {
+        let imported = try imported()
+        let video = imported.project.tracks.filter { $0.kind == .video }.flatMap(\.clips).sorted { $0.timelineStart < $1.timelineStart }
+        #expect(video.map(\.timelineStart) == [.zero, frames(24)])
+        // Angle 2 starts 10 frames into the multicam clip at frame 100 of
+        // its media; the cut starts 30 frames in.
+        #expect(video.map(\.sourceRange) == [
+            CMTimeRange(start: frames(120), duration: frames(24)), CMTimeRange(start: frames(54), duration: frames(24)),
+        ])
+        // The picture's sound is an angle of its own.
+        #expect(video.allSatisfy { $0.isAudioDetached })
+        let sound = try #require(imported.project.tracks.filter { $0.kind == .audio }.flatMap(\.clips).first)
+        #expect(imported.project.media.first { $0.id == sound.mediaID }?.name == "Music.wav")
+        #expect(sound.sourceRange == CMTimeRange(start: frames(30), duration: frames(48)))
+    }
+
+    @Test func reportsMulticamClipsOnceAndAnAngleThatIsntThere() throws {
+        let issues = try imported().report.items
+        #expect(issues.filter { $0.issue == .setting(name: "Multicam angles other than the one each clip shows") }.count == 1)
+        let unknown = issues.filter { $0.issue == .setting(name: "Multicam clip") }
+        #expect(unknown.count == 1 && unknown.first?.time == frames(48))
+    }
+}
