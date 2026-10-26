@@ -383,8 +383,9 @@ struct PremiereProjectImporter {
                 guard component.isEnabled, !bypassed, let level = number("Level") else { continue }
                 clip.volume = level.mapped { max(0, $0 / Self.unityLevel) }
             } else if !component.isVideo, lowerName == "panner" || lowerName == "pan" || lowerMatch.contains("panner") {
-                // Which way the balance runs isn't known well enough to
-                // bring it across, so only a pan that's off centre is told.
+                // Which way the balance runs isn't known: no public project
+                // has a clip panned off centre, and the track mixer's
+                // Balance is flagged inverted. So it's only reported.
                 if let balance = number("Balance") ?? number("Pan"), balance.isAnimated || abs(balance.value - 0.5) > 0.0001 {
                     report.add(.setting(name: "Pan"), clipName: clipName, time: clip.timelineStart)
                 }
