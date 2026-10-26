@@ -229,6 +229,115 @@ enum ResolveBlobs {
         return markers
     }
 
+    /// One of the filters in a clip's `EffectFiltersBA`: an Inspector group
+    /// such as Transform or Composite, an audio group, or an effect.
+    struct Filter: Equatable {
+        /// What kind of filter it is, such as 4 for Transform.
+        var type: Int
+        /// The parameters set away from their defaults, by number. An
+        /// Inspector group lists all its parameters, leaving those at
+        /// their defaults empty; those aren't kept.
+        var parameters: [Int: Parameter]
+        /// An Open FX effect's plugin, such as
+        /// `com.blackmagicdesign.resolvefx.dropshadow`.
+        var plugin: String?
+    }
+
+    struct Parameter: Equatable {
+        var value: Value?
+        var keyframes: [Keyframe]
+
+        var number: Double? {
+            switch value {
+            case .double(let value): value
+            case .integer(let value): Double(value)
+            default: nil
+            }
+        }
+    }
+
+    struct Keyframe: Equatable {
+        /// In the source's frames, counted as the clip's `In` is.
+        var frame: Int64
+        var value: Double
+    }
+
+    /// The filters in an `EffectFiltersBA`: an envelope holding a message
+    /// with a field 1 for each filter. A filter gives its type in field 1
+    /// and its parameters in field 9, each with its number in field 1, its
+    /// value in field 3 and its keyframes in field 10.
+    static func filters(_ data: Data) throws -> [Filter] {
+        var filters: [Filter] = []
+        for entry in try protobuf(try message(data)) where entry.number == 1 {
+            guard let entryBytes = entry.bytes else { throw Failure.malformed }
+            let fields = try protobuf(entryBytes)
+            guard let type = fields.first(where: { $0.number == 1 })?.varint else { throw Failure.malformed }
+            var filter = Filter(type: Int(clamping: type), parameters: [:])
+            for field in fields where field.number == 9 {
+                guard let bytes = field.bytes else { throw Failure.malformed }
+                guard !bytes.isEmpty else { continue }
+                let parts = try protobuf(bytes)
+                let number = Int(clamping: parts.first { $0.number == 1 }?.varint ?? 0)
+                var parameter = Parameter(value: nil, keyframes: [])
+                if let holder = parts.first(where: { $0.number == 3 })?.bytes {
+                    let held = try protobuf(holder)
+                    if let valueBytes = held.first(where: { $0.number == 1 })?.bytes {
+                        parameter.value = try filterValue(valueBytes)
+                    }
+                    // An Open FX effect's settings, which start with its plugin.
+                    if filter.plugin == nil, let effect = held.first(where: { $0.number == 2 })?.bytes {
+                        filter.plugin = (try? protobuf(effect))?.first { $0.number == 2 }?.text
+                    }
+                }
+                if let keyframes = parts.first(where: { $0.number == 10 })?.bytes {
+                    parameter.keyframes = try Self.keyframes(keyframes)
+                }
+                filter.parameters[number] = parameter
+            }
+            filters.append(filter)
+        }
+        return filters
+    }
+
+    /// A parameter's value: a double in field 2, a number in field 1, an
+    /// enumeration in field 4, a flag in field 5, or something else, such
+    /// as a pair of numbers, as bytes.
+    private static func filterValue(_ data: Data) throws -> Value? {
+        guard let field = try protobuf(data).first else { return nil }
+        switch field.number {
+        case 2:
+            guard let bytes = field.bytes, bytes.count == 8, let bits: UInt64 = bytes.littleEndianInteger(at: 0)
+            else { throw Failure.malformed }
+            return .double(Double(bitPattern: bits))
+        case 1, 4: return field.varint.map { .integer(Int64(bitPattern: $0)) }
+        case 5: return field.varint.map { .bool($0 != 0) }
+        default: return field.bytes.map(Value.bytes) ?? .other
+        }
+    }
+
+    /// A parameter's keyframes: a big-endian count of the bytes that
+    /// follow, negated, then a record for each keyframe. A record is the
+    /// frame in six little-endian bytes, two bytes of flags and the value
+    /// as a little-endian double, and when the lowest flag is set, as it is
+    /// on a curved keyframe, 48 bytes of curve handles, which aren't read.
+    static func keyframes(_ data: Data) throws -> [Keyframe] {
+        var reader = ByteReader(data)
+        let length = Int64(Int32(bitPattern: try reader.uint32()))
+        guard -length == Int64(data.count - 4) else { throw Failure.malformed }
+        var keyframes: [Keyframe] = []
+        while !reader.isAtEnd {
+            let record = try reader.bytes(16)
+            var frame: Int64 = 0
+            for index in 0..<6 { frame |= Int64(record[record.startIndex + index]) << (8 * index) }
+            frame = (frame << 16) >> 16
+            let flags = Int(record[record.startIndex + 6]) | Int(record[record.startIndex + 7]) << 8
+            guard let bits: UInt64 = record.littleEndianInteger(at: 8) else { throw Failure.malformed }
+            keyframes.append(Keyframe(frame: frame, value: Double(bitPattern: bits)))
+            if flags & 1 != 0 { try reader.skip(48) }
+        }
+        return keyframes
+    }
+
     // MARK: - Reading
 
     struct ByteReader {

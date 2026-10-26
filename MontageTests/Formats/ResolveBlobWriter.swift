@@ -77,6 +77,7 @@ enum ResolveBlobWriter {
         case varint(Int, UInt64)
         case bytes(Int, Data)
         case text(Int, String)
+        case double(Int, Double)
     }
 
     static func protobuf(_ fields: [Field]) -> Data {
@@ -94,6 +95,9 @@ enum ResolveBlobWriter {
                 varint(UInt64(number << 3 | 2), into: &data)
                 varint(UInt64(text.utf8.count), into: &data)
                 data.append(Data(text.utf8))
+            case .double(let number, let value):
+                varint(UInt64(number << 3 | 1), into: &data)
+                data.appendDRP(littleEndian: value.bitPattern)
             }
         }
         return data
@@ -140,6 +144,78 @@ enum ResolveBlobWriter {
         data.append(0x81)
         data.append(frame)
         return data
+    }
+
+    // MARK: - Clip settings
+
+    /// A parameter's value, as a filter's parameter holds it.
+    enum FilterValue {
+        case double(Double)
+        case enumeration(UInt64)
+        case pair(Double, Double)
+    }
+
+    struct FilterKeyframe {
+        var frame: Int64
+        var value: Double
+        /// Curved keyframes carry 48 bytes of handles.
+        var curved = false
+    }
+
+    /// A parameter of a filter: its number in field 1, its value in field 3
+    /// and its keyframes in field 10.
+    static func parameter(_ number: Int, _ value: FilterValue? = nil, keyframes: [FilterKeyframe] = []) -> Data {
+        var fields: [Field] = [.varint(1, UInt64(number))]
+        if let value {
+            let inner: Field
+            switch value {
+            case .double(let value): inner = .double(2, value)
+            case .enumeration(let value): inner = .varint(4, value)
+            case .pair(let first, let second):
+                var bytes = Data()
+                bytes.appendDRP(bigEndian: first.bitPattern)
+                bytes.appendDRP(bigEndian: second.bitPattern)
+                inner = .bytes(7, bytes)
+            }
+            fields.append(.bytes(3, protobuf([.bytes(1, protobuf([inner]))])))
+        }
+        if !keyframes.isEmpty { fields.append(.bytes(10, keyframeList(keyframes))) }
+        return protobuf(fields)
+    }
+
+    /// Keyframes as a parameter's field 10 holds them.
+    static func keyframeList(_ keyframes: [FilterKeyframe]) -> Data {
+        var records = Data()
+        for keyframe in keyframes {
+            let frame = UInt64(bitPattern: keyframe.frame)
+            for index in 0..<6 { records.append(UInt8((frame >> (8 * index)) & 0xFF)) }
+            records.append(keyframe.curved ? 0x0D : 0x0C)
+            records.append(0)
+            records.appendDRP(littleEndian: keyframe.value.bitPattern)
+            if keyframe.curved { records.append(Data(repeating: 0x11, count: 48)) }
+        }
+        var data = Data()
+        data.appendDRP(bigEndian: UInt32(bitPattern: -Int32(records.count)))
+        data.append(records)
+        return data
+    }
+
+    /// A filter: its type in field 1 and a field 9 for each of its
+    /// parameters, empty for those at their defaults.
+    static func filter(_ type: Int, _ parameters: [Data?]) -> Data {
+        protobuf([.varint(1, UInt64(type)), .varint(7, 2)] + parameters.map { .bytes(9, $0 ?? Data()) })
+    }
+
+    /// An Open FX effect, which names its plugin.
+    static func openFX(_ plugin: String) -> Data {
+        let settings = protobuf([.varint(1, 5195353), .text(2, plugin), .text(3, "OfxImageEffectContextFilter")])
+        let parameter = protobuf([.varint(1, 109), .varint(2, 0), .bytes(3, protobuf([.bytes(2, settings)]))])
+        return protobuf([.varint(1, 50), .varint(3, 4), .varint(7, 20), .bytes(9, parameter)])
+    }
+
+    /// A clip's `EffectFiltersBA`.
+    static func effectFilters(_ filters: [Data], zstd: Bool = true) -> Data {
+        envelope(protobuf(filters.map { .bytes(1, $0) }), version: 2, zstd: zstd)
     }
 
     /// A media pool clip's `Clip` value, naming its file.
