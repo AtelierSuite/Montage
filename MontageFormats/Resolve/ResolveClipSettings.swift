@@ -10,9 +10,11 @@ import MontageEngine
 /// worked out from Blackmagic's training projects, against the values their
 /// books give (see issue #61):
 ///
-/// - Transform (filter 4): Zoom X and Y (42, 43), 1 fitting the frame, and
+/// - Transform (filter 4): Zoom X and Y (42, 43), 1 fitting the frame,
 ///   Position X and Y (40, 41) as fractions of the timeline's width and
-///   height, from its centre, up being positive.
+///   height, from its centre, up being positive, and Rotation Angle (47)
+///   in degrees, anticlockwise being positive. Whether the zoom is linked
+///   is 44 and the anchor point 48.
 /// - Composite (2): the composite mode (0) and the opacity in percent (1).
 /// - Cropping (6), Retime and Scaling (44), Dynamic Zoom (118).
 /// - The fade handles of a picture (72: 137 in, 138 out) and of a sound
@@ -100,7 +102,17 @@ enum ResolveClipSettings {
                 if x != nil || y != nil {
                     clip.transform.position = position(x: x ?? Animatable(0), y: y ?? Animatable(0))
                 }
-                if !parameters.isEmpty { notes.append(.setting("Rotation, anchor point, pitch, yaw or flip")) }
+                // Rotation Angle, in degrees anticlockwise, which Montage
+                // turns clockwise. The sign comes from pr2resolve and
+                // vidcut, two tools checked against Resolve's projects and
+                // renders, rather than from a render of Montage's own.
+                if let rotation = animatable(parameters.removeValue(forKey: 47), default: 0) {
+                    clip.transform.rotation = rotation.mapped { $0 == 0 ? 0 : -$0 }
+                }
+                // Whether Zoom X and Y are linked, which uneven zoom reports.
+                parameters[44] = nil
+                if parameters.removeValue(forKey: 48) != nil { notes.append(.setting("Anchor point")) }
+                if !parameters.isEmpty { notes.append(.setting("Pitch, yaw or flip")) }
             case Filter.composite where isVideo:
                 if let opacity = animatable(parameters.removeValue(forKey: 1), default: 100) {
                     clip.opacity = opacity.mapped { min(1, max(0, $0 / 100)) }

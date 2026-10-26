@@ -140,7 +140,38 @@ struct DRPClipSettingsTests {
             ]),
         ], to: &clip)
         #expect(clip.transform.scale == Animatable(2))
-        #expect(notes == [.uneven("Zoom"), .setting("Rotation, anchor point, pitch, yaw or flip")])
+        #expect(notes == [.uneven("Zoom"), .setting("Anchor point")])
+
+        // The zoom unlinked (44) says nothing more; a flip (50) is reported.
+        var flipped = self.clip()
+        let flipNotes = try apply([
+            Writer.filter(4, [nil, nil, Writer.parameter(44, .flag(false)), nil, nil, nil, nil, nil, nil, nil,
+                              Writer.parameter(50, .flag(true))]),
+        ], to: &flipped)
+        #expect(flipNotes == [.setting("Pitch, yaw or flip")])
+    }
+
+    /// Rotation Angle turns anticlockwise, as Swaraj's projects turn
+    /// landscape gameplay by -90 to stand it up; Montage turns clockwise.
+    @Test func readsRotationTurningTheOtherWay() throws {
+        var clip = clip()
+        let notes = try apply([
+            Writer.filter(4, [nil, nil, nil, nil, nil, Writer.parameter(47, .double(-90))]),
+        ], to: &clip)
+        #expect(notes.isEmpty)
+        #expect(clip.transform.rotation == Animatable(90))
+
+        // Keyframed from the clip's in point, as umbrella.png's is.
+        var keyed = self.clip()
+        _ = try apply([
+            Writer.filter(4, [
+                nil, nil, nil, nil, nil,
+                Writer.parameter(47, keyframes: [.init(frame: 24, value: 0), .init(frame: 60, value: 30.5, curved: true)]),
+            ]),
+        ], to: &keyed)
+        #expect(keyed.transform.rotation.keyframes.map(\.time) == [.zero, frames(36)])
+        #expect(keyed.transform.rotation.keyframes.map(\.value) == [0, -30.5])
+        #expect(keyed.transform.rotation.value == 0)
     }
 
     @Test func readsOpacityAndCompositeMode() throws {

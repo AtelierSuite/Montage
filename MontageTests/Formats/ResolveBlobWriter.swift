@@ -154,6 +154,7 @@ enum ResolveBlobWriter {
         case enumeration(UInt64)
         /// A number, as it's stored: zigzag encoded.
         case integer(UInt64)
+        case flag(Bool)
         case pair(Double, Double)
     }
 
@@ -174,6 +175,7 @@ enum ResolveBlobWriter {
             case .double(let value): inner = .double(2, value)
             case .enumeration(let value): inner = .varint(4, value)
             case .integer(let value): inner = .varint(1, value)
+            case .flag(let value): inner = .varint(5, value ? 1 : 0)
             case .pair(let first, let second):
                 var bytes = Data()
                 bytes.appendDRP(bigEndian: first.bitPattern)
