@@ -526,6 +526,52 @@ struct PremiereRealProjectRegressionTests {
         #expect(abs(1 / PremiereProjectImporter.unityLevel - pow(10, 15.0 / 20)) < 0.000001)
     }
 
+    /// Interview.mov's motion changed, and its picture's size: the
+    /// fixture's is 3840×2160 at 50%, at 0.25:0.5, turned 90°.
+    private func motion(
+        size: String? = nil, position: String? = nil, positionKeyframes: String? = nil, scale: String? = nil,
+        rotation: String? = nil, rotationKeyframes: String? = nil, anchor: String? = nil
+    ) -> String {
+        var xml = PremiereFixtures.xml
+        func change(_ old: String, _ new: String?) {
+            guard let new else { return }
+            #expect(xml.components(separatedBy: old).count == 2, "\(old) isn't in the fixture once")
+            xml = xml.replacingOccurrences(of: old, with: new)
+        }
+        let start = "<StartKeyframe>-91445760000000000,"
+        change("<FrameRect>0,0,3840,2160</FrameRect>\n\t\t<Duration>", size.map { "<FrameRect>0,0,\($0)</FrameRect>\n\t\t<Duration>" })
+        change("\(start)0.25:0.5,", position.map { "\(start)\($0)," })
+        change("<Name>Scale</Name>\n\t\t<ParameterID>2</ParameterID>\n\t\t\(start)50.,",
+               scale.map { "<Name>Scale</Name>\n\t\t<ParameterID>2</ParameterID>\n\t\t\(start)\($0)," })
+        change("<Name>Rotation</Name>\n\t\t<ParameterID>5</ParameterID>\n\t\t\(start)90.,",
+               rotation.map { "<Name>Rotation</Name>\n\t\t<ParameterID>5</ParameterID>\n\t\t\(start)\($0)," })
+        change("\(start)0.5:0.5,0,0,0,0,0,0,0,0,0,0,0,0</StartKeyframe>",
+               anchor.map { "\(start)\($0),0,0,0,0,0,0,0,0,0,0,0,0</StartKeyframe>" })
+        if let positionKeyframes {
+            xml = xml.replacingOccurrences(of: #"(<Name>Position</Name>\s*<ParameterID>1</ParameterID>\s*<StartKeyframe>[^<]*</StartKeyframe>)"#,
+                                           with: "$1<Keyframes>\(positionKeyframes)</Keyframes>", options: .regularExpression)
+        }
+        if let rotationKeyframes {
+            xml = xml.replacingOccurrences(of: #"(<Name>Rotation</Name>\s*<ParameterID>5</ParameterID>\s*<StartKeyframe>[^<]*</StartKeyframe>)"#,
+                                           with: "$1<Keyframes>\(rotationKeyframes)</Keyframes>", options: .regularExpression)
+        }
+        return xml
+    }
+
+    private func isClose(_ point: CGPoint, _ x: Double, _ y: Double) -> Bool {
+        abs(point.x - x) < 0.000001 && abs(point.y - y) < 0.000001
+    }
+
+    @Test func placesAPictureNotTheFramesSizeInTheFrame() throws {
+        // A 2025 project's 3888×2592 stills, fitted to a 1080p sequence's
+        // height and moved right to x = 1450 px: written as 1450/1920, a
+        // fraction of the sequence's frame, not of the still.
+        let xml = motion(size: "3888,2592", position: "0.75520831346511841:0.5", scale: "41.666664123535", rotation: "0.")
+        let still = try #require(try PremiereFixtures.read(xml).clip("Interview.mov", on: .video)).clip
+        #expect(isClose(still.transform.position.value, 0.75520831346511841, 0.5))
+        #expect(abs(still.transform.scale.value - 1) < 0.00001)
+    }
+
     @Test func refusesAProjectWithClipsButNoSequence() {
         // Media in the bin and nothing on a timeline, as in a project only
         // imported into.

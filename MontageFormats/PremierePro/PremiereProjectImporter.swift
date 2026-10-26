@@ -436,9 +436,9 @@ struct PremiereProjectImporter {
             : String(localized: "PremiereProject.UnnamedAudioEffect", bundle: #bundle)
     }
 
-    /// Motion: the position as a fraction of the frame from its top left,
-    /// scale in percent of the media's own size, rotation clockwise in
-    /// degrees.
+    /// Motion: the position as a fraction of the sequence's frame from its
+    /// top left, scale in percent of the media's own size, rotation
+    /// clockwise in degrees.
     private mutating func applyMotion(
         _ component: Component, to clip: inout Clip, item: MediaItem, toClip: (Int64) -> CMTime, clipName: String
     ) {
@@ -460,6 +460,9 @@ struct PremiereProjectImporter {
             }
         }
         if let rotation = number("Rotation") { clip.transform.rotation = rotation }
+        // Position is where the anchor point lands, as a fraction of the
+        // sequence's frame whatever the media's size: a 2025 project has
+        // 3888×2592 stills in a 1080p sequence at x = 1450/1920.
         if let position = point("Position") { clip.transform.position = position }
         if let anchor = point("Anchor Point"), anchor.isAnimated || anchor.value != CGPoint(x: 0.5, y: 0.5) {
             report.add(.setting(name: "Anchor point"), clipName: clipName, time: clip.timelineStart)
