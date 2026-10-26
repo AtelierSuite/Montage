@@ -29,7 +29,7 @@ enum LumaFusionFixture {
         /// The timescale of `start`; the others are in 1/600 s.
         var startTimescale: Int64 = 600
         var sourceStart: Int64 = 0
-        /// 0 a video or sound file, 2 a photo, 4 a title.
+        /// 0 a video or sound file, 1 a sound file (iOS), 2 a photo, 4 a title.
         var assetType = 0
         var video = true
         var audio = true
@@ -234,6 +234,23 @@ struct LumaFusionTimelineTests {
         }
         #expect(summary(iOS) == summary(android))
         #expect(iOS.report.isEmpty)
+    }
+
+    @Test func importsSoundFilesAsAudio() throws {
+        // LumaFusion for iOS marks a sound file with `assetType` 1.
+        let imported = try Self.read(try Fixture.project([
+            Fixture.track(type: 0, offset: 0, anchor: true, [
+                .init(file: "Voiceover", start: 0, duration: 600, assetType: 1, video: false),
+            ], iOS: true),
+            Fixture.track(type: 1, offset: -1, [
+                .init(file: "Music.m4a", start: 0, duration: 2400, sourceStart: 600, assetType: 1, video: false),
+            ], iOS: true),
+        ]))
+        #expect(imported.project.media.map(\.kind) == [.audio, .audio])
+        #expect(imported.project.tracks.map(\.kind) == [.audio, .audio])
+        let music = try #require(imported.clip("Music.m4a"))
+        #expect(music.clip.sourceRange == CMTimeRange(start: Self.seconds(600), duration: Self.seconds(2400)))
+        #expect(imported.report.isEmpty)
     }
 
     @Test func takesMediaNamesFromThePackageThenTheClip() throws {

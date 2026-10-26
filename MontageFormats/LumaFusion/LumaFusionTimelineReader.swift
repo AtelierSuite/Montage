@@ -22,7 +22,9 @@ import UniformTypeIdentifiers
 ///   `trackDuration`, and `streams`: the picture (`mediaType` 0) and the
 ///   sound (`mediaType` 1) it plays from its file, each with its in point,
 ///   `sourceStart` (`sourceRange.start` on iOS), and its settings in
-///   `streamAttributes`. `assetType` is 0 for a video or sound file, 2 for a
+///   `streamAttributes`. LumaFusion for iOS writes a photo's picture as
+///   `mediaType` 2 and a title's as 3. `assetType` is 0 for a video file
+///   (or, on Android, a sound file), 1 for a sound file on iOS, 2 for a
 ///   photo and 4 for a title; `assetIsBlank` marks a gap.
 /// - A clip's file is named in `attributes`. `attributes.mediaMap` at the
 ///   top names each file as it's stored in the package, by asset ID.
@@ -166,7 +168,7 @@ struct LumaFusionTimelineReader {
 
         let assetType = Self.int(object["assetType"]) ?? 0
         switch assetType {
-        case 0, 2: break
+        case 0, 1, 2: break
         case 4:
             report.add(.title, clipName: name, time: start)
             return nil
@@ -183,7 +185,7 @@ struct LumaFusionTimelineReader {
         let picture = pictures.first { Self.int($0["assetTrackID"]) == videoTrackID } ?? pictures.first
         let sound = sounds.first { Self.int($0["assetTrackID"]) == audioTrackID } ?? sounds.first
 
-        let item = mediaItem(for: object, isPhoto: assetType == 2, picture: picture, sound: sound)
+        let item = mediaItem(for: object, assetType: assetType, picture: picture, sound: sound)
         let stream = picture ?? sound
         let sourceStart = item.kind == .image ? .zero
             : Self.time((stream?["sourceRange"] as? Object)?["start"]) ?? Self.time(stream?["sourceStart"]) ?? .zero
@@ -289,7 +291,7 @@ struct LumaFusionTimelineReader {
 
     // MARK: - Media
 
-    private mutating func mediaItem(for clip: Object, isPhoto: Bool, picture: Object?, sound: Object?) -> MediaItem {
+    private mutating func mediaItem(for clip: Object, assetType: Int, picture: Object?, sound: Object?) -> MediaItem {
         let attributes = clip["attributes"] as? Object ?? [:]
         let assetID = attributes["assetID"] as? String
         let original = attributes["originalFilename"] as? String ?? ""
@@ -304,8 +306,8 @@ struct LumaFusionTimelineReader {
         let source = original.hasPrefix("/") ? URL(fileURLWithPath: original) : nil
 
         let type = UTType(filenameExtension: (name as NSString).pathExtension)
-        let kind: MediaItem.Kind = if isPhoto || type?.conforms(to: .image) == true { .image }
-            else if type?.conforms(to: .audio) == true || (picture == nil && sound != nil) { .audio }
+        let kind: MediaItem.Kind = if assetType == 2 || type?.conforms(to: .image) == true { .image }
+            else if assetType == 1 || type?.conforms(to: .audio) == true || (picture == nil && sound != nil) { .audio }
             else { .video }
 
         var metadata = MediaMetadata(duration: kind == .image ? .zero : Self.time(clip["assetMaxDuration"]) ?? .zero)
