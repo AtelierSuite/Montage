@@ -205,7 +205,7 @@ struct DRPClipSettingsTests {
 
     // MARK: - Through the importer
 
-    @Test func importsSettingsWithLinkedSound() throws {
+    @Test func importsSettingsWithLinkedSoundAndReportsACompoundClipsOwn() throws {
         let transform = Writer.hex(Writer.effectFilters([
             Writer.filter(4, [Writer.parameter(42, .double(1.5)), Writer.parameter(43, .double(1.5)), nil, Writer.parameter(40, .double(0.25))]),
             Writer.filter(2, [nil, Writer.parameter(1, .double(50))]),
@@ -243,6 +243,7 @@ struct DRPClipSettingsTests {
         let inner = try #require(clips.first { $0.timelineStart == frames(48) })
         #expect(inner.transform.scale == Animatable(1))
         let issues = imported.report.items
+        #expect(issues.contains { $0.issue == .nestedSettings && $0.clipName == "Compound Clip 1" })
         #expect(!issues.contains {
             switch $0.issue {
             case .setting, .uneven, .unsupportedEffect: true

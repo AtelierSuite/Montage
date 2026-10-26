@@ -422,6 +422,7 @@ struct DRPImporter {
                 frameDuration: rate.map(Self.frameDuration) ?? placement.frameDuration, window: window
             )
             importTracks(of: inner, placement: nested, lane: lane, visiting: visiting.union([inner]))
+            if Self.hasSettings(item) { report.add(.nestedSettings, clipName: name, time: timelineStart) }
             return
         }
         if poolItem?.element == "Sm2MpMulticamClip" {
@@ -511,6 +512,14 @@ struct DRPImporter {
                 isVideo: effect.isVideo, parameters: [], original: nil
             ))))
         }
+    }
+
+    /// Whether a clip has any Inspector setting or effect, which a compound
+    /// clip's flattened contents don't take on.
+    private static func hasSettings(_ item: MarkupElement) -> Bool {
+        guard let text = item.child("EffectFiltersBA")?.text, !text.isEmpty else { return false }
+        guard let data = ResolveBlobs.hex(text), let filters = try? ResolveBlobs.filters(data) else { return true }
+        return filters.contains { !$0.parameters.isEmpty || $0.plugin != nil }
     }
 
     // MARK: - Media
