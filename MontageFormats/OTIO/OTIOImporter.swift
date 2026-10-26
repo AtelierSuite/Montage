@@ -293,7 +293,9 @@ struct OTIOImporter {
         clip.sourceRange = CMTimeRange(start: mediaStart, duration: range.duration)
         clip.timelineStart = timelineStart
         if saved == nil {
-            importEffects(of: item, to: &clip, isVideo: placement.kind == .video, clipName: clipName)
+            let picture = media.items.first { $0.id == content.mediaID }.map { Self.uprightSize(of: $0.metadata) }
+            importEffects(of: item, to: &clip, isVideo: placement.kind == .video, picture: picture ?? settings.renderSize,
+                          clipName: clipName)
         }
         importMarkers(of: item, placement: placement)
 
@@ -312,8 +314,9 @@ struct OTIOImporter {
     /// metadata, so only those whose metadata says what they do map onto
     /// Montage's: the clip settings Resolve writes as effects, and
     /// Kdenlive's fades. Changes of speed are reported, and anything else
-    /// is kept on the clip, turned off.
-    private mutating func importEffects(of item: Object, to clip: inout Clip, isVideo: Bool, clipName: String?) {
+    /// is kept on the clip, turned off. `picture` is the upright size of
+    /// the clip's picture.
+    private mutating func importEffects(of item: Object, to clip: inout Clip, isVideo: Bool, picture: CGSize, clipName: String?) {
         for effect in (item["effects"] as? [Any] ?? []).compactMap({ $0 as? Object }) {
             switch Self.schema(of: effect)?.name {
             case "LinearTimeWarp":
@@ -323,7 +326,7 @@ struct OTIOImporter {
                 report.add(.speedChange, clipName: clipName, time: clip.timelineStart)
             default:
                 if let block = Self.resolveBlock(effect) {
-                    applyResolveBlock(block, to: &clip, clipName: clipName)
+                    applyResolveBlock(block, to: &clip, picture: picture, clipName: clipName)
                     continue
                 }
                 if applyKdenliveFade(effect, to: &clip) { continue }
@@ -384,27 +387,37 @@ struct OTIOImporter {
     }
 
     /// Takes the settings a Resolve block changes into the clip's: zoom,
-    /// rotation, opacity and clip volume. A block left as it was is no loss;
-    /// one with changes that aren't brought in (pan and tilt, cropping), or
-    /// that change over time, is reported under its own name, such as
-    /// "Transform".
+    /// position, rotation, opacity and clip volume. A block left as it was
+    /// is no loss; one with changes that aren't brought in (cropping, the
+    /// anchor point), or that change over time, is reported under its own
+    /// name, such as "Transform".
     ///
     /// Zoom is `transformationZoomX` and `transformationZoomY`, 1 for the
     /// picture fitted to the frame, as Montage's scale is. Rotation is
     /// `transformationRotationAngle`, in degrees counter-clockwise, which
-    /// Montage turns the other way.
-    private mutating func applyResolveBlock(_ block: Object, to clip: inout Clip, clipName: String?) {
+    /// Montage turns the other way. `transformationPan` and
+    /// `transformationTilt` move the picture right and up by fractions of
+    /// its own width and height as fitted into the frame, before zoom, so
+    /// they move a clip of another shape than the frame's less than one of
+    /// the same shape.
+    private mutating func applyResolveBlock(_ block: Object, to clip: inout Clip, picture: CGSize, clipName: String?) {
         guard !Self.isNeutral(block) else { return }
         var leftOver = false
         var zoom: (x: Double?, y: Double?) = (nil, nil)
         var isZoomed = false
+        var move: (pan: Double, tilt: Double) = (0, 0)
+        var isMoved = false
         for parameter in Self.parameters(of: block) {
-            // Both zooms, as one alone may be changed.
+            // Both zooms, and both pan and tilt, as one alone may be changed.
             let id = (parameter["Parameter ID"] as? String ?? "").lowercased()
-            guard id.hasPrefix("transformationzoom"), let value = (parameter["Parameter Value"] as? NSNumber)?.doubleValue else {
-                continue
+            guard let value = (parameter["Parameter Value"] as? NSNumber)?.doubleValue else { continue }
+            switch id {
+            case "transformationzoomx": zoom.x = value
+            case "transformationzoomy": zoom.y = value
+            case "transformationpan": move.pan = value
+            case "transformationtilt": move.tilt = value
+            default: break
             }
-            if id.hasSuffix("y") { zoom.y = value } else { zoom.x = value }
         }
         for parameter in Self.parameters(of: block) where !Self.isDefault(parameter) {
             let id = (parameter["Parameter ID"] as? String ?? "").lowercased()
@@ -416,6 +429,8 @@ struct OTIOImporter {
             }
             if id.hasPrefix("transformationzoom") {
                 isZoomed = true
+            } else if id == "transformationpan" || id == "transformationtilt" {
+                isMoved = true
             } else if id == "transformationrotationangle" {
                 clip.transform.rotation = Animatable(value == 0 ? 0 : -value)
             } else if id.contains("opacity") {
@@ -433,10 +448,30 @@ struct OTIOImporter {
                 report.add(.uneven(name: "Zoom"), clipName: clipName, time: clip.timelineStart)
             }
         }
+        if isMoved {
+            let reach = reach(of: picture)
+            clip.transform.position = Animatable(CGPoint(x: 0.5 + move.pan * reach.width, y: 0.5 - move.tilt * reach.height))
+        }
         if leftOver {
             report.add(.unsupportedEffect(name: block["Effect Name"] as? String ?? "Resolve Effect"), clipName: clipName,
                        time: clip.timelineStart)
         }
+    }
+
+    /// How far a pan or tilt of 1 moves a picture of a size, as fractions
+    /// of the frame's width and height: as far as the picture reaches
+    /// across and down once fitted into the frame.
+    private func reach(of picture: CGSize) -> CGSize {
+        let frame = settings.renderSize
+        guard picture.width > 0, picture.height > 0, frame.width > 0, frame.height > 0 else { return CGSize(width: 1, height: 1) }
+        let fit = min(frame.width / picture.width, frame.height / picture.height)
+        return CGSize(width: picture.width * fit / frame.width, height: picture.height * fit / frame.height)
+    }
+
+    /// A picture's size as it's shown, turned upright.
+    private static func uprightSize(of metadata: MediaMetadata) -> CGSize {
+        let size = metadata.naturalSize
+        return metadata.rotation % 180 == 0 ? size : CGSize(width: size.height, height: size.width)
     }
 
     // MARK: - Kdenlive

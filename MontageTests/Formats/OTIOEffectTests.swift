@@ -18,13 +18,16 @@ struct OTIOEffectTests {
 
     /// A timeline of one three-second clip on a video track, with effects
     /// on the clip and on the timeline's stack.
-    private func read(clipEffects: [[String: Any]], stackEffects: [[String: Any]] = [], name: String = "") throws -> ImportedProject {
+    private func read(
+        clipEffects: [[String: Any]], stackEffects: [[String: Any]] = [], name: String = "",
+        target: String = "file:///Volumes/Footage/Shot.mov"
+    ) throws -> ImportedProject {
         let clip: [String: Any] = [
             "OTIO_SCHEMA": "Clip.2", "name": "Shot",
             "source_range": ["OTIO_SCHEMA": "TimeRange.1", "start_time": time(0), "duration": time(90)],
             "effects": clipEffects,
             "media_references": ["DEFAULT_MEDIA": [
-                "OTIO_SCHEMA": "ExternalReference.1", "target_url": "file:///Volumes/Footage/Shot.mov",
+                "OTIO_SCHEMA": "ExternalReference.1", "target_url": target,
             ]],
             "active_media_reference_key": "DEFAULT_MEDIA",
         ]
@@ -107,12 +110,59 @@ struct OTIOEffectTests {
         #expect(try clip(imported).transform.scale.value == 1.0)
     }
 
-    /// Pan and tilt aren't brought in until a file from Resolve shows what
-    /// they're fractions of.
-    @Test func reportsResolvesPanAndTilt() throws {
-        let imported = try read(clipEffects: [resolve("Transform", [parameter("transformationPan", 0.05, default: 0.0)])])
-        #expect(imported.issues(.unsupportedEffect) == [.unsupportedEffect(name: "Transform")])
-        #expect(try clip(imported).transform.position.value == CGPoint(x: 0.5, y: 0.5))
+    /// A picture of the frame's shape, as one whose file isn't there is
+    /// taken to be, moves by fractions of the frame: right, and up.
+    @Test func movesAClipByResolvesPanAndTilt() throws {
+        let imported = try read(clipEffects: [resolve("Transform", [
+            parameter("transformationPan", 0.1, default: 0.0, keyframes: [:]),
+            parameter("transformationTilt", 0.05, default: 0.0, keyframes: [:]),
+        ])])
+        #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
+        let position = try clip(imported).transform.position.value
+        #expect(abs(position.x - 0.6) < 1e-9 && abs(position.y - 0.45) < 1e-9)
+    }
+
+    private func folder() throws -> URL {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
+    /// As in a real Resolve export (OTIO's `effects.otio`), where a bar
+    /// still has a tilt of -241/146: the bar, fitted across the frame, is
+    /// 146 pixels tall and was moved 241 pixels down.
+    @Test func movesAStillByFractionsOfItsFittedPicture() throws {
+        let folder = try folder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let bar = folder.appendingPathComponent("_bar.png")
+        try Self.writePNG(width: 960, height: 73, to: bar)
+        let imported = try read(clipEffects: [resolve("Transform", [
+            parameter("transformationPan", 0.0, default: 0.0, keyframes: [:]),
+            parameter("transformationTilt", -1.6506849527359009, default: 0.0, keyframes: [:]),
+        ])], target: bar.absoluteString)
+        #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
+        let position = try clip(imported).transform.position.value
+        #expect(abs(position.x - 0.5) < 1e-9)
+        #expect(abs(position.y * 1080 - (540 + 241)) < 0.001)
+    }
+
+    /// A portrait movie fitted into a landscape frame is narrower than the
+    /// frame, so a pan moves it less across; a tilt moves it as far as the
+    /// frame is tall. Its turn is in its track header.
+    @Test func movesAPortraitMovieByFractionsOfItsFittedPicture() throws {
+        let folder = try folder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let movie = folder.appendingPathComponent("Phone.mov")
+        try Self.movieData(width: 1280, height: 720, quarterTurn: true).write(to: movie)
+        let imported = try read(clipEffects: [resolve("Transform", [
+            parameter("transformationPan", -0.5, default: 0.0, keyframes: [:]),
+            parameter("transformationTilt", 0.25, default: 0.0, keyframes: [:]),
+        ])], target: movie.absoluteString)
+        #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
+        // Fitted, it's 607.5 by 1080.
+        let position = try clip(imported).transform.position.value
+        #expect(abs(position.x * 1920 - (960 - 0.5 * 607.5)) < 0.001)
+        #expect(abs(position.y * 1080 - (540 - 0.25 * 1080)) < 0.001)
     }
 
     @Test func reportsResolveSettingsByTheirOwnNames() throws {
