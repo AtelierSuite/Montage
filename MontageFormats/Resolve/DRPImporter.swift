@@ -123,7 +123,13 @@ struct DRPImporter {
 
     private mutating func run() throws -> ImportedProject {
         guard let projectData = try contents(of: "project.xml") else { throw ResolveProjectError.notAProject }
+        // The version comes first, from the header comment: older versions
+        // may write XML that doesn't parse, such as Resolve 17's element
+        // names with "::" in them.
         let version = Self.version(of: projectData)
+        if let schema = version.project, !Self.knownProjectVersions.contains(schema) {
+            throw ResolveProjectError.unsupportedVersion(version.app ?? String(schema))
+        }
         let project: MarkupElement
         do {
             project = try MarkupElement.parse(projectData)
@@ -131,12 +137,9 @@ struct DRPImporter {
             throw ResolveProjectError.damaged
         }
         guard project.name == "SM_Project" else { throw ResolveProjectError.notAProject }
-        guard let schema = version.project else {
+        guard version.project != nil else {
             // Resolve 8 and older wrote the version on the root instead.
             throw ResolveProjectError.unsupportedVersion(version.app ?? project["DbAppVer"] ?? "")
-        }
-        guard Self.knownProjectVersions.contains(schema) else {
-            throw ResolveProjectError.unsupportedVersion(version.app ?? String(schema))
         }
 
         // Markers are in the blobs of timelines and of clips on them; one

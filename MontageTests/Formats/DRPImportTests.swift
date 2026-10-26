@@ -168,6 +168,19 @@ struct DRPRefusalTests {
         }
     }
 
+    /// An older version is refused for its version even when its XML
+    /// doesn't parse, as some Resolve 17 projects' doesn't.
+    @Test func checksTheVersionBeforeParsing() {
+        var builder = DRPTestBuilder()
+        builder.overrides["project.xml"] = #"<?xml version="1.0" encoding="UTF-8"?>"# + "\n"
+            + #"<!--DbAppVer="17.2.2.0004" DbPrjVer="10"-->"# + "\n" + "<SM_Project DbId=\"p\"><Gallery::GyGallery <<</SM_Project>"
+        #expect(throws: ResolveProjectError.unsupportedVersion("17.2.2.0004")) { try read(builder) }
+        // A version that's read, with the same damage, is damaged.
+        builder.overrides["project.xml"] = #"<?xml version="1.0" encoding="UTF-8"?>"# + "\n"
+            + #"<!--DbAppVer="19.1.4.0011" DbPrjVer="14"-->"# + "\n" + "<SM_Project DbId=\"p\"><Gallery::GyGallery <<</SM_Project>"
+        #expect(throws: ResolveProjectError.damaged) { try read(builder) }
+    }
+
     @Test func refusesAProjectWithNoVersion() {
         var builder = DRPTestBuilder()
         builder.projectVersion = nil
