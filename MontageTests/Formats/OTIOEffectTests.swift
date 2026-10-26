@@ -165,6 +165,109 @@ struct OTIOEffectTests {
         #expect(abs(position.y * 1080 - (540 - 0.25 * 1080)) < 0.001)
     }
 
+    private func key(_ value: Double, in back: [Double]? = nil, out: [Double]? = nil) -> [String: Any] {
+        var key: [String: Any] = ["Value": value, "Variant Type": "Double"]
+        if let back { key["InBez"] = ["InBez": back, "Variant Type": "POINTF"] }
+        if let out { key["OutBez"] = ["OutBez": out, "Variant Type": "POINTF"] }
+        return key
+    }
+
+    private func frames(_ count: Int64) -> CMTime { CMTime(value: count, timescale: 30) }
+
+    /// As the last still of OTIO's `effects.otio` pushes in: keyframes at
+    /// the clip's frames 0 and 67, zoom from 1 to 1.18, and the still,
+    /// 1920 by 626 fitted, moved 45 pixels left and 27 down. Its Parameter
+    /// Values are those at neither keyframe.
+    @Test func bringsInResolvesTransformKeyframes() throws {
+        let folder = try folder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let still = folder.appendingPathComponent("Picchu.png")
+        try Self.writePNG(width: 960, height: 313, to: still)
+        let push = ["0": key(1.0), "67": key(1.179999828338623)]
+        let imported = try read(clipEffects: [resolve("Transform", [
+            parameter("transformationZoomX", 1.0, default: 1.0, keyframes: push),
+            parameter("transformationZoomY", 1.0, default: 1.0, keyframes: push),
+            parameter("transformationPan", 0.0, default: 0.0, keyframes: ["0": key(0), "67": key(-0.0234375)]),
+            parameter("transformationTilt", 0.0, default: 0.0, keyframes: ["0": key(0), "67": key(-0.043130990117788315)]),
+            parameter("transformationRotationAngle", 0.0, default: 0.0, keyframes: [:]),
+        ])], target: still.absoluteString)
+        #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
+        let shot = try clip(imported)
+        #expect(shot.transform.scale.keyframes.map(\.time) == [.zero, frames(67)])
+        #expect(shot.transform.scale.keyframes.map(\.value) == [1.0, 1.179999828338623])
+        let position = shot.transform.position.keyframes
+        #expect(position.map(\.time) == [.zero, frames(67)])
+        #expect(position.map(\.interpolation) == [.linear, .linear])
+        #expect(position.first?.value == CGPoint(x: 0.5, y: 0.5))
+        let end = try #require(position.last?.value)
+        #expect(abs(end.x * 1920 - (960 - 45)) < 0.001)
+        #expect(abs(end.y * 1080 - (540 + 27)) < 0.001)
+        #expect(!shot.transform.rotation.isAnimated)
+    }
+
+    /// Resolve's Bézier handles, in frames and value from their keyframe,
+    /// become the curve to the next keyframe; a fade of opacity in
+    /// percent becomes one from 0 to 1.
+    @Test func shapesResolvesKeyframesByTheirHandles() throws {
+        let imported = try read(clipEffects: [
+            resolve("Transform", [parameter("transformationRotationAngle", 0.0, default: 0.0, keyframes: [
+                "10": key(0, out: [10, 0]), "40": key(90, in: [-10, 0]), "60": key(90),
+            ])]),
+            resolve("Composite", [parameter("opacity", 0.0, default: 100.0, keyframes: ["0": key(0), "15": key(100)])]),
+        ])
+        #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
+        let shot = try clip(imported)
+        #expect(shot.transform.rotation.keyframes.map(\.time) == [frames(10), frames(40), frames(60)])
+        #expect(shot.transform.rotation.keyframes.map(\.value) == [0, -90, -90])
+        let shapes = shot.transform.rotation.keyframes.map(\.interpolation)
+        #expect(shapes.dropFirst() == [.linear, .linear])
+        guard case .bezier(let curve) = shapes.first else {
+            Issue.record("Expected a Bézier curve, got \(String(describing: shapes.first))")
+            return
+        }
+        #expect(abs(curve.x1 - 1.0 / 3) < 1e-9 && curve.y1 == 0 && abs(curve.x2 - 2.0 / 3) < 1e-9 && curve.y2 == 1)
+        #expect(shot.opacity.keyframes.map(\.value) == [0, 1])
+        #expect(shot.opacity.keyframes.map(\.time) == [.zero, frames(15)])
+    }
+
+    /// Pan keyed alone, with tilt left where it is, still keys the whole
+    /// position.
+    @Test func keysThePositionWhenOnlyPanIsKeyed() throws {
+        let imported = try read(clipEffects: [resolve("Transform", [
+            parameter("transformationPan", 0.0, default: 0.0, keyframes: ["0": key(0), "30": key(0.1)]),
+            parameter("transformationTilt", 0.05, default: 0.0, keyframes: [:]),
+        ])])
+        let position = try clip(imported).transform.position.keyframes
+        #expect(position.map(\.time) == [.zero, frames(30)])
+        #expect(position.map { abs($0.value.y - 0.45) < 1e-9 } == [true, true])
+        #expect(position.map { $0.value.x } == [0.5, 0.6])
+    }
+
+    /// A zoom keyed across but not down is uneven, so it's reported.
+    @Test func reportsZoomKeyframesThatDifferAcrossAndDown() throws {
+        let imported = try read(clipEffects: [resolve("Transform", [
+            parameter("transformationZoomX", 1.0, default: 1.0, keyframes: ["0": key(1), "30": key(2)]),
+            parameter("transformationZoomY", 1.0, default: 1.0, keyframes: [:]),
+        ])])
+        #expect(imported.report.items.map(\.issue) == [.uneven(name: "Zoom")])
+        #expect(try clip(imported).transform.scale.keyframes.map(\.value) == [1, 2])
+    }
+
+    /// Montage has no cropping, nor keyframes of a clip's volume from
+    /// Resolve, whose timing isn't known.
+    @Test func reportsResolvesCroppingAndVolumeKeyframes() throws {
+        let imported = try read(clipEffects: [
+            resolve("Cropping", [parameter("cropLeft", 0.1, default: 0.0, keyframes: ["0": key(0), "30": key(0.1)])]),
+            resolve("Fairlight Clip Volume and Fades", [
+                parameter("volume", 0.0, default: 0.0, keyframes: ["0": key(0), "30": key(-6)]),
+            ]),
+        ])
+        #expect(imported.issues(.unsupportedEffect) == [
+            .unsupportedEffect(name: "Cropping"), .unsupportedEffect(name: "Fairlight Clip Volume and Fades"),
+        ])
+        #expect(try !clip(imported).volume.isAnimated)
+    }
+
     @Test func reportsResolveSettingsByTheirOwnNames() throws {
         let imported = try read(clipEffects: [
             resolve("Cropping", [parameter("cropLeft", 10.0, default: 0.0)]),

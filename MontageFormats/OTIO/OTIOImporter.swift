@@ -387,10 +387,11 @@ struct OTIOImporter {
     }
 
     /// Takes the settings a Resolve block changes into the clip's: zoom,
-    /// position, rotation, opacity and clip volume. A block left as it was
-    /// is no loss; one with changes that aren't brought in (cropping, the
-    /// anchor point), or that change over time, is reported under its own
-    /// name, such as "Transform".
+    /// position, rotation and opacity, as they are or as they change over
+    /// the clip, and clip volume. A block left as it was is no loss; one
+    /// with changes that aren't brought in (cropping, the anchor point, a
+    /// volume that changes), is reported under its own name, such as
+    /// "Transform".
     ///
     /// Zoom is `transformationZoomX` and `transformationZoomY`, 1 for the
     /// picture fitted to the frame, as Montage's scale is. Rotation is
@@ -403,27 +404,17 @@ struct OTIOImporter {
     private mutating func applyResolveBlock(_ block: Object, to clip: inout Clip, picture: CGSize, clipName: String?) {
         guard !Self.isNeutral(block) else { return }
         var leftOver = false
-        var zoom: (x: Double?, y: Double?) = (nil, nil)
-        var isZoomed = false
-        var move: (pan: Double, tilt: Double) = (0, 0)
-        var isMoved = false
+        // Both zooms, and both pan and tilt, as one alone may be changed.
+        var curves: [String: Animatable<Double>] = [:]
         for parameter in Self.parameters(of: block) {
-            // Both zooms, and both pan and tilt, as one alone may be changed.
             let id = (parameter["Parameter ID"] as? String ?? "").lowercased()
-            guard let value = (parameter["Parameter Value"] as? NSNumber)?.doubleValue else { continue }
-            switch id {
-            case "transformationzoomx": zoom.x = value
-            case "transformationzoomy": zoom.y = value
-            case "transformationpan": move.pan = value
-            case "transformationtilt": move.tilt = value
-            default: break
-            }
+            if let curve = curve(of: parameter) { curves[id] = curve }
         }
+        var isZoomed = false
+        var isMoved = false
         for parameter in Self.parameters(of: block) where !Self.isDefault(parameter) {
             let id = (parameter["Parameter ID"] as? String ?? "").lowercased()
-            let value = (parameter["Parameter Value"] as? NSNumber)?.doubleValue
-            let isAnimated = !((parameter["Key Frames"] as? Object) ?? [:]).isEmpty
-            guard let value, !isAnimated, !id.contains("dynamic") else {
+            guard let curve = curves[id], !id.contains("dynamic") else {
                 leftOver = true
                 continue
             }
@@ -432,30 +423,109 @@ struct OTIOImporter {
             } else if id == "transformationpan" || id == "transformationtilt" {
                 isMoved = true
             } else if id == "transformationrotationangle" {
-                clip.transform.rotation = Animatable(value == 0 ? 0 : -value)
+                clip.transform.rotation = curve.map { $0 == 0 ? 0 : -$0 }
             } else if id.contains("opacity") {
-                clip.opacity = Animatable(max(0, min(1, value > 1 ? value / 100 : value)))
-            } else if id.contains("volume") || id.contains("level") || id.hasSuffix("gain") {
+                // Composite's opacity is a percentage.
+                let fallback = (parameter["Default Parameter Value"] as? NSNumber)?.doubleValue ?? 0
+                let scale = fallback > 1 || curve.values.contains { $0 > 1 } ? 100.0 : 1
+                clip.opacity = curve.map { max(0, min(1, $0 / scale)) }
+            } else if !curve.isAnimated, id.contains("volume") || id.contains("level") || id.hasSuffix("gain") {
                 // Fairlight's levels are in decibels.
-                clip.volume = Animatable(max(0, pow(10, value / 20)))
+                clip.volume = Animatable(max(0, pow(10, curve.value / 20)))
             } else {
                 leftOver = true
             }
         }
-        if isZoomed, let scale = zoom.x ?? zoom.y {
-            clip.transform.scale = Animatable(scale)
-            if let x = zoom.x, let y = zoom.y, abs(x - y) > 0.0001 {
+        if isZoomed, let scale = curves["transformationzoomx"] ?? curves["transformationzoomy"] {
+            clip.transform.scale = scale
+            if let x = curves["transformationzoomx"], let y = curves["transformationzoomy"], !x.isClose(to: y) {
                 report.add(.uneven(name: "Zoom"), clipName: clipName, time: clip.timelineStart)
             }
         }
         if isMoved {
             let reach = reach(of: picture)
-            clip.transform.position = Animatable(CGPoint(x: 0.5 + move.pan * reach.width, y: 0.5 - move.tilt * reach.height))
+            clip.transform.position = Self.position(
+                pan: curves["transformationpan"] ?? Animatable(0), tilt: curves["transformationtilt"] ?? Animatable(0)
+            ) { pan, tilt in CGPoint(x: 0.5 + pan * reach.width, y: 0.5 - tilt * reach.height) }
         }
         if leftOver {
             report.add(.unsupportedEffect(name: block["Effect Name"] as? String ?? "Resolve Effect"), clipName: clipName,
                        time: clip.timelineStart)
         }
+    }
+
+    /// A Resolve parameter's number over the clip: its keyframes, or else
+    /// its one value. Nil when it isn't a number.
+    ///
+    /// A keyframe's name is its time, in frames of the timeline from the
+    /// clip's first frame. Its `InBez` and `OutBez` handles, where it has
+    /// them, are frames and value from the keyframe, and shape the curve
+    /// to the next keyframe as a cubic Bézier does.
+    private func curve(of parameter: Object) -> Animatable<Double>? {
+        guard let value = (parameter["Parameter Value"] as? NSNumber)?.doubleValue else { return nil }
+        let keys = (parameter["Key Frames"] as? Object) ?? [:]
+        var points: [(frame: Double, value: Double, in: CGPoint?, out: CGPoint?)] = []
+        for (name, key) in keys {
+            guard let frame = Double(name), let key = key as? Object, let value = (key["Value"] as? NSNumber)?.doubleValue else {
+                return nil
+            }
+            points.append((frame, value, Self.handle(key, "InBez"), Self.handle(key, "OutBez")))
+        }
+        points.sort { $0.frame < $1.frame }
+        guard let first = points.first else { return Animatable(value) }
+        let keyframes = points.indices.map { index in
+            let point = points[index]
+            var interpolation = Interpolation.linear
+            if index + 1 < points.count {
+                let next = points[index + 1]
+                let span = next.frame - point.frame
+                let rise = next.value - point.value
+                if point.out != nil || next.in != nil, span > 0, rise != 0 {
+                    let out = point.out ?? .zero
+                    let back = next.in ?? .zero
+                    interpolation = .bezier(TimingCurve(x1: out.x / span, y1: out.y / rise,
+                                                        x2: 1 + back.x / span, y2: 1 + back.y / rise))
+                }
+            }
+            return Keyframe(time: CMTimeMultiplyByFloat64(settings.frameDuration, multiplier: point.frame),
+                            value: point.value, interpolation: interpolation)
+        }
+        return Animatable(first.value, keyframes: keyframes)
+    }
+
+    /// A Bézier handle of a Resolve keyframe, written as
+    /// `"InBez": {"InBez": [frames, value], …}`.
+    private static func handle(_ key: Object, _ name: String) -> CGPoint? {
+        let raw = (key[name] as? Object)?[name] ?? key[name]
+        guard let pair = raw as? [Any], pair.count == 2,
+              let x = (pair[0] as? NSNumber)?.doubleValue, let y = (pair[1] as? NSNumber)?.doubleValue else { return nil }
+        return CGPoint(x: x, y: y)
+    }
+
+    /// Pan and tilt, each over the clip, as one position. A keyframe of
+    /// either is one of the position, the other's value there taken from
+    /// its own curve. Each stretch to the next keyframe follows the curve
+    /// of whichever of the two has keyframes at both its ends and moves
+    /// over it, pan first.
+    private static func position(
+        pan: Animatable<Double>, tilt: Animatable<Double>, point: (Double, Double) -> CGPoint
+    ) -> Animatable<CGPoint> {
+        let times = Set((pan.keyframes + tilt.keyframes).map(\.time)).sorted()
+        guard !times.isEmpty else { return Animatable(point(pan.value, tilt.value)) }
+        func interpolation(of curve: Animatable<Double>, from start: CMTime, to end: CMTime) -> Interpolation? {
+            guard let index = curve.keyframes.firstIndex(where: { $0.time == start }), index + 1 < curve.keyframes.count,
+                  curve.keyframes[index + 1].time == end, curve.keyframes[index].value != curve.keyframes[index + 1].value else {
+                return nil
+            }
+            return curve.keyframes[index].interpolation
+        }
+        let keyframes = times.indices.map { index in
+            let time = times[index]
+            let next = index + 1 < times.count ? times[index + 1] : nil
+            let shape = next.flatMap { interpolation(of: pan, from: time, to: $0) ?? interpolation(of: tilt, from: time, to: $0) }
+            return Keyframe(time: time, value: point(pan.value(at: time), tilt.value(at: time)), interpolation: shape ?? .linear)
+        }
+        return Animatable(keyframes[0].value, keyframes: keyframes)
     }
 
     /// How far a pan or tilt of 1 moves a picture of a size, as fractions
@@ -660,5 +730,23 @@ struct OTIOImporter {
             return String(decoding: data, as: UTF8.self)
         }
         return "\(value)"
+    }
+}
+
+private extension Animatable where Value == Double {
+    /// Its value and every keyframe's.
+    var values: [Double] { [value] + keyframes.map(\.value) }
+
+    /// The same keyframes, each value changed.
+    func map(_ change: (Double) -> Double) -> Animatable<Double> {
+        Animatable(change(value), keyframes: keyframes.map {
+            Keyframe(time: $0.time, value: change($0.value), interpolation: $0.interpolation)
+        })
+    }
+
+    /// Whether it's the same as another, within rounding.
+    func isClose(to other: Animatable<Double>) -> Bool {
+        abs(value - other.value) <= 0.0001 && keyframes.count == other.keyframes.count
+            && zip(keyframes, other.keyframes).allSatisfy { $0.time == $1.time && abs($0.value - $1.value) <= 0.0001 }
     }
 }
