@@ -9,8 +9,7 @@ import Foundation
 enum ResolveBlobs {
     enum Failure: Error, Equatable {
         case malformed
-        /// A zstd frame with compressed blocks, which needs a real zstd
-        /// decoder: Apple's Compression framework has none.
+        /// A zstd frame that needs a dictionary, which Resolve doesn't use.
         case compressed
     }
 
@@ -145,33 +144,9 @@ enum ResolveBlobs {
         }
     }
 
-    /// A zstd frame of raw and run-length blocks, which is what Resolve
-    /// writes for small values. Compressed blocks need a full decoder and
-    /// are refused.
+    /// A zstd frame's contents (see `ResolveZstd`).
     static func zstd(_ frame: Data, maximumSize: Int = 64 * 1024 * 1024) throws -> Data {
-        var reader = ByteReader(frame)
-        guard try reader.uint32LittleEndian() == 0xFD2F_B528 else { throw Failure.malformed }
-        let descriptor = try reader.uint8()
-        let singleSegment = descriptor & 0x20 != 0
-        let contentSizeLength = [singleSegment ? 1 : 0, 2, 4, 8][Int(descriptor >> 6)]
-        let dictionaryLength = [0, 1, 2, 4][Int(descriptor & 0x03)]
-        guard dictionaryLength == 0 else { throw Failure.compressed }
-        try reader.skip((singleSegment ? 0 : 1) + contentSizeLength)
-        var output = Data()
-        while true {
-            let header = Int(try reader.uint8()) | Int(try reader.uint8()) << 8 | Int(try reader.uint8()) << 16
-            let isLast = header & 1 != 0
-            let size = header >> 3
-            guard output.count + size <= maximumSize else { throw Failure.malformed }
-            switch (header >> 1) & 3 {
-            case 0: output.append(try reader.bytes(size))
-            case 1: output.append(Data(repeating: try reader.uint8(), count: size))
-            case 2: throw Failure.compressed
-            default: throw Failure.malformed
-            }
-            if isLast { break }
-        }
-        return output
+        try ResolveZstd.decompress(frame, maximumSize: maximumSize)
     }
 
     /// One field of a protocol buffer, read without its schema, which is

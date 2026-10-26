@@ -132,6 +132,16 @@ enum ResolveBlobWriter {
         return data
     }
 
+    /// An envelope around a zstd frame made elsewhere, such as by the `zstd` tool.
+    static func envelope(zstdFrame frame: Data, version: UInt32 = 2) -> Data {
+        var data = Data()
+        data.appendDRP(bigEndian: version)
+        data.appendDRP(bigEndian: UInt32(frame.count + 1))
+        data.append(0x81)
+        data.append(frame)
+        return data
+    }
+
     /// A media pool clip's `Clip` value, naming its file.
     static func clip(folder: String, name: String) -> Data {
         envelope(protobuf([.text(1, folder), .text(2, name), .text(5, "H.264")]), version: 1, zstd: false)
