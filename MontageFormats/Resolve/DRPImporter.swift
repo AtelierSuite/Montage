@@ -32,11 +32,13 @@ import UniformTypeIdentifiers
 /// (see `ResolveClipSettings`). Grades and Fusion compositions are reported
 /// too, and kept on their clips turned off.
 struct DRPImporter {
-    /// The project schema versions open-source readers have checked their
-    /// reading of the layout against real exports of: 14 (Resolve 19.1),
-    /// 15 (Resolve 20) and 17 (Resolve 21). Others are refused, pointing to
-    /// FCPXML, until real exports of them have been tried.
-    static let knownProjectVersions: Set<Int> = [14, 15, 17]
+    /// The project schema versions the layout has been checked against real
+    /// exports of: 11 and 13 (Resolve 18.0 to 18.5, Blackmagic's training
+    /// projects), 14 (Resolve 19.1), 15 (Resolve 20) and 17 (Resolve 21).
+    /// Others are refused, pointing to FCPXML, until real exports of them
+    /// have been tried. Resolve 17 (10) keeps clip settings in another
+    /// layout.
+    static let knownProjectVersions: Set<Int> = [11, 13, 14, 15, 17]
 
     private let archive: ZipArchive
     private let baseURL: URL?

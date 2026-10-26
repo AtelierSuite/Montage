@@ -149,13 +149,18 @@ struct DRPRefusalTests {
         builder.appVersion = "17.1.1.0009"
         builder.projectVersion = "10"
         #expect(throws: ResolveProjectError.unsupportedVersion("17.1.1.0009")) { try read(builder) }
+        builder.appVersion = "18.1.0.0005"
+        builder.projectVersion = "12"
+        #expect(throws: ResolveProjectError.unsupportedVersion("18.1.0.0005")) { try read(builder) }
         builder.appVersion = "22.0.0.0001"
         builder.projectVersion = "18"
         #expect(throws: ResolveProjectError.unsupportedVersion("22.0.0.0001")) { try read(builder) }
     }
 
-    @Test func acceptsTheVersionsReadersHaveChecked() throws {
-        for (app, schema) in [("19.1.4.0011", "14"), ("20.3.1.0006", "15"), ("21.1.1.0010", "17")] {
+    @Test func acceptsTheVersionsCheckedAgainstRealExports() throws {
+        for (app, schema) in [
+            ("18.1.0.0016", "11"), ("18.5.1.0006", "13"), ("19.1.4.0011", "14"), ("20.3.1.0006", "15"), ("21.1.1.0010", "17"),
+        ] {
             var builder = DRPTestBuilder()
             builder.appVersion = app
             builder.projectVersion = schema
