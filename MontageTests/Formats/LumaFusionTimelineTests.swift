@@ -178,16 +178,22 @@ enum LumaFusionFixture {
     static func project(
         _ tracks: [[String: Any]], title: String = "Holiday", version: String = "2.6.0",
         mediaMap: [String: String] = [:], markers: [[String: Any]] = [],
-        resolution: [Int] = [3840, 2160], step: [String: Any] = time(1001, 24000)
+        resolution: [Int] = [3840, 2160], step: [String: Any] = time(1001, 24000),
+        primaryVolume: Double = 1, masterVolume: Double? = nil
     ) throws -> Data {
-        let root: [String: Any] = [
+        var root: [String: Any] = [
             "attributes": [
                 "appVersion": version, "compositionMarkers": markers, "trackMarkers": [String: Any](),
                 "assetMarkers": [String: Any](), "notes": "", "mediaMap": mediaMap,
             ] as [String: Any],
-            "backgroundColor": "0.0 0.0 0.0 1.0", "primaryVolume": 1, "resolution": resolution, "stepTime": step,
+            "backgroundColor": "0.0 0.0 0.0 1.0", "primaryVolume": primaryVolume, "resolution": resolution, "stepTime": step,
             "title": title, "videoColorspace": 0, "needsCloudMedia": false, "tracks": tracks,
         ]
+        // LumaFusion for iOS calls it `masterVolume`.
+        if let masterVolume {
+            root["primaryVolume"] = nil
+            root["masterVolume"] = masterVolume
+        }
         return try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
     }
 }
@@ -342,6 +348,15 @@ struct LumaFusionTimelineTests {
         #expect(imported.project.tracks[0].clips[0].transform.scale == Animatable(1.5))
         // The eased keyframes are still read, as straight lines.
         #expect(imported.project.tracks[0].clips[2].transform.scale.keyframes.map(\.value) == [1, 2])
+    }
+
+    @Test func reportsTheMasterVolume() throws {
+        let track = Fixture.track(type: 0, offset: 0, anchor: true, [.init(file: "A.mov", start: 0, duration: 600)])
+        let iOS = try Self.read(try Fixture.project([track], masterVolume: 0.678))
+        #expect(iOS.report.items.map(\.issue) == [.setting(name: "Master volume")])
+        let android = try Self.read(try Fixture.project([track], primaryVolume: 0.5))
+        #expect(android.report.items.map(\.issue) == [.setting(name: "Master volume")])
+        #expect(try Self.read(try Fixture.project([track], masterVolume: 1)).report.isEmpty)
     }
 
     @Test func importsSoundFilesAsAudio() throws {

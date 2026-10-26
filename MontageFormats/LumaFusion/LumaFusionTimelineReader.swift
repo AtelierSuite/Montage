@@ -73,6 +73,11 @@ struct LumaFusionTimelineReader {
             settings.frameDuration = step
         }
         reportMarkers(attributes)
+        // The level the whole mix plays at: `masterVolume` on iOS,
+        // `primaryVolume` on Android. Montage has none of its own.
+        if let volume = Self.double(root["masterVolume"]) ?? Self.double(root["primaryVolume"]), abs(volume - 1) > 0.0001 {
+            report.add(.setting(name: "Master volume"))
+        }
 
         // Video tracks bottom first, then audio tracks down from the picture.
         let ordered = tracks.sorted { a, b in
