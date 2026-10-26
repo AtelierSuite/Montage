@@ -437,8 +437,9 @@ struct PremiereProjectImporter {
     }
 
     /// Motion: the position as a fraction of the sequence's frame from its
-    /// top left, scale in percent of the media's own size, rotation
-    /// clockwise in degrees.
+    /// top left, the anchor point as a fraction of the media's picture,
+    /// scale in percent of the media's own size, rotation clockwise in
+    /// degrees about the anchor point.
     private mutating func applyMotion(
         _ component: Component, to clip: inout Clip, item: MediaItem, toClip: (Int64) -> CMTime, clipName: String
     ) {
@@ -459,13 +460,38 @@ struct PremiereProjectImporter {
                 report.add(.uneven(name: "Scale"), clipName: clipName, time: clip.timelineStart)
             }
         }
-        if let rotation = number("Rotation") { clip.transform.rotation = rotation }
+        let rotation = number("Rotation")
+        if let rotation { clip.transform.rotation = rotation }
         // Position is where the anchor point lands, as a fraction of the
         // sequence's frame whatever the media's size: a 2025 project has
         // 3888×2592 stills in a 1080p sequence at x = 1450/1920.
-        if let position = point("Position") { clip.transform.position = position }
+        let position = point("Position")
+        if let position { clip.transform.position = position }
         if let anchor = point("Anchor Point"), anchor.isAnimated || anchor.value != CGPoint(x: 0.5, y: 0.5) {
-            report.add(.setting(name: "Anchor point"), clipName: clipName, time: clip.timelineStart)
+            // The anchor point is a fraction of the media's own picture.
+            // Montage places and turns a picture by its centre, which sits
+            // a fixed way off the anchor while the anchor, scale and
+            // rotation hold still: Premiere's own tutorial project puts a
+            // 500 px still's anchor on its corner, 0:1, and so its centre
+            // on the frame's.
+            let height = number("Scale")
+            let width = isUniform ? height : number("Scale Width")
+            let holdsStill = !anchor.isAnimated && !(rotation?.isAnimated ?? false)
+                && !(height?.isAnimated ?? false) && !(width?.isAnimated ?? false)
+            if holdsStill, media.width > 0, media.height > 0, frame.width > 0, frame.height > 0 {
+                let across = (0.5 - anchor.value.x) * media.width * (width?.value ?? 100) / 100
+                let down = (0.5 - anchor.value.y) * media.height * (height?.value ?? 100) / 100
+                let angle = (rotation?.value ?? 0) * .pi / 180
+                let dx = (across * cos(angle) - down * sin(angle)) / frame.width
+                let dy = (across * sin(angle) + down * cos(angle)) / frame.height
+                let moved = { (point: CGPoint) in CGPoint(x: point.x + dx, y: point.y + dy) }
+                let placed = position ?? Animatable(CGPoint(x: 0.5, y: 0.5))
+                clip.transform.position = Animatable(moved(placed.value), keyframes: placed.keyframes.map {
+                    Keyframe(time: $0.time, value: moved($0.value), interpolation: $0.interpolation)
+                })
+            } else {
+                report.add(.setting(name: "Anchor point"), clipName: clipName, time: clip.timelineStart)
+            }
         }
         // Recent releases have crop in Motion, in percent of each edge.
         let crops = ["Crop Left", "Crop Top", "Crop Right", "Crop Bottom"].compactMap(number)

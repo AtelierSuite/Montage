@@ -572,6 +572,45 @@ struct PremiereRealProjectRegressionTests {
         #expect(abs(still.transform.scale.value - 1) < 0.00001)
     }
 
+    @Test func placesAPictureByItsAnchorPoint() throws {
+        // Premiere's own tutorial project: a 500×500 still at 100% in a
+        // 1080p sequence, its anchor on its bottom-left corner placed at
+        // 710, 790, which puts its centre on the frame's. Its keyframes
+        // move the same way.
+        let xml = motion(
+            size: "500,500", position: "0.36979167461395257:0.73148150973849868",
+            positionKeyframes: "508032000000,-0.028645824640989304:0.73148155212402344,0,0,0,0,0,0;762048000000,0.36979167461395257:0.73148150973849868,0,0,0,0,0,0;",
+            scale: "100.", rotation: "0.", anchor: "6.1035156012634317e-08:1.0000000915527323"
+        )
+        let imported = try PremiereFixtures.read(xml)
+        let still = try #require(imported.clip("Interview.mov", on: .video)).clip
+        #expect(still.transform.position.keyframes.count == 2)
+        #expect(isClose(still.transform.position.keyframes[0].value, 195.0 / 1920, 0.5))
+        #expect(isClose(still.transform.position.keyframes[1].value, 0.5, 0.5))
+        #expect(!imported.issues(.notImported).contains(.setting(name: "Anchor point")))
+    }
+
+    @Test func turnsAPictureAboutItsAnchorPoint() throws {
+        // The fixture's 4K picture at 50%, its top-left corner at 480, 540
+        // and turned 90° about it: its centre, 960 across and 540 down
+        // from the corner, turns to 540 left and 960 down.
+        let imported = try PremiereFixtures.read(motion(anchor: "0:0"))
+        let interview = try #require(imported.clip("Interview.mov", on: .video)).clip
+        #expect(isClose(interview.transform.position.value, -60.0 / 1920, 1500.0 / 1080))
+        #expect(interview.transform.rotation.value == 90)
+        #expect(!imported.issues(.notImported).contains(.setting(name: "Anchor point")))
+    }
+
+    @Test func reportsAnAnchorPointThePictureSwingsAbout() throws {
+        // Turning about a corner swings the centre round an arc, which
+        // Montage's straight moves between keyframes can't follow.
+        let xml = motion(rotationKeyframes: "508032000000,-90.,0,0,0,0,0,0;762048000000,0.,0,0,0,0,0,0;", anchor: "0:0")
+        let imported = try PremiereFixtures.read(xml)
+        let interview = try #require(imported.clip("Interview.mov", on: .video)).clip
+        #expect(interview.transform.position.value == CGPoint(x: 0.25, y: 0.5))
+        #expect(imported.issues(.notImported).contains(.setting(name: "Anchor point")))
+    }
+
     @Test func refusesAProjectWithClipsButNoSequence() {
         // Media in the bin and nothing on a timeline, as in a project only
         // imported into.
