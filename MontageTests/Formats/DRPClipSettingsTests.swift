@@ -263,7 +263,8 @@ struct DRPClipSettingsTests {
     @Test func reportsWhatHasNoCounterpart() throws {
         var clip = clip()
         let notes = try apply([
-            Writer.filter(6, [Writer.parameter(54, .double(0.1)), nil, nil, nil, nil, nil]),
+            // The Packt book's split screen: 37 % off the right.
+            Writer.filter(6, [nil, Writer.parameter(55, .double(0.37)), nil, nil, nil, nil]),
             Writer.filter(44, [nil, nil, Writer.parameter(92, .enumeration(2)), nil, nil]),
             Writer.filter(44, [nil, nil, Writer.parameter(92, .enumeration(3)), nil, nil]),
             Writer.filter(118, [Writer.parameter(59, .enumeration(2)), nil, nil]),

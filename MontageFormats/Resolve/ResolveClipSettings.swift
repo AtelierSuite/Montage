@@ -130,6 +130,10 @@ enum ResolveClipSettings {
                 }
                 if !parameters.isEmpty { notes.append(.setting("Composite")) }
             case Filter.cropping:
+                // Left, right, top and bottom (54 to 57) as fractions of
+                // the picture's width and height, cut before Position moves
+                // it, and softness (58). A mask only limits where an effect
+                // changes the picture, so none can cut it away; reported.
                 notes.append(.setting("Crop"))
             case Filter.retimeAndScaling:
                 // Scaling set to Fit, as Montage fits every picture.
