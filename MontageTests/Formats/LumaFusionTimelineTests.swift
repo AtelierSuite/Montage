@@ -345,7 +345,12 @@ struct LumaFusionTimelineTests {
             ], iOS: true),
         ]))
         let issues = imported.report.items.map(\.issue)
-        #expect(issues.contains(.uneven(name: "Scale")))
+        #expect(issues.contains(.unevenAveraged(name: "Scale")))
+        // Its own wording: LumaFusion's scale is averaged, not taken across.
+        let averaged = ImportReport.Issue.unevenAveraged(name: "Scale")
+        #expect(averaged.message != ImportReport.Issue.uneven(name: "Scale").message)
+        #expect(averaged.message.contains("Scale"))
+        #expect(averaged.category == .changed)
         #expect(issues.contains(.setting(name: "Anchor point")))
         #expect(issues.contains(.setting(name: "Keyframe easing")))
         #expect(issues.contains(.setting(name: "Flip")))

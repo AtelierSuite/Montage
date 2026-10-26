@@ -813,6 +813,35 @@
         }
       }
     },
+    "Interchange.Issue.UnevenAveraged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ was different across and down, so the average of the two was used for both."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」の横方向と縦方向の値が異なっていたため、2つの平均値が両方向に使用されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”的横向和纵向值不同，因此两个方向都使用了二者的平均值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」的橫向和縱向值不同，因此兩個方向都使用了二者的平均值。"
+          }
+        }
+      }
+    },
     "Interchange.Issue.UnsupportedEffect" : {
       "extractionState" : "manual",
       "localizations" : {

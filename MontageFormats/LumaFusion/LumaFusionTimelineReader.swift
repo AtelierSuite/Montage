@@ -264,7 +264,7 @@ struct LumaFusionTimelineReader {
            scale.numbers.allSatisfy({ $0 > 0 }) {
             let (across, down) = (scale.numbers[0], scale.numbers[1])
             clip.transform.scale = Animatable((across + down) / 2)
-            if abs(across - down) > 0.0001 { report.add(.uneven(name: "Scale"), clipName: name, time: clip.timelineStart) }
+            if abs(across - down) > 0.0001 { report.add(.unevenAveraged(name: "Scale"), clipName: name, time: clip.timelineStart) }
             if scale.isKeyframed { notes.append("Scale keyframes") }
         }
         if let translation = Self.setting(attributes["videoTranslation"]), translation.numbers.count == 2 {
@@ -345,7 +345,7 @@ struct LumaFusionTimelineReader {
         }
         let values = [base] + keyframes.map(\.value)
         if values.contains(where: \.isUneven) {
-            report.add(.uneven(name: "Scale"), clipName: name, time: clip.timelineStart)
+            report.add(.unevenAveraged(name: "Scale"), clipName: name, time: clip.timelineStart)
         }
         if values.contains(where: \.isFlipped) { notes.append("Flip") }
         if values.contains(where: \.isAnchorMoved) { notes.append("Anchor point") }
