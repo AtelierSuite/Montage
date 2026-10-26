@@ -291,6 +291,35 @@
         }
       }
     },
+    "Interchange.Format.LumaFusion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion"
+          }
+        }
+      }
+    },
     "Interchange.Format.XMEML" : {
       "extractionState" : "manual",
       "localizations" : {
