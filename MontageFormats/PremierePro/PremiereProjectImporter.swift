@@ -339,7 +339,7 @@ struct PremiereProjectImporter {
 
     private func components(of item: TrackItem) -> [Component] {
         let chain = graph.resolve(item.object.descendant("ClipTrackItem", "ComponentOwner", "Components"))
-        return (chain?.descendant("ComponentChain", "Components")?.children("Component") ?? []).compactMap { reference in
+        var components = (chain?.descendant("ComponentChain", "Components")?.children("Component") ?? []).compactMap { reference -> Component? in
             guard let object = graph.resolve(reference) else { return nil }
             // Audio components are a level deeper than video ones.
             let isVideo = object.child("Component") != nil
@@ -353,6 +353,26 @@ struct PremiereProjectImporter {
                 parameters: (inner.child("Params")?.children("Param") ?? []).compactMap(graph.resolve)
             )
         }
+        // CS6 keeps a clip's panner beside its components, as a
+        // MonoToStereo or StereoToStereo PanProcessor every audio clip has.
+        // Only one moved off centre is taken, so the rest add nothing.
+        if let panner = graph.resolve(item.object.child("Panner")), panner.name.hasSuffix("PanProcessor"),
+           let inner = panner.descendant("PanProcessor", "AudioComponent", "Component") {
+            let parameters = (inner.child("Params")?.children("Param") ?? []).compactMap(graph.resolve)
+            let isOffCentre = parameters.contains { parameter in
+                let name = parameter.child("Name")?.text
+                guard name == "Pan" || name == "Balance" else { return false }
+                return PremiereKeyframes.isAnimated(parameter)
+                    || PremiereKeyframes.value(of: parameter).flatMap(PremiereProject.number).map { abs($0 - 0.5) > 0.0001 } == true
+            }
+            if isOffCentre {
+                components.append(Component(
+                    displayName: "Panner", matchName: panner.name, isEnabled: inner.child("Bypass")?.text != "true",
+                    isVideo: false, parameters: parameters
+                ))
+            }
+        }
+        return components
     }
 
     /// Premiere's audio levels are written as gain scaled to the fader's
@@ -390,6 +410,13 @@ struct PremiereProjectImporter {
                 let bypassed = component.parameter("Bypass").flatMap { PremiereKeyframes.value(of: $0) } == "true"
                 guard let balance = number("Balance") ?? number("Pan"),
                       balance.isAnimated || abs(balance.value - 0.5) > 0.0001 else { continue }
+                // Only a mono or stereo clip panned into stereo is known to
+                // work so; surround, 16-channel and adaptive panners aren't.
+                if lowerMatch.hasSuffix("panprocessor"),
+                   !["monotostereopanprocessor", "stereotostereopanprocessor"].contains(lowerMatch) {
+                    report.add(.setting(name: "Pan"), clipName: clipName, time: clip.timelineStart)
+                    continue
+                }
                 var pan = Pan()
                 pan.position = balance.mapped { max(-1, min(1, 2 * $0 - 1)) }
                 clip.effects.append(Effect(isEnabled: component.isEnabled && !bypassed, .pan(pan)))

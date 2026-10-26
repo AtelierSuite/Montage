@@ -87,7 +87,7 @@ struct PremiereObjectGraph {
 
     private static let keptSuffixes = [
         "Sequence", "TrackGroup", "ClipTrack", "TrackItem", "Clip", "Source", "Media", "Stream",
-        "ComponentChain", "Component", "Param", "Markers", "Marker", "TimeRemapping",
+        "ComponentChain", "Component", "Param", "Markers", "Marker", "TimeRemapping", "PanProcessor",
     ]
 
     private final class Collector: NSObject, XMLParserDelegate {

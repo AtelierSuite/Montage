@@ -218,13 +218,75 @@ struct PremiereProjectImportTests {
         #expect(Self.pans(music).map(\.position) == [Animatable(0.5)])
     }
 
+    /// The fixture with Music.wav's panner as CS6 writes it, beside its
+    /// components rather than among them, and the Panner component in its
+    /// chain centred.
+    private static func cs6Panner(_ processor: String, parameter: String, value: String, keyframes: String = "") -> String {
+        PremiereFixtures.xml
+            .replacingOccurrences(of: "-91445760000000000,0.75,", with: "-91445760000000000,0.5,")
+            .replacingOccurrences(of: #"<AudioClipTrackItem ObjectID="231" ClassID="064ec682-9ba6-11d5-af2d-9ca32c7d6164" Version="6">"#, with: """
+            <AudioClipTrackItem ObjectID="231" ClassID="064ec682-9ba6-11d5-af2d-9ca32c7d6164" Version="6">
+            		<Panner ObjectRef="690"/>
+            """)
+            .replacingOccurrences(of: "<!-- Media -->", with: """
+            <\(processor) ObjectID="690" ClassID="33a94283-ee2c-11d5-abc4-c1cd7f9e3c10" Version="1">
+            		<PanProcessor Version="3">
+            			<AudioComponent Version="3">
+            				<Component Version="3">
+            					<Params Version="1">
+            						<Param Index="0" ObjectRef="691"/>
+            					</Params>
+            					<DisplayName></DisplayName>
+            					<Bypass>false</Bypass>
+            					<ID>4294967040</ID>
+            				</Component>
+            			</AudioComponent>
+            		</PanProcessor>
+            	</\(processor)>
+            	<AudioComponentParam ObjectID="691" ClassID="a714635e-a628-4b27-9d59-77eba47dbc1a" Version="9">
+            		<IsInverted>true</IsInverted>
+            		<CurrentValue>\(value)</CurrentValue>
+            		<StartKeyframe>-91445760000000000,\(value),0,0,0,0,0,0</StartKeyframe>
+            		<Keyframes>\(keyframes)</Keyframes>
+            		<Name>\(parameter)</Name>
+            	</AudioComponentParam>
+
+            	<!-- Media -->
+            """)
+    }
+
     @Test func bringsInAMonoClipsPan() throws {
-        let xml = PremiereFixtures.xml
-            .replacingOccurrences(of: "<Name>Balance</Name>", with: "<Name>Pan</Name>")
-            .replacingOccurrences(of: "-91445760000000000,0.75,", with: "-91445760000000000,0.25,")
-            .replacingOccurrences(of: "<CurrentValue>0.75</CurrentValue>", with: "<CurrentValue>0.25</CurrentValue>")
-        let music = try #require(try PremiereFixtures.read(xml).clip("Music.wav", on: .audio)).clip
+        // As CS6 wrote a feature's mix: 0.25 is halfway left, whatever
+        // IsInverted says.
+        let xml = Self.cs6Panner("MonoToStereoPanProcessor", parameter: "Pan", value: "0.25")
+        let imported = try PremiereFixtures.read(xml)
+        let music = try #require(imported.clip("Music.wav", on: .audio)).clip
         #expect(Self.pans(music).map(\.position) == [Animatable(-0.5)])
+        #expect(!imported.issues(.notImported).contains(.setting(name: "Pan")))
+    }
+
+    @Test func leavesACentredCS6PannerOut() throws {
+        let xml = Self.cs6Panner("MonoToStereoPanProcessor", parameter: "Pan", value: "0.5")
+        let music = try #require(try PremiereFixtures.read(xml).clip("Music.wav", on: .audio)).clip
+        #expect(Self.pans(music).isEmpty)
+    }
+
+    @Test func keepsAStereoClipsBalanceKeyframes() throws {
+        // Centred, then full right 1s into the media and full left at 3s.
+        let xml = Self.cs6Panner("StereoToStereoPanProcessor", parameter: "Balance", value: "0.5",
+                                 keyframes: "254016000000,1.,0,0,0,0,0,0;762048000000,0.,0,0,0,0,0,0;")
+        let music = try #require(try PremiereFixtures.read(xml).clip("Music.wav", on: .audio)).clip
+        let position = try #require(Self.pans(music).first).position
+        #expect(position.keyframes.map(\.time) == [seconds(1), seconds(3)])
+        #expect(position.keyframes.map(\.value) == [1, -1])
+    }
+
+    @Test func reportsAPannerIntoSurround() throws {
+        let xml = Self.cs6Panner("StereoTo16ChannelPanProcessor", parameter: "Balance", value: "0.25")
+        let imported = try PremiereFixtures.read(xml)
+        let music = try #require(imported.clip("Music.wav", on: .audio)).clip
+        #expect(Self.pans(music).isEmpty)
+        #expect(imported.issues(.notImported).contains(.setting(name: "Pan")))
     }
 
     @Test func leavesACentredClipUnpanned() throws {
