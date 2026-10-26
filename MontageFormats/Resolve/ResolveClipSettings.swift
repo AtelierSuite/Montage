@@ -130,7 +130,8 @@ enum ResolveClipSettings {
                 }
                 clip.volume = faded(clip.volume, in: parameters.removeValue(forKey: 97), out: parameters.removeValue(forKey: 98))
                 // The shapes of the fades.
-                if parameters.removeValue(forKey: 99) != nil || parameters.removeValue(forKey: 100) != nil {
+                let curves = [parameters.removeValue(forKey: 99), parameters.removeValue(forKey: 100)]
+                if curves.contains(where: { $0 != nil }) {
                     notes.append(.setting("Fade curve"))
                 }
                 if !parameters.isEmpty { notes.append(.setting("Audio")) }

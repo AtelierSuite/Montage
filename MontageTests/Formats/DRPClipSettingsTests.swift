@@ -178,7 +178,8 @@ struct DRPClipSettingsTests {
         var faded = self.clip()
         let fadeNotes = try apply([
             Writer.filter(124, [
-                Writer.parameter(95, .double(6)), Writer.parameter(97, .double(10)), nil, Writer.parameter(99, .pair(44, -32)), nil,
+                Writer.parameter(95, .double(6)), Writer.parameter(97, .double(10)), nil, Writer.parameter(99, .pair(44, -32)),
+                Writer.parameter(100, .pair(63, -32)),
             ]),
         ], to: &faded, isVideo: false)
         #expect(faded.volume.keyframes.map(\.time) == [.zero, frames(10)])
