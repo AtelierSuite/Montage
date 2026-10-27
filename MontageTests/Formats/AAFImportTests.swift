@@ -423,6 +423,15 @@ struct AAFImportTests {
         #expect(imported.report.isEmpty)
     }
 
+    @Test func takesTheFrameRateOfMasterMobsAfterSoundOnlyOnes() throws {
+        var file = F()
+        file.mobs = F.media(master: alphaMaster, file: alphaFile, name: "Sound", url: nil, length: 48_000,
+                            rate: (48000, 1), picture: false)
+            + F.media(master: bravoMaster, file: bravoFile, name: "Picture", url: nil, length: 240, rate: (24000, 1001))
+        let imported = try read(file)
+        #expect(imported.project.settings.frameDuration == CMTime(value: 1001, timescale: 24000))
+    }
+
     /// Media Composer's video tracks, as layers of a nested scope, where
     /// each shows those under it by scope references.
     @Test func readsNestedScopesAsLayers() throws {

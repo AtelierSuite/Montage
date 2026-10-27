@@ -35,6 +35,7 @@ struct AAFImporter {
     /// The media each source mob became, by its ID.
     private var mediaItems: [MobID: MediaItem] = [:]
     private var hasRenderSize = false
+    private var hasFrameDuration = false
     /// The master mob being imported, when there's no composition: its
     /// name is the name of the media it plays.
     private var currentMasterName: String?
@@ -271,8 +272,11 @@ struct AAFImporter {
             case .video?:
                 kind = .video
                 lane = videoLanes * Self.laneSpacing
-                if videoLanes == 0, start == .zero {
+                // The first picture slot's rate, though the first master
+                // mobs laid end to end may have only sound.
+                if !hasFrameDuration {
                     settings.frameDuration = InterchangeTime.time(Int64(rate.denominator), over: Int64(rate.numerator))
+                    hasFrameDuration = true
                 }
                 videoLanes += 1
             case .audio?:
