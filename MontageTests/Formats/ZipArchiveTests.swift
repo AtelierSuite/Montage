@@ -90,6 +90,26 @@ struct ZipArchiveTests {
         #expect(!FileManager.default.fileExists(atPath: folder.appending(path: "Escaped.txt").path))
     }
 
+    /// An archive whose entries say they hold more than the disk has room
+    /// for, as one made to fill it does, is refused before anything's written.
+    @Test func refusesAnArchiveTooLargeToUnpack() throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var data = try TestZip.archive([TestZip.File("Huge.bin", Self.text, deflated: true)], zip64: true)
+        // The ZIP64 field's size, past the central header and the name.
+        let central = try #require(data.firstRange(of: Data([0x50, 0x4B, 0x01, 0x02]))).lowerBound
+        let size = central + 46 + "Huge.bin".utf8.count + 4
+        withUnsafeBytes(of: (UInt64(1) << 60).littleEndian) { data.replaceSubrange(size..<(size + 8), with: $0) }
+        let url = folder.appending(path: "Huge.zip")
+        try data.write(to: url)
+
+        let unpacked = folder.appending(path: "Unpacked", directoryHint: .isDirectory)
+        #expect(throws: CocoaError(.fileWriteOutOfSpace, userInfo: [NSFilePathErrorKey: unpacked.path])) {
+            try ZipArchive(url: url).extractAll(into: unpacked)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: unpacked.path).isEmpty)
+    }
+
     @Test(arguments: [false, true])
     func readsAnArchiveInMemory(zip64: Bool) throws {
         let binary = Data((0..<300_000).map { UInt8(truncatingIfNeeded: $0 &* 31) })

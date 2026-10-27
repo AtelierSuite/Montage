@@ -121,12 +121,30 @@ final class ZipArchive {
     /// Writes every file in the archive into `folder`, keeping the folders
     /// they're in. Entries whose path would land outside the folder, and the
     /// resource forks Finder adds, are passed over. Returns the files written.
+    ///
+    /// An archive whose files wouldn't fit on the folder's volume is refused
+    /// before any is written, as an entry's contents are only checked once
+    /// they've all been.
     @discardableResult
     func extractAll(into folder: URL) throws -> [URL] {
+        let files = entries.compactMap { entry -> (entry: Entry, components: [String])? in
+            guard !entry.isDirectory, let components = Self.safeComponents(of: entry.path),
+                  components.first != "__MACOSX", components.last?.hasPrefix("._") == false else { return nil }
+            return (entry, components)
+        }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let total = try files.reduce(UInt64(0)) { total, file in
+            let (sum, overflow) = total.addingReportingOverflow(file.entry.size)
+            guard !overflow else { throw Error.damaged }
+            return sum
+        }
+        if let free = try? folder.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            .volumeAvailableCapacityForImportantUsage, total > UInt64(max(free, 0)) {
+            throw CocoaError(.fileWriteOutOfSpace, userInfo: [NSFilePathErrorKey: folder.path])
+        }
+
         var written: [URL] = []
-        for entry in entries where !entry.isDirectory {
-            guard let components = Self.safeComponents(of: entry.path),
-                  components.first != "__MACOSX", components.last?.hasPrefix("._") == false else { continue }
+        for (entry, components) in files {
             let destination = components.reduce(folder) { $0.appending(path: $1) }
             try FileManager.default.createDirectory(
                 at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
