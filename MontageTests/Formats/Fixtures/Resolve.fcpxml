@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE fcpxml>
+
+<!-- Made by hand in the shape DaVinci Resolve exports FCPXML (File > Export >
+     Timeline > FCPXML 1.10): a 23.976 timeline starting at 01:00:00:00, times
+     as large rationals over 24000, camera media whose own timecode starts at
+     01:00:00:00, file://localhost URLs with escaped spaces, every clip an
+     asset-clip with tcFormat, V2 and A1 connected on lanes, a gap carrying
+     connected clips, a compound clip as a ref-clip, a 25 fps clip with its
+     rate conformed, a dissolve, a marker, a title and a disabled clip. -->
+<fcpxml version="1.10">
+    <resources>
+        <format id="r0" name="FFVideoFormat1080p2398" frameDuration="1001/24000s" width="1920" height="1080"/>
+        <format id="r1" name="FFVideoFormat1080p25" frameDuration="1/25s" width="1920" height="1080"/>
+        <format id="r6" name="FFVideoFormatRateUndefined" width="1000" height="500"/>
+        <asset id="r2" name="A001_C001" start="86486400/24000s" duration="240240/24000s" hasVideo="1" hasAudio="1" format="r0" audioSources="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="file://localhost/Volumes/Media/Day%201/A001_C001.mov"/>
+        </asset>
+        <asset id="r3" name="B002_C004" start="0/1s" duration="20/1s" hasVideo="1" hasAudio="1" format="r1" audioSources="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="file:///Users/editor/Footage/B002_C004.mp4"/>
+        </asset>
+        <asset id="r4" name="Music" start="0/1s" duration="60/1s" hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000">
+            <media-rep kind="original-media" src="file:///Users/editor/Footage/Music.wav"/>
+        </asset>
+        <asset id="r5" name="Logo" start="0/1s" duration="0/1s" hasVideo="1" format="r6">
+            <media-rep kind="original-media" src="file:///Users/editor/Footage/Logo.png"/>
+        </asset>
+        <effect id="r7" name="Cross Dissolve" uid="FxPlug:4731E73A-8DAC-4113-9A30-AE85B1761265"/>
+        <effect id="r8" name="Basic Title" uid=".../Titles.localized/Bumper:Opener.localized/Basic Title.localized/Basic Title.moti"/>
+        <media id="r9" name="Compound Clip 1">
+            <sequence format="r0" duration="96096/24000s" tcStart="86486400/24000s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">
+                <spine>
+                    <asset-clip name="B002_C004.mp4" ref="r3" offset="86486400/24000s" start="2/1s" duration="96096/24000s" format="r1" tcFormat="NDF" enabled="1">
+                        <conform-rate srcFrameRate="25" scaleEnabled="0"/>
+                    </asset-clip>
+                </spine>
+            </sequence>
+        </media>
+    </resources>
+    <library>
+        <event name="Timeline 1 (Resolve)">
+            <project name="Timeline 1 (Resolve)">
+                <sequence format="r0" duration="264264/24000s" tcStart="86486400/24000s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">
+                    <spine>
+                        <asset-clip name="A001_C001.mov" ref="r2" offset="86486400/24000s" start="86510424/24000s" duration="120120/24000s" format="r0" tcFormat="NDF" enabled="1">
+                            <marker start="86558472/24000s" duration="1001/24000s" value="Check focus" completed="0"/>
+                            <adjust-transform position="0 0" anchor="0 0" scale="1 1"/>
+                            <asset-clip name="Logo.png" lane="1" ref="r5" offset="86534448/24000s" start="0/1s" duration="48048/24000s" format="r6" tcFormat="NDF" enabled="1">
+                                <adjust-blend amount="0.5"/>
+                            </asset-clip>
+                            <asset-clip name="Music.wav" lane="-1" ref="r4" offset="86510424/24000s" start="0/1s" duration="120120/24000s" tcFormat="NDF" enabled="1">
+                                <adjust-volume amount="-6dB"/>
+                            </asset-clip>
+                        </asset-clip>
+                        <transition name="Cross Dissolve" offset="86594508/24000s" duration="24024/24000s">
+                            <filter-video ref="r7" name="Cross Dissolve"/>
+                        </transition>
+                        <ref-clip name="Compound Clip 1" ref="r9" offset="86606520/24000s" start="86486400/24000s" duration="48048/24000s" enabled="1"/>
+                        <gap name="Gap" offset="86654568/24000s" start="86486400/24000s" duration="72072/24000s">
+                            <title name="Resolve Title" lane="1" ref="r8" offset="86510424/24000s" start="86486400/24000s" duration="48048/24000s" enabled="1">
+                                <text>
+                                    <text-style ref="ts1">Resolve Title</text-style>
+                                </text>
+                                <text-style-def id="ts1">
+                                    <text-style font="Helvetica" fontSize="72" fontColor="1 1 1 1" alignment="center"/>
+                                </text-style-def>
+                            </title>
+                            <asset-clip name="B002_C004.mp4" lane="2" ref="r3" offset="86486400/24000s" start="0/1s" duration="24024/24000s" format="r1" tcFormat="NDF" enabled="1">
+                                <conform-rate srcFrameRate="25" scaleEnabled="0"/>
+                            </asset-clip>
+                        </gap>
+                        <asset-clip name="A001_C001.mov" ref="r2" offset="86726640/24000s" start="86486400/24000s" duration="24024/24000s" format="r0" tcFormat="NDF" enabled="0"/>
+                    </spine>
+                </sequence>
+            </project>
+        </event>
+    </library>
+</fcpxml>

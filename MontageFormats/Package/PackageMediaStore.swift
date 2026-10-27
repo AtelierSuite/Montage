@@ -81,14 +81,15 @@ public final class PackageMediaStore: Sendable {
     /// the project's media), whatever else is staged and whatever is in the
     /// package already.
     public func stage(copying url: URL, takenPaths: Set<String> = []) throws -> String {
-        try stage(url, takenPaths: takenPaths) { try FileManager.default.copyItem(at: url, to: $0) }
+        try stage(named: url.lastPathComponent, takenPaths: takenPaths) { try FileManager.default.copyItem(at: url, to: $0) }
     }
 
     /// Moves a file into staging: one this app made for the purpose, such as
     /// a copy received from the photo library.
     public func stage(moving url: URL, takenPaths: Set<String> = []) throws -> String {
-        try stage(url, takenPaths: takenPaths) { try FileManager.default.moveItem(at: url, to: $0) }
+        try stage(named: url.lastPathComponent, takenPaths: takenPaths) { try FileManager.default.moveItem(at: url, to: $0) }
     }
+
 
     /// Throws a staged file away, as when it turns out it can't be used.
     public func discardStaged(_ path: String) {
@@ -96,13 +97,15 @@ public final class PackageMediaStore: Sendable {
         try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
     }
 
-    private func stage(_ url: URL, takenPaths: Set<String>, transfer: (URL) throws -> Void) throws -> String {
+    /// Stages a file called `name` that `transfer` puts at the URL it's
+    /// given: copied, moved, or unpacked from an archive straight there.
+    func stage(named name: String, takenPaths: Set<String> = [], transfer: (URL) throws -> Void) throws -> String {
         let fileManager = FileManager.default
         // Each file gets a folder of its own, so it can keep its name in
         // staging whatever name it has in the package.
         let folder = stagingDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
-        let destination = folder.appending(path: url.lastPathComponent, directoryHint: .notDirectory)
+        let destination = folder.appending(path: name, directoryHint: .notDirectory)
         do {
             try transfer(destination)
         } catch {
@@ -117,7 +120,7 @@ public final class PackageMediaStore: Sendable {
                 let names = (try? fileManager.contentsOfDirectory(atPath: media.path)) ?? []
                 taken.formUnion(names.map { ProjectPackage.mediaPath(forFileName: $0) })
             }
-            let path = ProjectPackage.uniqueMediaPath(for: url.lastPathComponent, avoiding: taken)
+            let path = ProjectPackage.uniqueMediaPath(for: name, avoiding: taken)
             state.staged[path] = destination
             return path
         }

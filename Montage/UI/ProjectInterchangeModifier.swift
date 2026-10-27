@@ -4,15 +4,17 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 extension View {
-    /// Importing another editor's project, and exporting this one as FCPXML,
-    /// from the "…" menu: the file pickers, the question before a project
+    /// Importing another editor's project, and exporting this one as FCPXML
+    /// or OpenTimelineIO, or as an EDL, from the "…" menu: the file pickers, the question before a project
     /// with something in it is replaced, and the report afterwards.
     func projectInterchange(
         editor: ProjectEditor, importer: MediaImporter, title: String,
-        isImporting: Binding<Bool>, isExporting: Binding<Bool>
+        isImporting: Binding<Bool>, isExporting: Binding<Bool>, isExportingEDL: Binding<Bool>,
+        isExportingOTIO: Binding<Bool>
     ) -> some View {
         modifier(ProjectInterchangeModifier(
-            editor: editor, importer: importer, title: title, isImporting: isImporting, isExporting: isExporting
+            editor: editor, importer: importer, title: title, isImporting: isImporting, isExporting: isExporting,
+            isExportingEDL: isExportingEDL, isExportingOTIO: isExportingOTIO
         ))
     }
 }
@@ -23,14 +25,16 @@ private struct ProjectInterchangeModifier: ViewModifier {
     let title: String
     @Binding var isImporting: Bool
     @Binding var isExporting: Bool
+    @Binding var isExportingEDL: Bool
+    @Binding var isExportingOTIO: Bool
 
     @State private var projectImport: ProjectImport?
     /// The file chosen to import, waiting on the question before replacing.
     @State private var pendingURL: URL?
-    @State private var exported: FCPXMLFile?
+    @State private var exported: InterchangeFile?
     @State private var isShowingExporter = false
     @State private var exportFailure: String?
-    /// What a finished FCPXML export had to leave out.
+    /// What a finished FCPXML or EDL export had to leave out.
     @State private var exportOmission: String?
 
     func body(content: Content) -> some View {
@@ -72,15 +76,33 @@ private struct ProjectInterchangeModifier: ViewModifier {
             // Written when asked for, then saved wherever the user chooses.
             .onChange(of: isExporting) { _, wantsExport in
                 guard wantsExport else { return }
-                exported = FCPXMLFile(data: editor.fcpxml(named: title))
+                exported = InterchangeFile(
+                    data: editor.fcpxml(named: title), contentType: .fcpxml, fileExtension: "fcpxml",
+                    omission: editor.fcpxmlOmissionMessage
+                )
                 isShowingExporter = true
                 isExporting = false
             }
+            .onChange(of: isExportingEDL) { _, wantsExport in
+                guard wantsExport else { return }
+                exported = InterchangeFile(
+                    data: editor.edl(named: title), contentType: .edl, fileExtension: "edl", omission: editor.edlOmissionMessage
+                )
+                isShowingExporter = true
+                isExportingEDL = false
+            }
+            .onChange(of: isExportingOTIO) { _, wantsExport in
+                guard wantsExport else { return }
+                exported = InterchangeFile(data: editor.otio(named: title), contentType: .otio, fileExtension: "otio", omission: nil)
+                isShowingExporter = true
+                isExportingOTIO = false
+            }
             .fileExporter(
-                isPresented: $isShowingExporter, document: exported, contentType: .fcpxml, defaultFilename: "\(title).fcpxml"
+                isPresented: $isShowingExporter, document: exported, contentType: exported?.contentType ?? .fcpxml,
+                defaultFilename: "\(title).\(exported?.fileExtension ?? "fcpxml")"
             ) { result in
                 switch result {
-                case .success: exportOmission = editor.fcpxmlOmissionMessage
+                case .success: exportOmission = exported?.omission
                 case .failure(let error): exportFailure = error.localizedDescription
                 }
                 exported = nil
@@ -122,14 +144,21 @@ private struct ProjectInterchangeModifier: ViewModifier {
     }
 }
 
-/// An exported FCPXML file, for the file exporter to save.
-private struct FCPXMLFile: FileDocument {
-    static let readableContentTypes: [UTType] = [.fcpxml]
+/// An exported FCPXML, EDL or OpenTimelineIO file, for the file exporter
+/// to save, with what it had to leave out.
+private struct InterchangeFile: FileDocument {
+    static let readableContentTypes: [UTType] = [.fcpxml, .edl, .otio]
 
     let data: Data
+    var contentType: UTType = .fcpxml
+    var fileExtension = "fcpxml"
+    var omission: String?
 
-    init(data: Data) {
+    init(data: Data, contentType: UTType, fileExtension: String, omission: String?) {
         self.data = data
+        self.contentType = contentType
+        self.fileExtension = fileExtension
+        self.omission = omission
     }
 
     init(configuration: ReadConfiguration) throws {

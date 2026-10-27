@@ -26,4 +26,21 @@ extension ProjectEditor {
     func fcpxml(named name: String) -> Data {
         ProjectInterchange.fcpxml(for: project, named: name, mediaResolver: mediaResolver)
     }
+
+    /// What to tell the user an EDL export left out, or nil if nothing.
+    var edlOmissionMessage: String? {
+        let count = ProjectInterchange.clipsLeftOutOfEDL(in: project).count
+        guard count > 0 else { return nil }
+        return String(format: String(localized: "EDLExport.LeftOut.Message"), count)
+    }
+
+    /// The project as a CMX 3600 EDL, for editors that read cut lists.
+    func edl(named name: String) -> Data {
+        ProjectInterchange.edl(for: project, named: name, mediaResolver: mediaResolver)
+    }
+
+    /// The project as OpenTimelineIO, for Resolve, Premiere Pro and others.
+    func otio(named name: String) -> Data {
+        ProjectInterchange.otio(for: project, named: name, mediaResolver: mediaResolver)
+    }
 }
