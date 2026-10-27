@@ -83,6 +83,16 @@ struct OTIOEffectTests {
         #expect(abs(shot.volume.value - 0.501) < 0.001)
     }
 
+    /// Composite's opacity of 1 is 1%, whether or not there's a default to
+    /// tell its scale by.
+    @Test func takesCompositesOpacityAsAPercentage() throws {
+        let imported = try read(clipEffects: [
+            resolve("Composite", [["Parameter ID": "opacity", "Parameter Value": 1.0]]),
+        ])
+        #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
+        #expect(abs(try clip(imported).opacity.value - 0.01) < 1e-9)
+    }
+
     /// As Resolve 19 writes a rotated clip: every Transform parameter, the
     /// changed ones beside their defaults, with no keyframes.
     @Test func turnsResolvesRotationTheOtherWay() throws {

@@ -425,9 +425,11 @@ struct OTIOImporter {
             } else if id == "transformationrotationangle" {
                 clip.transform.rotation = curve.map { $0 == 0 ? 0 : -$0 }
             } else if id.contains("opacity") {
-                // Composite's opacity is a percentage.
+                // Composite's opacity is a percentage, even where its block
+                // gives no default to tell by.
+                let isComposite = (block["Effect Name"] as? String)?.lowercased().contains("composite") == true
                 let fallback = (parameter["Default Parameter Value"] as? NSNumber)?.doubleValue ?? 0
-                let scale = fallback > 1 || curve.values.contains { $0 > 1 } ? 100.0 : 1
+                let scale = isComposite || fallback > 1 || curve.values.contains { $0 > 1 } ? 100.0 : 1
                 clip.opacity = curve.map { max(0, min(1, $0 / scale)) }
             } else if !curve.isAnimated, id.contains("volume") || id.contains("level") || id.hasSuffix("gain") {
                 // Fairlight's levels are in decibels.
