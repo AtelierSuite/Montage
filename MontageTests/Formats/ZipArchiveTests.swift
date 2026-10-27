@@ -27,10 +27,25 @@ struct ZipArchiveTests {
             #expect(try archive.data(for: entry, limit: 1 << 20) == Data(Self.text.utf8))
         }
 
-        let unpacked = folder.appending(path: "Unpacked", directoryHint: .isDirectory)
-        let written = try archive.extractAll(into: unpacked)
-        #expect(written.count == 3)
-        #expect(try Data(contentsOf: unpacked.appending(path: "Media/Binary.bin")) == binary)
+        let extracted = folder.appending(path: "Binary.bin")
+        try archive.extract(try #require(archive.entry(at: "Media/Binary.bin")), to: extracted)
+        #expect(try Data(contentsOf: extracted) == binary)
+    }
+
+    @Test func readsAnEmptyFileDeflatedWithNoStream() throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var empty = TestZip.File("Empty.txt", Data(), deflated: true)
+        empty.noStream = true
+        var cut = TestZip.File("Cut.txt", Self.text, deflated: true)
+        cut.noStream = true
+        let archive = try ZipArchive(url: try TestZip.write([empty, cut], named: "Empty.zip", in: folder))
+        let entry = try #require(archive.entry(at: "Empty.txt"))
+        #expect(entry.method == ZipArchive.deflated)
+        #expect(entry.compressedSize == 0)
+        #expect(try archive.data(for: entry, limit: 1 << 20) == Data())
+        // With nothing to inflate, a file that isn't empty is damaged.
+        #expect(throws: ZipArchive.Error.damaged) { try archive.data(for: try #require(archive.entry(at: "Cut.txt")), limit: 1 << 20) }
     }
 
     @Test func refusesWhatIsntAnArchive() throws {
@@ -119,41 +134,6 @@ struct ZipArchiveTests {
         #expect(throws: ZipArchive.Error.damaged) {
             try ZipArchive(url: url).extractAll(into: folder.appending(path: "Unpacked", directoryHint: .isDirectory))
         }
-    }
-
-    @Test(arguments: [false, true])
-    func readsAnArchiveInMemory(zip64: Bool) throws {
-        let binary = Data((0..<300_000).map { UInt8(truncatingIfNeeded: $0 &* 31) })
-        let data = try TestZip.archive([
-            TestZip.File("Project/Stored.txt", Self.text),
-            TestZip.File("Media/Binary.bin", binary, deflated: true),
-        ], zip64: zip64)
-        // From a slice that doesn't start at zero, as data read whole may be.
-        let archive = try ZipArchive(data: (Data([1, 2, 3]) + data).dropFirst(3))
-        #expect(archive.url == nil)
-        #expect(archive.entries.map(\.path) == ["Project/Stored.txt", "Media/Binary.bin"])
-        let stored = try #require(archive.entry(at: "Project/Stored.txt"))
-        #expect(try archive.data(for: stored, limit: 1 << 20) == Data(Self.text.utf8))
-        let deflated = try #require(archive.entry(at: "Media/Binary.bin"))
-        #expect(try archive.data(for: deflated, limit: 1 << 20) == binary)
-        #expect(archive.entry(at: "Missing.txt") == nil)
-    }
-
-    @Test func refusesDamagedArchivesInMemory() throws {
-        #expect(throws: ZipArchive.Error.notAnArchive) { try ZipArchive(data: Data("<xml/>".utf8)) }
-        #expect(throws: ZipArchive.Error.notAnArchive) { try ZipArchive(data: Data()) }
-        var data = try TestZip.archive([TestZip.File("A.txt", Self.text, deflated: true)])
-        #expect(throws: ZipArchive.Error.self) { try ZipArchive(data: data.prefix(data.count / 2)) }
-        data[60] ^= 0xFF
-        let archive = try ZipArchive(data: data)
-        #expect(throws: ZipArchive.Error.self) { try archive.data(for: archive.entries[0], limit: 1 << 20) }
-    }
-
-    @Test func recognizesArchivesByTheirSignature() throws {
-        #expect(ZipArchive.hasSignature(try TestZip.archive([TestZip.File("A.txt", "a")])))
-        #expect(ZipArchive.hasSignature(try TestZip.archive([])))
-        #expect(!ZipArchive.hasSignature(Data("<fcpxml/>".utf8)))
-        #expect(!ZipArchive.hasSignature(Data()))
     }
 
     @Test func checksumsMatchZlibs() {

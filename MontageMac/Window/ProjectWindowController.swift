@@ -163,7 +163,8 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         if editor.timeline.editedTextClipID != nil, let action = menuItem.action,
            Self.unavailableWhileTyping.contains(action) { return false }
         switch menuItem.action {
-        case #selector(exportMovie(_:)), #selector(exportFCPXML(_:)), #selector(exportOTIO(_:)): return editor.canExport
+        case #selector(exportMovie(_:)), #selector(exportFCPXML(_:)), #selector(exportEDL(_:)), #selector(exportOTIO(_:)):
+            return editor.canExport
         case #selector(importProject(_:)): return !projectImport.isImporting
         case #selector(delete(_:)), #selector(rippleDelete(_:)): return editor.canDelete
         case #selector(splitClips(_:)): return editor.canSplit

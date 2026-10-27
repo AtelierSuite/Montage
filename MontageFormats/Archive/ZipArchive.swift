@@ -6,9 +6,6 @@ import zlib
 /// an archive of several gigabytes is never held in memory. Entries stored
 /// as they are or compressed with deflate are read, ZIP64 included.
 /// Encrypted entries and other compression methods aren't.
-///
-/// An archive already in memory, as a project file read whole is, can be
-/// read the same way with `init(data:)`.
 final class ZipArchive {
     struct Entry: Equatable, Sendable {
         /// The entry's path in the archive, with forward slashes.
@@ -40,24 +37,18 @@ final class ZipArchive {
     static let stored: UInt16 = 0
     static let deflated: UInt16 = 8
 
-    /// The file the archive was read from; nil for one read from memory.
-    let url: URL?
+    /// The file the archive was read from.
+    let url: URL
     private(set) var entries: [Entry] = []
-    private let source: Source
+    private let handle: FileHandle
     private let fileSize: UInt64
-
-    /// Where the archive's bytes come from.
-    private enum Source {
-        case file(FileHandle)
-        case memory(Data)
-    }
 
     private static let chunkSize = 256 * 1024
 
     init(url: URL) throws {
         self.url = url
         let handle = try FileHandle(forReadingFrom: url)
-        source = .file(handle)
+        self.handle = handle
         do {
             fileSize = try handle.seekToEnd()
             entries = try readCentralDirectory()
@@ -67,24 +58,8 @@ final class ZipArchive {
         }
     }
 
-    /// An archive held in memory.
-    init(data: Data) throws {
-        url = nil
-        // Indexed from zero, whatever slice it came from.
-        source = .memory(Data(data))
-        fileSize = UInt64(data.count)
-        entries = try readCentralDirectory()
-    }
-
     deinit {
-        if case .file(let handle) = source { try? handle.close() }
-    }
-
-    /// Whether data starts as a ZIP archive does: with a local file header,
-    /// or with the end record of an empty archive.
-    static func hasSignature(_ data: Data) -> Bool {
-        let head = [UInt8](data.prefix(4))
-        return head == [0x50, 0x4B, 0x03, 0x04] || head == [0x50, 0x4B, 0x05, 0x06]
+        try? handle.close()
     }
 
     /// The entry at a path in the archive.
@@ -216,6 +191,9 @@ final class ZipArchive {
 
     /// Raw deflate, which is what the Compression framework's zlib is.
     private func inflate(from offset: UInt64, compressedSize: UInt64, consume: (UnsafeRawBufferPointer) throws -> Void) throws {
+        // Some tools write an empty file as deflated with no stream at all:
+        // nothing comes out, and its size says whether that's right.
+        guard compressedSize > 0 else { return }
         let stream = UnsafeMutablePointer<compression_stream>.allocate(capacity: 1)
         defer { stream.deallocate() }
         guard compression_stream_init(stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB) == COMPRESSION_STATUS_OK else {
@@ -275,14 +253,8 @@ final class ZipArchive {
     /// Up to `count` bytes from `offset`, fewer at the end of the archive.
     private func bytes(at offset: UInt64, upTo count: Int) throws -> Data {
         guard offset <= fileSize else { throw Error.damaged }
-        switch source {
-        case .file(let handle):
-            try handle.seek(toOffset: offset)
-            return try handle.read(upToCount: count) ?? Data()
-        case .memory(let data):
-            let end = Int(min(fileSize, offset + UInt64(count)))
-            return data.subdata(in: Int(offset)..<end)
-        }
+        try handle.seek(toOffset: offset)
+        return try handle.read(upToCount: count) ?? Data()
     }
 
     private func readCentralDirectory() throws -> [Entry] {

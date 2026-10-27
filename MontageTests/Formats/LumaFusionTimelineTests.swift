@@ -6,9 +6,11 @@ import MontageEngine
 import Testing
 
 /// LumaFusion project files made at test time, laid out as LumaFusion for
-/// Android 2.6 writes them, or, with `iOS`, as LumaFusion for iOS 5.5 does:
-/// the in point in `sourceRange` and the speed as a setting. Names, IDs and
-/// times are made up.
+/// Android 2.6 writes them, or, with `iOS`, as LumaFusion for iOS 3.1 does:
+/// the in point in `sourceRange`, the speed as a setting, a photo's picture
+/// as `mediaType` 2, scale, position and rotation in one `videoTransform`,
+/// and each stream's defaults in `parameters`. Names, IDs and times are
+/// made up.
 enum LumaFusionFixture {
     static func time(_ value: Int64, _ timescale: Int64 = 600) -> [String: Any] {
         ["epoch": 0, "flags": 1, "timescale": timescale, "value": value]
@@ -29,7 +31,7 @@ enum LumaFusionFixture {
         /// The timescale of `start`; the others are in 1/600 s.
         var startTimescale: Int64 = 600
         var sourceStart: Int64 = 0
-        /// 0 a video or sound file, 2 a photo, 4 a title.
+        /// 0 a video or sound file, 1 a sound file (iOS), 2 a photo, 4 a title.
         var assetType = 0
         var video = true
         var audio = true
@@ -43,10 +45,31 @@ enum LumaFusionFixture {
         var alpha = 1.0
         var scale = [1.0, 1.0]
         var translation = [0.0, 0.0]
+        /// In radians.
         var rotation = 0.0
+        /// iOS only: `videoTransform`'s anchor point, its keyframes, and
+        /// their interpolation type.
+        var anchor = [0.5, 0.5]
+        var keyframes: [TransformKeyframe] = []
+        var easing = 0
         var crop: [[Double]] = [[0, 0], [1, 1]]
         var effects: [String] = []
         var originalFilename: String?
+        /// iOS only: a separate `videoScale` and `videoTranslation` at their
+        /// defaults, beside `videoTransform`.
+        var separateDefaults = false
+    }
+
+    struct TransformKeyframe {
+        var time: Int64
+        var scale: [Double]
+        var translation = [0.0, 0.0]
+        var rotation = 0.0
+    }
+
+    /// A `videoTransform` value, `{type: 5, value: {...}}`.
+    static func transform(scale: [Double], translation: [Double], anchor: [Double] = [0.5, 0.5], rotation: Double) -> [String: Any] {
+        ["type": 5, "value": ["scaling": scale, "translation": translation, "anchorPoint": anchor, "rotation": rotation]]
     }
 
     static func assetID(_ file: String) -> String { "x-coredata://STORE/SpryAsset/\(file)" }
@@ -84,6 +107,28 @@ enum LumaFusionFixture {
                 ]
             }
             if !iOS { attributes["speed"] = nil }
+            if iOS, video {
+                for key in ["videoAnchor", "videoScale", "videoTranslation", "videoTransformRotation"] { attributes[key] = nil }
+                if clip.separateDefaults {
+                    attributes["videoScale"] = setting([1.0, 1.0], type: 14)
+                    attributes["videoTranslation"] = setting(["point": [0.0, 0.0]], type: 13)
+                }
+                attributes["videoRotation"] = setting(0.0)
+                let interpolation: [String: Any] = ["type": clip.easing, "controlPointIn": [1, 1], "controlPointOut": [0, 0]]
+                attributes["videoTransform"] = [
+                    "conversionType": 0,
+                    "value": transform(scale: clip.scale, translation: clip.translation, anchor: clip.anchor, rotation: clip.rotation),
+                    "keyframes": clip.keyframes.map { keyframe -> [String: Any] in
+                        [
+                            "clipTime": time(keyframe.time, 30000),
+                            "value": transform(scale: keyframe.scale, translation: keyframe.translation, anchor: clip.anchor,
+                                               rotation: keyframe.rotation),
+                            "interpolation": interpolation,
+                            "spatialInterpolation": ["type": 0, "controlPointIn": [1, 1], "controlPointOut": [0, 0]],
+                        ]
+                    },
+                ] as [String: Any]
+            }
             return attributes
         }
         func stream(mediaType: Int, trackID: Int) -> [String: Any] {
@@ -95,6 +140,11 @@ enum LumaFusionFixture {
             ]
             if iOS {
                 stream["sourceRange"] = ["start": time(clip.sourceStart), "duration": time(clip.duration)]
+                // Defaults, which differ from the clip's own settings.
+                stream["parameters"] = mediaType == 1 ? ["audioVolume": ["type": 2, "value": 1]] : [
+                    "videoTransform": transform(scale: [1, 1], translation: [0, 0], rotation: 0),
+                    "videoAlpha": ["type": 2, "value": 1], "videoFitMode": ["type": 1, "value": 3],
+                ]
             } else {
                 stream["originalStepTime"] = time(24)
                 stream["sourceSpeed"] = clip.speed
@@ -102,7 +152,8 @@ enum LumaFusionFixture {
             return stream
         }
         var streams: [[String: Any]] = []
-        if clip.video { streams.append(stream(mediaType: clip.assetType == 2 ? 2 : 0, trackID: 0)) }
+        let pictureType = clip.assetType == 2 ? 2 : clip.assetType == 4 && iOS ? 3 : 0
+        if clip.video { streams.append(stream(mediaType: pictureType, trackID: 0)) }
         if clip.audio { streams.append(stream(mediaType: 1, trackID: 1)) }
         var object: [String: Any] = [
             "anchorFromClipIDs": [], "assetIsBlank": clip.blank, "assetType": clip.assetType,
@@ -134,16 +185,22 @@ enum LumaFusionFixture {
     static func project(
         _ tracks: [[String: Any]], title: String = "Holiday", version: String = "2.6.0",
         mediaMap: [String: String] = [:], markers: [[String: Any]] = [],
-        resolution: [Int] = [3840, 2160], step: [String: Any] = time(1001, 24000)
+        resolution: [Int] = [3840, 2160], step: [String: Any] = time(1001, 24000),
+        primaryVolume: Double = 1, masterVolume: Double? = nil
     ) throws -> Data {
-        let root: [String: Any] = [
+        var root: [String: Any] = [
             "attributes": [
                 "appVersion": version, "compositionMarkers": markers, "trackMarkers": [String: Any](),
                 "assetMarkers": [String: Any](), "notes": "", "mediaMap": mediaMap,
             ] as [String: Any],
-            "backgroundColor": "0.0 0.0 0.0 1.0", "primaryVolume": 1, "resolution": resolution, "stepTime": step,
+            "backgroundColor": "0.0 0.0 0.0 1.0", "primaryVolume": primaryVolume, "resolution": resolution, "stepTime": step,
             "title": title, "videoColorspace": 0, "needsCloudMedia": false, "tracks": tracks,
         ]
+        // LumaFusion for iOS calls it `masterVolume`.
+        if let masterVolume {
+            root["primaryVolume"] = nil
+            root["masterVolume"] = masterVolume
+        }
         return try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
     }
 }
@@ -166,7 +223,7 @@ struct LumaFusionTimelineTests {
             Fixture.track(type: 0, offset: 2, [], iOS: iOS),
             Fixture.track(type: 0, offset: 1, [
                 .init(file: "Dub.mp4", start: 600, duration: 3000, sourceStart: 1200, volume: 0.5, pan: -0.25,
-                      alpha: 0.75, scale: [0.5, 0.5], translation: [0.5, 0]),
+                      alpha: 0.75, scale: [0.5, 0.5], translation: [0.5, 0.5]),
             ], iOS: iOS),
             Fixture.track(type: 0, offset: 0, anchor: true, volume: -1, [
                 .init(file: "Main.mkv", start: 0, duration: 6000),
@@ -208,7 +265,8 @@ struct LumaFusionTimelineTests {
         #expect(overlay.volume == Animatable(0.5))
         #expect(overlay.opacity == Animatable(0.75))
         #expect(overlay.transform.scale == Animatable(0.5))
-        #expect(overlay.transform.position == Animatable(CGPoint(x: 0.75, y: 0.5)))
+        // In the bottom-right quarter: down is positive.
+        #expect(overlay.transform.position == Animatable(CGPoint(x: 0.75, y: 0.75)))
         #expect(overlay.effects.count == 1)
         guard case .pan(let pan) = overlay.effects.first?.kind else { Issue.record("No pan"); return }
         #expect(pan.position == Animatable(-0.25))
@@ -233,7 +291,121 @@ struct LumaFusionTimelineTests {
             }
         }
         #expect(summary(iOS) == summary(android))
+        // Placed the same way, though iOS writes it as one transform.
+        let positions = { (imported: ImportedProject) in imported.project.tracks.flatMap { $0.clips.map(\.transform) } }
+        #expect(positions(iOS) == positions(android))
         #expect(iOS.report.isEmpty)
+    }
+
+    @Test func readsTheIOSTransformWithItsKeyframes() throws {
+        let imported = try Self.read(try Fixture.project([
+            Fixture.track(type: 0, offset: 0, anchor: true, [
+                // Zooms out and moves down and right, turning a twelfth.
+                .init(file: "Zoom.jpg", start: 0, duration: 600, assetType: 2, audio: false, scale: [1.687, 1.687],
+                      keyframes: [
+                          .init(time: 0, scale: [1.687, 1.687]),
+                          .init(time: 15000, scale: [1, 1], translation: [0.5, 0.5], rotation: .pi / 6),
+                      ]),
+                // Placed without keyframes: left, a little down, a quarter
+                // turn anticlockwise.
+                .init(file: "Still.jpg", start: 600, duration: 600, assetType: 2, audio: false, scale: [0.5, 0.5],
+                      translation: [-0.5, 0.25], rotation: -.pi / 2),
+                // Keyframes that all hold the same value.
+                .init(file: "Held.jpg", start: 1200, duration: 600, assetType: 2, audio: false, keyframes: [
+                    .init(time: 0, scale: [1.25, 1.25]), .init(time: 3000, scale: [1.25, 1.25]),
+                ]),
+            ], iOS: true),
+        ]))
+        let clips = imported.project.tracks[0].clips
+        #expect(clips.count == 3)
+
+        let zoom = clips[0].transform
+        let half = CMTime(value: 15000, timescale: 30000)
+        #expect(zoom.scale.value == 1.687)
+        #expect(zoom.scale.keyframes.map(\.time) == [.zero, half])
+        #expect(zoom.scale.keyframes.map(\.value) == [1.687, 1])
+        #expect(zoom.position.keyframes.map(\.value) == [CGPoint(x: 0.5, y: 0.5), CGPoint(x: 0.75, y: 0.75)])
+        #expect(zoom.rotation.keyframes.map(\.time) == [.zero, half])
+        #expect(abs((zoom.rotation.keyframes.last?.value ?? 0) - 30) < 0.0001)
+        #expect(zoom.scale.keyframes.allSatisfy { $0.interpolation == .linear })
+
+        // Not the defaults in `parameters`.
+        let still = clips[1].transform
+        #expect(still.scale == Animatable(0.5))
+        #expect(still.position == Animatable(CGPoint(x: 0.25, y: 0.625)))
+        #expect(!still.rotation.isAnimated)
+        #expect(abs(still.rotation.value + 90) < 0.0001)
+
+        #expect(clips[2].transform.scale == Animatable(1.25))
+        #expect(clips[2].transform.position == Animatable(CGPoint(x: 0.5, y: 0.5)))
+        #expect(imported.report.isEmpty)
+    }
+
+    @Test func takesTheIOSTransformOverSeparateScaleAndPosition() throws {
+        let imported = try Self.read(try Fixture.project([
+            Fixture.track(type: 0, offset: 0, anchor: true, [
+                .init(file: "Zoom.jpg", start: 0, duration: 600, assetType: 2, audio: false, scale: [2, 2],
+                      translation: [0.5, 0], keyframes: [
+                          .init(time: 0, scale: [2, 2], translation: [0.5, 0]),
+                          .init(time: 15000, scale: [1, 1]),
+                      ], separateDefaults: true),
+            ], iOS: true),
+        ]))
+        let transform = try #require(imported.project.tracks.first?.clips.first).transform
+        #expect(transform.scale.keyframes.map(\.value) == [2, 1])
+        #expect(transform.position.keyframes.map(\.value) == [CGPoint(x: 0.75, y: 0.5), CGPoint(x: 0.5, y: 0.5)])
+        #expect(imported.report.isEmpty)
+    }
+
+    @Test func reportsWhatTheIOSTransformHasThatMontageHasnt() throws {
+        let imported = try Self.read(try Fixture.project([
+            Fixture.track(type: 0, offset: 0, anchor: true, [
+                .init(file: "Squash.jpg", start: 0, duration: 600, assetType: 2, audio: false, scale: [2, 1]),
+                .init(file: "Corner.jpg", start: 600, duration: 600, assetType: 2, audio: false, anchor: [0, 0]),
+                .init(file: "Eased.jpg", start: 1200, duration: 600, assetType: 2, audio: false,
+                      keyframes: [.init(time: 0, scale: [1, 1]), .init(time: 3000, scale: [2, 2])], easing: 1),
+                .init(file: "Mirror.jpg", start: 1800, duration: 600, assetType: 2, audio: false, scale: [-1, 1]),
+            ], iOS: true),
+        ]))
+        let issues = imported.report.items.map(\.issue)
+        #expect(issues.contains(.unevenAveraged(name: "Scale")))
+        // Its own wording: LumaFusion's scale is averaged, not taken across.
+        let averaged = ImportReport.Issue.unevenAveraged(name: "Scale")
+        #expect(averaged.message != ImportReport.Issue.uneven(name: "Scale").message)
+        #expect(averaged.message.contains("Scale"))
+        #expect(averaged.category == .changed)
+        #expect(issues.contains(.setting(name: "Anchor point")))
+        #expect(issues.contains(.setting(name: "Keyframe easing")))
+        #expect(issues.contains(.setting(name: "Flip")))
+        #expect(imported.project.tracks[0].clips[0].transform.scale == Animatable(1.5))
+        // The eased keyframes are still read, as straight lines.
+        #expect(imported.project.tracks[0].clips[2].transform.scale.keyframes.map(\.value) == [1, 2])
+    }
+
+    @Test func reportsTheMasterVolume() throws {
+        let track = Fixture.track(type: 0, offset: 0, anchor: true, [.init(file: "A.mov", start: 0, duration: 600)])
+        let iOS = try Self.read(try Fixture.project([track], masterVolume: 0.678))
+        #expect(iOS.report.items.map(\.issue) == [.setting(name: "Master volume")])
+        let android = try Self.read(try Fixture.project([track], primaryVolume: 0.5))
+        #expect(android.report.items.map(\.issue) == [.setting(name: "Master volume")])
+        #expect(try Self.read(try Fixture.project([track], masterVolume: 1)).report.isEmpty)
+    }
+
+    @Test func importsSoundFilesAsAudio() throws {
+        // LumaFusion for iOS marks a sound file with `assetType` 1.
+        let imported = try Self.read(try Fixture.project([
+            Fixture.track(type: 0, offset: 0, anchor: true, [
+                .init(file: "Voiceover", start: 0, duration: 600, assetType: 1, video: false),
+            ], iOS: true),
+            Fixture.track(type: 1, offset: -1, [
+                .init(file: "Music.m4a", start: 0, duration: 2400, sourceStart: 600, assetType: 1, video: false),
+            ], iOS: true),
+        ]))
+        #expect(imported.project.media.map(\.kind) == [.audio, .audio])
+        #expect(imported.project.tracks.map(\.kind) == [.audio, .audio])
+        let music = try #require(imported.clip("Music.m4a"))
+        #expect(music.clip.sourceRange == CMTimeRange(start: Self.seconds(600), duration: Self.seconds(2400)))
+        #expect(imported.report.isEmpty)
     }
 
     @Test func takesMediaNamesFromThePackageThenTheClip() throws {
@@ -246,12 +418,17 @@ struct LumaFusionTimelineTests {
                 // A placeholder for a name.
                 .init(file: "Photo.heic", start: 1200, duration: 600, assetType: 2, audio: false,
                       originalFilename: "sioProviderRelink"),
+                // Both: named as the package stores it, which is where it's
+                // found, with where it was to look as well.
+                .init(file: "IMG_0002.MOV", start: 1800, duration: 600, originalFilename: "/var/mobile/Media/IMG_0002.MOV"),
             ]),
-        ], mediaMap: ["Holiday 1.mov": Fixture.assetID("IMG_0001.MOV")]))
-        #expect(imported.project.media.map(\.name) == ["Holiday 1.mov", "Trip.mov", "Photo.heic"])
-        #expect(imported.project.media.map(\.kind) == [.video, .video, .image])
+        ], mediaMap: ["Holiday 1.mov": Fixture.assetID("IMG_0001.MOV"), "Holiday 2.mov": Fixture.assetID("IMG_0002.MOV")]))
+        #expect(imported.project.media.map(\.name) == ["Holiday 1.mov", "Trip.mov", "Photo.heic", "Holiday 2.mov"])
+        #expect(imported.project.media.map(\.kind) == [.video, .video, .image, .video])
         let trip = try #require(imported.project.media.first { $0.name == "Trip.mov" })
         #expect(imported.mediaSources[trip.id] == URL(fileURLWithPath: "/Volumes/Card/DCIM/Trip.mov"))
+        let both = try #require(imported.project.media.first { $0.name == "Holiday 2.mov" })
+        #expect(imported.mediaSources[both.id] == URL(fileURLWithPath: "/var/mobile/Media/IMG_0002.MOV"))
         let photo = try #require(imported.clip("Photo.heic"))
         #expect(photo.clip.sourceRange == CMTimeRange(start: .zero, duration: Self.seconds(600)))
     }
@@ -321,6 +498,24 @@ struct LumaFusionTimelineTests {
         #expect(imported.report.isEmpty)
     }
 
+    @Test func takesATransitionForTheJoinIntoItsClipAlone() throws {
+        let imported = try Self.read(try Fixture.project([
+            Fixture.track(type: 0, offset: 0, anchor: true, [
+                .init(file: "A.mov", start: 0, duration: 1200),
+                // Crossfades in from A.
+                .init(file: "B.mov", start: 900, duration: 1200, transition: 1),
+                // Cut to straight after B, a three-thousandth of a second
+                // early.
+                .init(file: "C.mov", start: 83992, duration: 600, startTimescale: 24000),
+            ]),
+        ]))
+        #expect(imported.project.tracks.count == 1)
+        let clips = imported.project.tracks[0].clips
+        #expect(clips.map(\.timelineStart) == [.zero, Self.seconds(1050), Self.seconds(2100)])
+        #expect(clips[1].timelineRange.end == Self.seconds(2100))
+        #expect(imported.report.items.map(\.issue) == [.transition(name: "Transition")])
+    }
+
     @Test func detachesSoundAClipDoesntPlay() throws {
         let imported = try Self.read(try Fixture.project([
             Fixture.track(type: 0, offset: 0, anchor: true, [.init(file: "A.mov", start: 0, duration: 600, audio: false)]),
@@ -330,6 +525,23 @@ struct LumaFusionTimelineTests {
         #expect(imported.project.tracks.map(\.kind) == [.video, .audio])
         #expect(imported.project.tracks[0].clips.first?.isAudioDetached == true)
         #expect(imported.project.tracks[1].clips.first?.isAudioDetached == false)
+    }
+
+    @Test func takesAVideoFileUsedForItsSoundFirstForVideo() throws {
+        // Its sound alone, on the main track, is read before its picture,
+        // on an overlay.
+        let imported = try Self.read(try Fixture.project([
+            Fixture.track(type: 0, offset: 0, anchor: true, [.init(file: "A.mov", start: 0, duration: 600, video: false)]),
+            Fixture.track(type: 0, offset: 1, [.init(file: "A.mov", start: 0, duration: 600, audio: false)]),
+        ]))
+        #expect(imported.project.media.count == 1)
+        let item = try #require(imported.project.media.first)
+        #expect(item.kind == .video)
+        #expect(item.metadata.naturalSize == CGSize(width: 1920, height: 1080))
+        #expect(item.metadata.nominalFrameRate == 25)
+        #expect(item.metadata.audioChannelCount == 2)
+        #expect(imported.project.tracks.map(\.kind) == [.video, .audio])
+        #expect(imported.project.tracks[0].clips.first?.isAudioDetached == true)
     }
 
     @Test func refusesProjectsLaidOutOtherwise() throws {
