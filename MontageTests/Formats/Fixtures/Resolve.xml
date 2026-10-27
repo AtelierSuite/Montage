@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xmeml>
+<!-- Made by hand in the shape DaVinci Resolve exports Final Cut Pro 7 XML
+     (File > Export > Timeline > FCP 7 XML V5): a 25 fps timeline whose
+     timecode starts at 01:00:00:00 while clip times count from zero, clip
+     IDs with spaces, each file written out once and referred to by ID after,
+     file://localhost URLs, Basic Motion and Opacity written on every clip at
+     their defaults, linked stereo sound as one clip item per channel, a
+     dissolve, a UHD clip scaled to fit, and a marker. -->
+<xmeml version="5">
+<sequence>
+<name>Timeline 1</name>
+<duration>275</duration>
+<rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate>
+<in>-1</in>
+<out>-1</out>
+<timecode><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><string>01:00:00:00</string><frame>90000</frame><displayformat>NDF</displayformat></timecode>
+<media>
+<video>
+<format><samplecharacteristics><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><width>1920</width><height>1080</height><pixelaspectratio>square</pixelaspectratio></samplecharacteristics></format>
+<track>
+<clipitem id="Interview A.mov 0"><name>Interview A.mov</name><duration>500</duration><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><start>0</start><end>125</end><enabled>TRUE</enabled><in>25</in><out>150</out>
+<file id="Interview A.mov 2"><duration>500</duration><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><name>Interview A.mov</name><pathurl>file://localhost/Users/editor/Media/Interview%20A.mov</pathurl><timecode><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><string>01:00:00:00</string><frame>90000</frame><displayformat>NDF</displayformat></timecode>
+<media><video><duration>500</duration><samplecharacteristics><width>1920</width><height>1080</height></samplecharacteristics></video><audio><channelcount>2</channelcount></audio></media></file>
+<compositemode>normal</compositemode>
+<filter><enabled>TRUE</enabled><start>0</start><end>125</end><effect><name>Basic Motion</name><effectid>basic</effectid><effectcategory>motion</effectcategory><effecttype>motion</effecttype><mediatype>video</mediatype>
+<parameter authoringApp="DaVinciResolve"><parameterid>scale</parameterid><name>Scale</name><valuemin>0</valuemin><valuemax>10000</valuemax><value>100</value></parameter>
+<parameter><parameterid>rotation</parameterid><name>Rotation</name><valuemin>-100000</valuemin><valuemax>100000</valuemax><value>0</value></parameter>
+<parameter><parameterid>center</parameterid><name>Center</name><value><horiz>0</horiz><vert>0</vert></value></parameter>
+<parameter><parameterid>centerOffset</parameterid><name>Anchor Point</name><value><horiz>0</horiz><vert>0</vert></value></parameter>
+</effect></filter>
+<filter><enabled>TRUE</enabled><start>0</start><end>125</end><effect><name>Opacity</name><effectid>opacity</effectid><effectcategory>motion</effectcategory><effecttype>motion</effecttype><mediatype>video</mediatype>
+<parameter><parameterid>opacity</parameterid><name>opacity</name><valuemin>0</valuemin><valuemax>100</valuemax><value>100</value></parameter></effect></filter>
+<link><linkclipref>Interview A.mov 0</linkclipref></link><link><linkclipref>Interview A.mov 3</linkclipref></link><link><linkclipref>Interview A.mov 5</linkclipref></link><comments/></clipitem>
+<transitionitem><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><start>113</start><end>138</end><alignment>center</alignment><cutPointTicks>0</cutPointTicks><effect><name>Cross Dissolve</name><effectid>Cross Dissolve</effectid><effectcategory>Dissolve</effectcategory><effecttype>transition</effecttype><mediatype>video</mediatype><wipecode>0</wipecode><wipeaccuracy>100</wipeaccuracy><startratio>0</startratio><endratio>1</endratio><reverse>FALSE</reverse></effect></transitionitem>
+<clipitem id="B-Roll.mov 0"><name>B-Roll.mov</name><duration>300</duration><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><start>125</start><end>275</end><enabled>TRUE</enabled><in>0</in><out>150</out>
+<file id="B-Roll.mov 4"><duration>300</duration><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><name>B-Roll.mov</name><pathurl>file://localhost/Users/editor/Media/B-Roll.mov</pathurl><timecode><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><string>00:00:00:00</string><frame>0</frame><displayformat>NDF</displayformat></timecode>
+<media><video><duration>300</duration><samplecharacteristics><width>3840</width><height>2160</height></samplecharacteristics></video><audio><channelcount>2</channelcount></audio></media></file>
+<compositemode>normal</compositemode>
+<filter><enabled>TRUE</enabled><start>0</start><end>150</end><effect><name>Basic Motion</name><effectid>basic</effectid><effectcategory>motion</effectcategory><effecttype>motion</effecttype><mediatype>video</mediatype>
+<parameter authoringApp="DaVinciResolve"><parameterid>scale</parameterid><name>Scale</name><valuemin>0</valuemin><valuemax>10000</valuemax><value>50</value></parameter>
+<parameter><parameterid>rotation</parameterid><name>Rotation</name><valuemin>-100000</valuemin><valuemax>100000</valuemax><value>0</value></parameter>
+<parameter><parameterid>center</parameterid><name>Center</name><value><horiz>0</horiz><vert>0</vert></value></parameter>
+<parameter><parameterid>centerOffset</parameterid><name>Anchor Point</name><value><horiz>0</horiz><vert>0</vert></value></parameter>
+</effect></filter>
+<filter><enabled>TRUE</enabled><start>0</start><end>150</end><effect><name>Opacity</name><effectid>opacity</effectid><effectcategory>motion</effectcategory><effecttype>motion</effecttype><mediatype>video</mediatype>
+<parameter><parameterid>opacity</parameterid><name>opacity</name><valuemin>0</valuemin><valuemax>100</valuemax><value>100</value></parameter></effect></filter>
+<comments/></clipitem>
+<enabled>TRUE</enabled>
+<locked>FALSE</locked>
+</track>
+</video>
+<audio>
+<numOutputChannels>2</numOutputChannels>
+<format><samplecharacteristics><depth>16</depth><samplerate>48000</samplerate></samplecharacteristics></format>
+<track>
+<clipitem id="Interview A.mov 3"><name>Interview A.mov</name><duration>500</duration><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><start>0</start><end>125</end><enabled>TRUE</enabled><in>25</in><out>150</out><file id="Interview A.mov 2"/>
+<sourcetrack><mediatype>audio</mediatype><trackindex>1</trackindex></sourcetrack><filter><enabled>TRUE</enabled><start>0</start><end>125</end><effect><name>Audio Levels</name><effectid>audiolevels</effectid><effectcategory>audiolevels</effectcategory><effecttype>audiolevels</effecttype><mediatype>audio</mediatype>
+<parameter><name>Level</name><parameterid>level</parameterid><valuemin>0.00001</valuemin><valuemax>31.6228</valuemax><value>0.707946</value></parameter></effect></filter><link><linkclipref>Interview A.mov 0</linkclipref></link><link><linkclipref>Interview A.mov 3</linkclipref></link><link><linkclipref>Interview A.mov 5</linkclipref></link><comments/></clipitem>
+<enabled>TRUE</enabled>
+<locked>FALSE</locked>
+</track>
+<track>
+<clipitem id="Interview A.mov 5"><name>Interview A.mov</name><duration>500</duration><rate><timebase>25</timebase><ntsc>FALSE</ntsc></rate><start>0</start><end>125</end><enabled>TRUE</enabled><in>25</in><out>150</out><file id="Interview A.mov 2"/>
+<sourcetrack><mediatype>audio</mediatype><trackindex>2</trackindex></sourcetrack><filter><enabled>TRUE</enabled><start>0</start><end>125</end><effect><name>Audio Levels</name><effectid>audiolevels</effectid><effectcategory>audiolevels</effectcategory><effecttype>audiolevels</effecttype><mediatype>audio</mediatype>
+<parameter><name>Level</name><parameterid>level</parameterid><valuemin>0.00001</valuemin><valuemax>31.6228</valuemax><value>0.707946</value></parameter></effect></filter><link><linkclipref>Interview A.mov 0</linkclipref></link><link><linkclipref>Interview A.mov 3</linkclipref></link><link><linkclipref>Interview A.mov 5</linkclipref></link><comments/></clipitem>
+<enabled>TRUE</enabled>
+<locked>FALSE</locked>
+</track>
+</audio>
+</media>
+<marker><comment>Pick up here</comment><name>Marker 1</name><in>50</in><out>-1</out></marker>
+</sequence>
+</xmeml>

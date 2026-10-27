@@ -67,6 +67,8 @@ enum MainMenu {
         menu.addItem(item(String(localized: "Mac.Menu.ImportProject"), #selector(ProjectWindowController.importProject(_:))))
         menu.addItem(item(String(localized: "Mac.Menu.Export"), #selector(ProjectWindowController.exportMovie(_:)), "e"))
         menu.addItem(item(String(localized: "Mac.Menu.ExportFCPXML"), #selector(ProjectWindowController.exportFCPXML(_:))))
+        menu.addItem(item(String(localized: "Mac.Menu.ExportEDL"), #selector(ProjectWindowController.exportEDL(_:))))
+        menu.addItem(item(String(localized: "Mac.Menu.ExportOTIO"), #selector(ProjectWindowController.exportOTIO(_:))))
         return menu
     }
 
