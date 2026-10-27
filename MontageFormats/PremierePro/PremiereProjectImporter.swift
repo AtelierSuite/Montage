@@ -146,8 +146,7 @@ struct PremiereProjectImporter {
     /// The project's file name without its extension, from the path it
     /// was saved at, a Mac's or a Windows PC's.
     static func projectName(savedPath: String?) -> String? {
-        guard let last = savedPath?.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last else { return nil }
-        var name = String(last)
+        guard var name = savedPath.flatMap(PremiereProject.fileName) else { return nil }
         if name.lowercased().hasSuffix(".prproj") { name.removeLast(".prproj".count) }
         name = name.trimmingCharacters(in: .whitespaces)
         return name.isEmpty ? nil : name
@@ -411,7 +410,7 @@ struct PremiereProjectImporter {
             let lowerMatch = component.matchName.lowercased()
             let lowerName = component.displayName.lowercased()
             func number(_ name: String) -> Animatable<Double>? {
-                component.parameter(name).flatMap { PremiereKeyframes.animatable($0, toClip: toClip, PremiereKeyframes.number) }
+                component.parameter(name).flatMap { PremiereKeyframes.animatable($0, toClip: toClip, PremiereProject.number) }
             }
 
             if lowerMatch == "ae.adbe motion" || (component.isVideo && lowerName == "motion") {
@@ -448,7 +447,7 @@ struct PremiereProjectImporter {
                 let isChanged = component.parameters.contains { parameter in
                     let name = parameter.child("Name")?.text.lowercased() ?? ""
                     guard !name.isEmpty, name != "bypass", name != "mute",
-                          let level = PremiereKeyframes.animatable(parameter, toClip: toClip, PremiereKeyframes.number) else {
+                          let level = PremiereKeyframes.animatable(parameter, toClip: toClip, PremiereProject.number) else {
                         return false
                     }
                     return level.isAnimated || abs(level.value - Self.unityLevel) > 0.0001
@@ -498,7 +497,7 @@ struct PremiereProjectImporter {
         _ component: Component, to clip: inout Clip, item: MediaItem, toClip: (Int64) -> CMTime, clipName: String
     ) {
         func number(_ name: String) -> Animatable<Double>? {
-            component.parameter(name).flatMap { PremiereKeyframes.animatable($0, toClip: toClip, PremiereKeyframes.number) }
+            component.parameter(name).flatMap { PremiereKeyframes.animatable($0, toClip: toClip, PremiereProject.number) }
         }
         func point(_ name: String) -> Animatable<CGPoint>? {
             component.parameter(name).flatMap { PremiereKeyframes.animatable($0, toClip: toClip, PremiereKeyframes.point) }
@@ -595,15 +594,14 @@ struct PremiereProjectImporter {
         guard let path = paths.first, hasKey || paths.contains(where: { $0.contains("/") || $0.contains("\\") }) else {
             return false
         }
-        let fileName = path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? path
+        let fileName = PremiereProject.fileName(of: path) ?? path
         return !["aep", "aepx", "prproj"].contains((fileName as NSString).pathExtension.lowercased())
     }
 
     private mutating func mediaItem(for object: MarkupElement) -> MediaItem {
         let url = Self.url(of: object, relativeTo: baseURL)
         let path = object.child("ActualMediaFilePath")?.text ?? object.child("FilePath")?.text ?? ""
-        // Paths may be Windows ones, with backslashes.
-        let fileName = path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init)
+        let fileName = PremiereProject.fileName(of: path)
         let name = object.child("Title")?.text ?? fileName ?? url?.lastPathComponent ?? "Media"
         let video = graph.resolve(object.child("VideoStream"))
         let audio = graph.resolve(object.child("AudioStream"))

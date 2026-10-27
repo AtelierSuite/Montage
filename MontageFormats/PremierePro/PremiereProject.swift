@@ -57,6 +57,12 @@ enum PremiereProject {
         text.flatMap { Int64($0.trimmingCharacters(in: .whitespaces)) }
     }
 
+    /// The last part of a path, a Mac's or a Windows PC's, with its
+    /// backslashes.
+    static func fileName(of path: String) -> String? {
+        path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init)
+    }
+
     /// A number as Premiere writes one, which may end in a bare point, as
     /// "100." does.
     static func number(_ text: some StringProtocol) -> Double? {

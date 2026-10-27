@@ -48,10 +48,6 @@ enum PremiereKeyframes {
             ?? parameter.child("CurrentValue")?.text
     }
 
-    static func number(_ field: Substring) -> Double? {
-        PremiereProject.number(field)
-    }
-
     static func point(_ field: Substring) -> CGPoint? {
         let parts = field.split(separator: ":")
         guard parts.count == 2, let x = PremiereProject.number(parts[0]), let y = PremiereProject.number(parts[1]) else {
