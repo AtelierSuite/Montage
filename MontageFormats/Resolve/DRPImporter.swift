@@ -437,7 +437,7 @@ struct DRPImporter {
                 frameDuration: rate.map(Self.frameDuration) ?? placement.frameDuration, window: window
             )
             importTracks(of: inner, placement: nested, lane: lane, visiting: visiting.union([inner]))
-            if Self.hasSettings(item) { report.add(.nestedSettings, clipName: name, time: timelineStart) }
+            if Self.hasSettings(item, isVideo: track == .video, frameDuration: placement.frameDuration) { report.add(.nestedSettings, clipName: name, time: timelineStart) }
             return
         }
         if poolItem?.element == "Sm2MpMulticamClip" {
@@ -456,7 +456,7 @@ struct DRPImporter {
                     report.add(.setting(name: "Multicam angles other than the one each clip shows"))
                     reportedMulticam = true
                 }
-                if Self.hasSettings(item) { report.add(.nestedSettings, clipName: name, time: timelineStart) }
+                if Self.hasSettings(item, isVideo: track == .video, frameDuration: placement.frameDuration) { report.add(.nestedSettings, clipName: name, time: timelineStart) }
             } else {
                 report.add(.setting(name: "Multicam clip"), clipName: name, time: timelineStart)
             }
@@ -553,11 +553,15 @@ struct DRPImporter {
     }
 
     /// Whether a clip has any Inspector setting or effect, which a compound
-    /// clip's flattened contents don't take on.
-    private static func hasSettings(_ item: MarkupElement) -> Bool {
+    /// clip's flattened contents don't take on: one that would change a
+    /// plain clip or be reported on it, so not those set as Montage has them.
+    private static func hasSettings(_ item: MarkupElement, isVideo: Bool, frameDuration: CMTime) -> Bool {
         guard let text = item.child("EffectFiltersBA")?.text, !text.isEmpty else { return false }
         guard let data = ResolveBlobs.hex(text), let filters = try? ResolveBlobs.filters(data) else { return true }
-        return filters.contains { !$0.parameters.isEmpty || $0.plugin != nil }
+        let plain = Clip(mediaID: UUID(), sourceRange: CMTimeRange(start: .zero, duration: CMTime(value: 1, timescale: 1)))
+        var clip = plain
+        let notes = ResolveClipSettings.apply(filters, to: &clip, isVideo: isVideo, inPoint: 0, frameDuration: frameDuration)
+        return !notes.isEmpty || clip != plain
     }
 
     // MARK: - Media

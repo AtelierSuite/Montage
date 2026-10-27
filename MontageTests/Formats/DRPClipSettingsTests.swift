@@ -331,6 +331,13 @@ struct DRPClipSettingsTests {
         let volume = Writer.hex(Writer.effectFilters([Writer.filter(124, [Writer.parameter(95, .double(-6)), nil, nil, nil, nil])]))
         let defaults = Writer.hex(Writer.effectFilters([Writer.filter(4, [nil, nil]), Writer.filter(2, [nil, nil])]))
         let compound = Writer.hex(Writer.effectFilters([Writer.filter(4, [Writer.parameter(42, .double(0.5))])]))
+        // Scaling set to Fit, the zoom linked and a field 4 opacity of 100:
+        // nothing a plain clip would take on or report.
+        let asMontageHasThem = Writer.hex(Writer.effectFilters([
+            Writer.filter(44, [nil, nil, Writer.parameter(92, .enumeration(2)), nil, nil]),
+            Writer.filter(4, [Writer.parameter(44, .enumeration(1))]),
+            Writer.filter(2, [nil, Writer.parameter(1, reference: .double(100))]),
+        ]))
         var builder = DRPTestBuilder()
         builder.overrides["SeqContainer/0b6f0e2c-edit.xml"] = DRPTestBuilder.container(id: "container-edit", video: [
             DRPTestBuilder.track(0, sequence: "seq-edit", items: [
@@ -341,6 +348,9 @@ struct DRPClipSettingsTests {
                                     extra: "<EffectFiltersBA>\(compound)</EffectFiltersBA>"),
                 DRPTestBuilder.item("Sm2TiVideoClip", id: "item-plain", start: 86472, duration: 24, inPoint: "0",
                                     media: "media-a001", name: "A001.mov", extra: "<EffectFiltersBA>\(defaults)</EffectFiltersBA>"),
+                DRPTestBuilder.item("Sm2TiVideoClip", id: "item-compound-fit", start: 86496, duration: 24, inPoint: "0",
+                                    media: "media-compound", name: "Compound Clip 2",
+                                    extra: "<EffectFiltersBA>\(asMontageHasThem)</EffectFiltersBA>"),
             ]),
         ], audio: [
             DRPTestBuilder.track(1, sequence: "seq-edit", items: [
@@ -362,6 +372,7 @@ struct DRPClipSettingsTests {
         #expect(inner.transform.scale == Animatable(1))
         let issues = imported.report.items
         #expect(issues.contains { $0.issue == .nestedSettings && $0.clipName == "Compound Clip 1" })
+        #expect(!issues.contains { $0.issue == .nestedSettings && $0.clipName == "Compound Clip 2" })
         #expect(!issues.contains {
             switch $0.issue {
             case .setting, .uneven, .unsupportedEffect: true
