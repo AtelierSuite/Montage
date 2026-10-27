@@ -98,7 +98,7 @@ struct AAFImporter {
     private mutating func run() throws -> ImportedProject {
         // A compound file without an AAF header is some other kind of document.
         guard let header = file.root.strongReference(AAFProperty.ID.header),
-              header.isKind(of: AUID("0d010101-0101-2f00-060e-2b3402060101")) || header.has(AAFProperty.ID.content) else {
+              header.isKind(of: AAFClass.header) || header.has(AAFProperty.ID.content) else {
             throw InterchangeError.unsupportedFormat
         }
         if let dictionary = header.strongReference(AAFProperty.ID.dictionary) {
@@ -430,7 +430,7 @@ struct AAFImporter {
         // Another timeline, nested: its clips, played from the clip's start.
         if mob.isKind(of: AAFClass.compositionMob) {
             guard !context.compositions.contains(sourceID),
-                  let slot = Self.slot(slotID, of: mob, kind: context.kind, importer: self),
+                  let slot = slot(slotID, of: mob, kind: context.kind),
                   let segment = slot.strongReference(AAFProperty.ID.segment),
                   let rate = Self.validRate(slot.rational(AAFProperty.ID.editRate)) else { return }
             let origin = Self.time(slot.int64(AAFProperty.ID.origin) ?? 0, rate) ?? .zero
@@ -478,11 +478,11 @@ struct AAFImporter {
 
     /// The slot a source clip refers to, by its ID; failing that, the first
     /// slot of the same kind.
-    private static func slot(_ id: Int64, of mob: AAFObject, kind: Track.Kind, importer: AAFImporter) -> AAFObject? {
+    private func slot(_ id: Int64, of mob: AAFObject, kind: Track.Kind) -> AAFObject? {
         let slots = mob.strongReferences(AAFProperty.ID.slots)
         return slots.first { $0.integer(AAFProperty.ID.slotID) == id }
             ?? slots.first { slot in
-                slot.strongReference(AAFProperty.ID.segment).flatMap(importer.dataKind(of:)) == kind
+                slot.strongReference(AAFProperty.ID.segment).flatMap(dataKind(of:)) == kind
             }
     }
 

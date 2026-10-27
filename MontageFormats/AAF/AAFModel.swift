@@ -40,6 +40,7 @@ enum AAFClass {
     static let waveDescriptor = label(0x2C)
     static let filmDescriptor = label(0x2D)
     static let tapeDescriptor = label(0x2E)
+    static let header = label(0x2F)
     static let locator = label(0x31)
     static let networkLocator = label(0x32)
     static let textLocator = label(0x33)
@@ -79,7 +80,7 @@ enum AAFClass {
         dataEssenceDescriptor: fileDescriptor, multipleDescriptor: fileDescriptor,
         physicalDescriptor: essenceDescriptor, importDescriptor: physicalDescriptor,
         auxiliaryDescriptor: physicalDescriptor,
-        locator: interchangeObject, networkLocator: locator, textLocator: locator,
+        header: interchangeObject, locator: interchangeObject, networkLocator: locator, textLocator: locator,
         mob: interchangeObject, compositionMob: mob, masterMob: mob, sourceMob: mob,
         mobSlot: interchangeObject, eventMobSlot: mobSlot, staticMobSlot: mobSlot, timelineMobSlot: mobSlot,
         parameter: interchangeObject, constantValue: parameter, varyingValue: parameter,

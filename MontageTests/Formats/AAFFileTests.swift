@@ -34,6 +34,7 @@ struct AAFObjectTests {
     @Test func writesAUIDsAsAAFStoresThem() {
         let auid = AUID("0d010101-0101-1100-060e-2b3402060101")
         #expect(auid == AAFClass.sourceClip)
+        #expect(AUID("0d010101-0101-2f00-060e-2b3402060101") == AAFClass.header)
         #expect(auid.bytes.prefix(8) == [0x01, 0x01, 0x01, 0x0D, 0x01, 0x01, 0x00, 0x11])
         #expect(auid.description == "0d010101-0101-1100-060e-2b3402060101")
     }

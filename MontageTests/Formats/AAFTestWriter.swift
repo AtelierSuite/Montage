@@ -161,7 +161,7 @@ struct AAFTestFile {
                  keyPID: AAFProperty.ID.identification, keySize: 16)
             .set(AAFProperty.ID.parameterDefinitions, objects: parameterDefinitions,
                  keyPID: AAFProperty.ID.identification, keySize: 16)
-        let header = AAFTestObject(AUID("0d010101-0101-2f00-060e-2b3402060101"))
+        let header = AAFTestObject(AAFClass.header)
             .strong(AAFProperty.ID.content, content)
             .strong(AAFProperty.ID.dictionary, dictionary)
         let root = AAFTestObject(AUID("b3b398a5-1c90-11d4-8053-080036210804"))
