@@ -414,8 +414,9 @@ struct EDLImporter {
 
     /// Lines the list up with its media once that's been found: read at the
     /// media's rate, and with each found file's clips moved back by the
-    /// timecode it starts at, as source points are given in it. The media
-    /// not found keeps its clips in timecode, to be moved once it's relinked.
+    /// timecode it starts at, as source points are given in it. Clips that
+    /// then start before their file does are reported. The media not found
+    /// keeps its clips in timecode, to be moved once it's relinked.
     private static func conform(
         _ gathered: ImportedProject, data: Data, baseURL: URL?, document: EDLDocument, unprobed: [MediaMetadata]
     ) -> ImportedProject {
@@ -424,7 +425,10 @@ struct EDLImporter {
         where index < unprobed.count && item.metadata != unprobed[index] {
             conformed.project.media[index].sourceTimecode = nil
             guard let counting = item.sourceTimecode, let start = item.metadata.timecode else { continue }
-            conformed.project.moveSourceRanges(of: item.id, ontoFileStartingAt: counting.offset(toStartOf: start))
+            let early = conformed.project.moveSourceRanges(of: item.id, ontoFileStartingAt: counting.offset(toStartOf: start))
+            for clip in early {
+                conformed.report.add(.beforeMediaStart, clipName: item.name, time: clip.timelineStart)
+            }
         }
         return conformed
     }

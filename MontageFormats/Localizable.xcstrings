@@ -378,6 +378,35 @@
         }
       }
     },
+    "Interchange.Issue.BeforeMediaStart" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starts before its media’s timecode does, so it plays from the first frame of the media."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メディアのタイムコードより前から始まるため、メディアの最初のフレームから再生されます。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始时间早于媒体的时间码，因此从媒体的第一帧开始播放。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始時間早於媒體的時間碼，因此從媒體的第一個影格開始播放。"
+          }
+        }
+      }
+    },
     "Interchange.Issue.Caption" : {
       "extractionState" : "manual",
       "localizations" : {

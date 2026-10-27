@@ -74,13 +74,16 @@ public struct ImportReport: Equatable, Sendable {
         case frameRateAssumed(String)
         /// An EDL's timecode, read at the frame rate of its media.
         case frameRateFromMedia(String)
+        /// A clip whose source starts before its media's timecode does,
+        /// played from the media's first frame instead.
+        case beforeMediaStart
 
         public var category: Category {
             switch self {
             case .unsupportedEffect: .unsupportedEffect
             case .missingMedia: .missingMedia
             case .transition, .movedToNewTrack, .uneven, .nestedSettings, .speedChange, .titleTemplate,
-                 .frameRateAssumed, .frameRateFromMedia: .changed
+                 .frameRateAssumed, .frameRateFromMedia, .beforeMediaStart: .changed
             default: .notImported
             }
         }
@@ -125,6 +128,8 @@ public struct ImportReport: Equatable, Sendable {
                 String(format: String(localized: "Interchange.Issue.FrameRateAssumed", bundle: #bundle), rate)
             case .frameRateFromMedia(let rate):
                 String(format: String(localized: "Interchange.Issue.FrameRateFromMedia", bundle: #bundle), rate)
+            case .beforeMediaStart:
+                String(localized: "Interchange.Issue.BeforeMediaStart", bundle: #bundle)
             }
         }
     }
