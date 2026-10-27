@@ -72,6 +72,9 @@ final class ProjectImport {
     private nonisolated static func read(_ url: URL, store: PackageMediaStore, takenPaths: Set<String>) async throws -> ImportedProject {
         let isAccessing = url.startAccessingSecurityScopedResource()
         defer { if isAccessing { url.stopAccessingSecurityScopedResource() } }
+        if ProjectInterchange.isLumaFusionPackage(url) {
+            return try await ProjectInterchange.importLumaFusionPackage(at: url, into: store, takenPaths: takenPaths)
+        }
         let imported = try ProjectInterchange.read(contentsOf: url)
         // Media is looked for beside the file, and inside it if it's a bundle.
         var folders = [url.deletingLastPathComponent()]

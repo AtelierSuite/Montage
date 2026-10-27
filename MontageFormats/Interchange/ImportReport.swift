@@ -65,8 +65,12 @@ public struct ImportReport: Equatable, Sendable {
         /// A clip that overlapped another on its track, moved to a track
         /// of its own.
         case movedToNewTrack
-        /// A picture scaled differently across and down, scaled evenly.
+        /// A picture scaled differently across and down, scaled evenly by
+        /// its across value.
         case uneven(name: String)
+        /// A picture scaled differently across and down, scaled evenly by
+        /// the average of the two.
+        case unevenAveraged(name: String)
         /// A compound or multicam clip's own settings, where its clips have
         /// settings of their own that they keep instead.
         case nestedSettings
@@ -82,7 +86,7 @@ public struct ImportReport: Equatable, Sendable {
             switch self {
             case .unsupportedEffect: .unsupportedEffect
             case .missingMedia: .missingMedia
-            case .transition, .movedToNewTrack, .uneven, .nestedSettings, .speedChange, .titleTemplate,
+            case .transition, .movedToNewTrack, .uneven, .unevenAveraged, .nestedSettings, .speedChange, .titleTemplate,
                  .frameRateAssumed, .frameRateFromMedia, .beforeMediaStart: .changed
             default: .notImported
             }
@@ -122,6 +126,8 @@ public struct ImportReport: Equatable, Sendable {
                 String(localized: "Interchange.Issue.MovedToNewTrack", bundle: #bundle)
             case .uneven(let name):
                 String(format: String(localized: "Interchange.Issue.Uneven", bundle: #bundle), name)
+            case .unevenAveraged(let name):
+                String(format: String(localized: "Interchange.Issue.UnevenAveraged", bundle: #bundle), name)
             case .nestedSettings:
                 String(localized: "Interchange.Issue.NestedSettings", bundle: #bundle)
             case .frameRateAssumed(let rate):
@@ -162,6 +168,8 @@ public enum InterchangeFormat: String, Sendable {
     case xmeml
     /// A CMX 3600 edit decision list, which most editors write.
     case edl
+    /// LumaFusion's own project file, inside its project packages.
+    case lumaFusion
 
     /// The format's name, for the report.
     public var displayName: String {
@@ -169,6 +177,7 @@ public enum InterchangeFormat: String, Sendable {
         case .fcpxml: String(localized: "Interchange.Format.FCPXML", bundle: #bundle)
         case .xmeml: String(localized: "Interchange.Format.XMEML", bundle: #bundle)
         case .edl: String(localized: "Interchange.Format.EDL", bundle: #bundle)
+        case .lumaFusion: String(localized: "Interchange.Format.LumaFusion", bundle: #bundle)
         }
     }
 }
