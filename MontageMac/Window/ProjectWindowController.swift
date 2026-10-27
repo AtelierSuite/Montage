@@ -59,6 +59,12 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
+    /// The project's name, as its document shows it: what exports are
+    /// named after, and what an import report is titled without a better one.
+    var documentTitle: String {
+        (document as? NSDocument)?.displayName ?? String(localized: "Export.Untitled")
+    }
+
     /// A SwiftUI view as a pane of the window, sized by the split view
     /// rather than sizing the window to itself.
     private func hosting(_ view: some View) -> NSViewController {

@@ -62,7 +62,7 @@ extension ProjectWindowController {
             var sheet: NSViewController?
             let title = ImportReport.title(
                 timelineName: projectImport.importedName,
-                documentName: (document as? NSDocument)?.displayName ?? String(localized: "Export.Untitled")
+                documentName: documentTitle
             )
             let view = ImportReportView(
                 report: report, title: title, frames: FrameTime(frameDuration: editor.project.settings.frameDuration)
@@ -81,7 +81,7 @@ extension ProjectWindowController {
     /// Writes the project as FCPXML, to open in Final Cut Pro.
     @objc func exportFCPXML(_ sender: Any?) {
         guard let window, editor.canExport else { return }
-        let title = (document as? NSDocument)?.displayName ?? String(localized: "Export.Untitled")
+        let title = documentTitle
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.fcpxml]
         panel.canCreateDirectories = true
