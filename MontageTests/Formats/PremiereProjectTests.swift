@@ -159,6 +159,105 @@ struct PremiereProjectImportTests {
         #expect(imported.clips(of: "Music.wav").count == 1)
     }
 
+    @Test func bringsInTheSoundOfANestedSequenceEachTimeItsUsed() throws {
+        // Nested gets Music.wav's first second on an audio track, and A3
+        // plays Nested's sound at 0s and again at 5s.
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: """
+            				<Second ObjectRef="102"/>
+            			</TrackGroup>
+            		</TrackGroups>
+            		<ID>2</ID>
+            """, with: """
+            				<Second ObjectRef="102"/>
+            			</TrackGroup>
+            			<TrackGroup Version="1" Index="1">
+            				<First>80b8e3d5-6dca-4195-aefb-cb5f407ab009</First>
+            				<Second ObjectRef="103"/>
+            			</TrackGroup>
+            		</TrackGroups>
+            		<ID>2</ID>
+            """)
+            .replacingOccurrences(of: #"<Track Index="1" ObjectURef="trk-a2"/>"#, with: """
+            <Track Index="1" ObjectURef="trk-a2"/>
+            				<Track Index="2" ObjectURef="trk-a3"/>
+            """)
+            .replacingOccurrences(of: "<!-- Media -->", with: """
+            <AudioTrackGroup ObjectID="103" ClassID="f8d2e8a9-2c34-4ad5-9b59-08b1f5d1a3c1" Version="11">
+            		<TrackGroup Version="1">
+            			<Tracks Version="1">
+            				<Track Index="0" ObjectURef="trk-na1"/>
+            			</Tracks>
+            		</TrackGroup>
+            	</AudioTrackGroup>
+            	<AudioClipTrack ObjectUID="trk-na1" ClassID="8a6f3a0c-ea5f-4f7a-9fb5-4f0b2d3a6e01" Version="1">
+            		<ClipTrack Version="2">
+            			<ClipItems Version="3">
+            				<TrackItems Version="1">
+            					<TrackItem Index="0" ObjectRef="233"/>
+            				</TrackItems>
+            			</ClipItems>
+            		</ClipTrack>
+            	</AudioClipTrack>
+            	<AudioClipTrackItem ObjectID="233" ClassID="064ec682-9ba6-11d5-af2d-9ca32c7d6164" Version="6">
+            		<ClipTrackItem Version="8">
+            			<TrackItem Version="3">
+            				<End>254016000000</End>
+            			</TrackItem>
+            			<SubClip ObjectRef="331"/>
+            		</ClipTrackItem>
+            	</AudioClipTrackItem>
+            	<AudioClipTrack ObjectUID="trk-a3" ClassID="8a6f3a0c-ea5f-4f7a-9fb5-4f0b2d3a6e01" Version="1">
+            		<ClipTrack Version="2">
+            			<ClipItems Version="3">
+            				<TrackItems Version="1">
+            					<TrackItem Index="0" ObjectRef="234"/>
+            					<TrackItem Index="1" ObjectRef="235"/>
+            				</TrackItems>
+            			</ClipItems>
+            		</ClipTrack>
+            	</AudioClipTrack>
+            	<AudioClipTrackItem ObjectID="234" ClassID="064ec682-9ba6-11d5-af2d-9ca32c7d6164" Version="6">
+            		<ClipTrackItem Version="8">
+            			<TrackItem Version="3">
+            				<End>254016000000</End>
+            			</TrackItem>
+            			<SubClip ObjectRef="340"/>
+            		</ClipTrackItem>
+            	</AudioClipTrackItem>
+            	<AudioClipTrackItem ObjectID="235" ClassID="064ec682-9ba6-11d5-af2d-9ca32c7d6164" Version="6">
+            		<ClipTrackItem Version="8">
+            			<TrackItem Version="3">
+            				<Start>1270080000000</Start>
+            				<End>1524096000000</End>
+            			</TrackItem>
+            			<SubClip ObjectRef="340"/>
+            		</ClipTrackItem>
+            	</AudioClipTrackItem>
+            	<SubClip ObjectID="340" ClassID="e0c58dc9-dbdd-4166-aef7-5db7e3f22e84" Version="5">
+            		<Clip ObjectRef="440"/>
+            		<Name>Nested</Name>
+            	</SubClip>
+            	<AudioClip ObjectID="440" ClassID="b8830d03-de02-41ee-84ec-fe566dc70cd9" Version="8">
+            		<Clip Version="18">
+            			<Source ObjectRef="540"/>
+            			<InPoint>0</InPoint>
+            			<OutPoint>254016000000</OutPoint>
+            		</Clip>
+            	</AudioClip>
+            	<AudioSequenceSource ObjectID="540" ClassID="d1a2b3c4-0000-4000-8000-000000000540" Version="2">
+            		<SequenceSource Version="4">
+            			<Sequence ObjectURef="seq-nested"/>
+            		</SequenceSource>
+            	</AudioSequenceSource>
+
+            	<!-- Media -->
+            """)
+        let imported = try PremiereFixtures.read(xml)
+        let nested = imported.clips(of: "Music.wav").filter { $0.timelineRange.duration == seconds(1) }
+        #expect(nested.map(\.timelineStart).sorted() == [.zero, seconds(5)])
+    }
+
     @Test func flattensANestedSequenceWithinItsClip() throws {
         let nested = imported.project.tracks[1].clips
         #expect(nested.count == 1)

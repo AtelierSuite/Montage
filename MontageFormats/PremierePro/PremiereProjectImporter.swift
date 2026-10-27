@@ -31,7 +31,8 @@ struct PremiereProjectImporter {
     private var assembler = TimelineAssembler()
     private var report = ImportReport(format: .prproj)
     private var settings = ProjectSettings()
-    /// The track items made part of another clip, by object ID.
+    /// The track items made part of another clip, by object ID and where
+    /// they're placed.
     private var merged: Set<String> = []
     /// The sequences being read, by UID, so one nested in itself stops.
     private var nesting: Set<String> = []
@@ -102,6 +103,12 @@ struct PremiereProjectImporter {
         var window: CMTimeRange?
 
         func timeline(_ time: CMTime) -> CMTime { base + (time - origin) }
+
+        /// A track item as placed here: a nested sequence used twice has
+        /// the same items at two places.
+        func key(_ id: String) -> String {
+            "\(id)@\(base.value)/\(base.timescale)@\(origin.value)/\(origin.timescale)"
+        }
     }
 
     private func trackGroups(of sequence: MarkupElement) -> [(kind: Track.Kind, group: MarkupElement)] {
@@ -255,7 +262,7 @@ struct PremiereProjectImporter {
     private mutating func importClip(
         _ item: TrackItem, kind: Track.Kind, lane: Int, placement: Placement, audioItems: [TrackItem]
     ) {
-        guard !merged.contains(item.id) else { return }
+        guard !merged.contains(placement.key(item.id)) else { return }
         // Past what a count of ticks can hold, the times are nonsense.
         let (length, overflow) = item.end.subtractingReportingOverflow(item.start)
         guard !overflow, length > 0, !item.inPoint.addingReportingOverflow(length).overflow else { return }
@@ -317,7 +324,7 @@ struct PremiereProjectImporter {
                     && $0.inPoint == item.inPoint && !$0.isDisabled
             }
             if let first = inStep.first {
-                merged.formUnion(inStep.map(\.id))
+                merged.formUnion(inStep.map { placement.key($0.id) })
                 settingsFrom.append(self.components(of: first))
             } else if mediaItem.metadata.hasAudio {
                 clip.isAudioDetached = true
@@ -325,11 +332,11 @@ struct PremiereProjectImporter {
         } else if kind == .audio {
             // A file's channels on several tracks are one clip in Montage,
             // which plays the file's sound whole.
-            merged.insert(item.id)
+            merged.insert(placement.key(item.id))
             merged.formUnion(audioItems.filter {
                 $0.mediaUID == item.mediaUID && $0.start == item.start && $0.end == item.end
                     && $0.inPoint == item.inPoint && !$0.isDisabled
-            }.map(\.id))
+            }.map { placement.key($0.id) })
         }
 
         // Keyframes are timed in the media, as in and out points are: in
