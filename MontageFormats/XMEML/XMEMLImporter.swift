@@ -65,7 +65,8 @@ struct XMEMLImporter {
         var project = Project(settings: settings, media: media.items)
         project.tracks = assembler.tracks(report: &report)
         return ImportedProject(
-            project: project, report: report, name: sequence.child("name")?.text, mediaSources: media.sources
+            project: project, report: report, name: sequence.child("name")?.text, mediaSources: media.sources,
+            mediaSourcePaths: media.writtenPaths
         )
     }
 
@@ -333,7 +334,8 @@ struct XMEMLImporter {
     // MARK: - Media
 
     private mutating func mediaItem(for file: MarkupElement) -> MediaItem {
-        let url = ImportedMedia.url(from: file.child("pathurl")?.text, relativeTo: baseURL)
+        let reference = ImportedMedia.reference(from: file.child("pathurl")?.text, relativeTo: baseURL)
+        let url = reference?.url
         let name = file.child("name")?.text ?? url?.lastPathComponent ?? "Media"
         let rate = file.child("rate").map(Self.frameDuration(of:)) ?? settings.frameDuration
         let video = file.descendant("media", "video")
@@ -353,7 +355,7 @@ struct XMEMLImporter {
             metadata.audioChannelCount = Int(audio.child("channelcount")?.text ?? "") ?? 2
             metadata.audioSampleRate = Double(audio.descendant("samplecharacteristics", "samplerate")?.text ?? "") ?? 48000
         }
-        return media.item(key: file["id"] ?? name, url: url, name: name, kind: kind, metadata: metadata)
+        return media.item(key: file["id"] ?? name, reference: reference, name: name, kind: kind, metadata: metadata)
     }
 
     // MARK: - Times

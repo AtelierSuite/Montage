@@ -78,7 +78,7 @@ public enum ProjectInterchange {
                 break
             }
             if !found {
-                let file = source.map { $0.isFileURL ? $0.path : $0.absoluteString } ?? item.name
+                let file = imported.mediaSourcePaths[item.id] ?? source.map { $0.isFileURL ? $0.path : $0.absoluteString } ?? item.name
                 imported.report.add(.missingMedia(file: file), clipName: item.name)
             }
         }

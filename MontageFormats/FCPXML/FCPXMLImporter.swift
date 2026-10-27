@@ -66,7 +66,8 @@ struct FCPXMLImporter {
 
         var montage = Project(settings: settings, media: media.items)
         montage.tracks = assembler.tracks(report: &report)
-        return ImportedProject(project: montage, report: report, name: project["name"], mediaSources: media.sources)
+        return ImportedProject(project: montage, report: report, name: project["name"], mediaSources: media.sources,
+                               mediaSourcePaths: media.writtenPaths)
     }
 
     // MARK: - Placement
@@ -739,7 +740,8 @@ struct FCPXMLImporter {
         let representations = asset.children("media-rep")
         let source = (representations.first { ($0["kind"] ?? "original-media") == "original-media" } ?? representations.first)?["src"]
             ?? asset["src"]
-        let url = ImportedMedia.url(from: source, relativeTo: baseURL)
+        let reference = ImportedMedia.reference(from: source, relativeTo: baseURL)
+        let url = reference?.url
         let format = asset["format"].flatMap { resources[$0] }
         let duration = time(asset["duration"]) ?? .zero
         let fileType = url.flatMap { UTType(filenameExtension: $0.pathExtension) }
@@ -763,7 +765,7 @@ struct FCPXMLImporter {
             metadata.audioSampleRate = Self.sampleRate(asset["audioRate"]) ?? 48000
         }
         let name = asset["name"] ?? url?.lastPathComponent ?? "Media"
-        return media.item(key: asset["id"] ?? name, url: url, name: name, kind: kind, metadata: metadata)
+        return media.item(key: asset["id"] ?? name, reference: reference, name: name, kind: kind, metadata: metadata)
     }
 
     /// "48000", or "48k" as sequences write it.
