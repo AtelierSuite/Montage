@@ -8,6 +8,8 @@ extension UTType {
     public static let fcpxml = UTType(importedAs: "com.apple.finalcutpro.xml", conformingTo: .xml)
     /// Final Cut Pro's FCPXML as a bundle, with `Info.fcpxml` inside.
     public static let fcpxmlBundle = UTType(importedAs: "com.apple.finalcutpro.xmld", conformingTo: .package)
+    /// The Advanced Authoring Format, by the identifier macOS declares it under.
+    public static let aaf = UTType(importedAs: "org.aafassociation.advanced-authoring-format", conformingTo: .compositeContent)
     /// A CMX 3600 edit decision list, which has no system type.
     public static let edl = UTType(importedAs: "com.cmx.edl", conformingTo: .plainText)
     /// An OpenTimelineIO timeline, as JSON.
@@ -22,7 +24,7 @@ public enum ProjectInterchange {
     /// packages are imported with `importLumaFusionPackage`, and OTIO bundles
     /// with `importOTIOBundle`.
     public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle] + PremiereProject.types + [
-        .xml, .edl, .lumaFusionPackage, .otio, .otioz, .otiod,
+        .xml, .edl, .lumaFusionPackage, .otio, .otioz, .otiod, .aaf,
     ]
 
     // MARK: - Importing
@@ -35,7 +37,8 @@ public enum ProjectInterchange {
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             file = url.appending(path: "Info.fcpxml", directoryHint: .notDirectory)
         }
-        var imported = try read(try Data(contentsOf: file), baseURL: file.deletingLastPathComponent())
+        // Mapped, as an AAF file can carry its media inside.
+        var imported = try read(try Data(contentsOf: file, options: .mappedIfSafe), baseURL: file.deletingLastPathComponent())
         // A timeline with no name of its own takes the file's.
         if imported.name?.trimmingCharacters(in: .whitespaces).isEmpty ?? true {
             imported.name = url.deletingPathExtension().lastPathComponent
@@ -46,6 +49,8 @@ public enum ProjectInterchange {
     /// Reads another editor's project. Media referred to by relative paths
     /// is taken from `baseURL`, the folder the file was in.
     public static func read(_ data: Data, baseURL: URL? = nil) throws -> ImportedProject {
+        // AAF is binary, in a compound file.
+        if CompoundFile.isCompoundFile(data) { return try AAFImporter.read(data, baseURL: baseURL) }
         // Final Cut XML may come gzipped too, and is read uncompressed.
         if GzipInputStream.isGzip(data), let start = GzipInputStream.decompress(data, limit: 4096),
            ["<fcpxml", "<xmeml"].contains(where: String(decoding: start, as: UTF8.self).contains),
