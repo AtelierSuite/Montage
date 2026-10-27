@@ -53,6 +53,11 @@ struct OTIOEffectTests {
         return parameter
     }
 
+    /// The imported project once its media has been found and probed.
+    private func gathered(_ imported: ImportedProject) async -> ImportedProject {
+        await ProjectInterchange.gatherMedia(for: imported, into: PackageMediaStore())
+    }
+
     private func clip(_ imported: ImportedProject) throws -> Clip {
         try #require(imported.project.tracks.first?.clips.first)
     }
@@ -141,15 +146,15 @@ struct OTIOEffectTests {
     /// As in a real Resolve export (OTIO's `effects.otio`), where a bar
     /// still has a tilt of -241/146: the bar, fitted across the frame, is
     /// 146 pixels tall and was moved 241 pixels down.
-    @Test func movesAStillByFractionsOfItsFittedPicture() throws {
+    @Test func movesAStillByFractionsOfItsFittedPicture() async throws {
         let folder = try folder()
         defer { try? FileManager.default.removeItem(at: folder) }
         let bar = folder.appendingPathComponent("_bar.png")
         try Self.writePNG(width: 960, height: 73, to: bar)
-        let imported = try read(clipEffects: [resolve("Transform", [
+        let imported = await gathered(try read(clipEffects: [resolve("Transform", [
             parameter("transformationPan", 0.0, default: 0.0, keyframes: [:]),
             parameter("transformationTilt", -1.6506849527359009, default: 0.0, keyframes: [:]),
-        ])], target: bar.absoluteString)
+        ])], target: bar.absoluteString))
         #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
         let position = try clip(imported).transform.position.value
         #expect(abs(position.x - 0.5) < 1e-9)
@@ -160,15 +165,15 @@ struct OTIOEffectTests {
     /// a landscape still fitted into the frame spans its width but not its
     /// height, so pan moves it by the frame's width and tilt by less than
     /// the frame's height.
-    @Test func movesAClipByFractionsOfThePictureFittedIntoTheProjectsFrame() throws {
+    @Test func movesAClipByFractionsOfThePictureFittedIntoTheProjectsFrame() async throws {
         let folder = try folder()
         defer { try? FileManager.default.removeItem(at: folder) }
         let still = folder.appendingPathComponent("Wide.png")
         try Self.writePNG(width: 192, height: 108, to: still)
-        let imported = try read(clipEffects: [resolve("Transform", [
+        let imported = await gathered(try read(clipEffects: [resolve("Transform", [
             parameter("transformationPan", 0.25, default: 0.0, keyframes: [:]),
             parameter("transformationTilt", 0.5, default: 0.0, keyframes: [:]),
-        ])], target: still.absoluteString, metadata: ["Montage": ["width": 1080.0, "height": 1920.0]])
+        ])], target: still.absoluteString, metadata: ["Montage": ["width": 1080.0, "height": 1920.0]]))
         #expect(imported.project.settings.renderSize == CGSize(width: 1080, height: 1920))
         // Fitted, it's 1080 by 607.5.
         let position = try clip(imported).transform.position.value
@@ -178,16 +183,16 @@ struct OTIOEffectTests {
 
     /// A portrait movie fitted into a landscape frame is narrower than the
     /// frame, so a pan moves it less across; a tilt moves it as far as the
-    /// frame is tall. Its turn is in its track header.
-    @Test func movesAPortraitMovieByFractionsOfItsFittedPicture() throws {
+    /// frame is tall.
+    @Test func movesAPortraitMovieByFractionsOfItsFittedPicture() async throws {
         let folder = try folder()
         defer { try? FileManager.default.removeItem(at: folder) }
         let movie = folder.appendingPathComponent("Phone.mov")
-        try Self.movieData(width: 1280, height: 720, quarterTurn: true).write(to: movie)
-        let imported = try read(clipEffects: [resolve("Transform", [
+        try await TestMovie.write(to: movie, width: 1280, height: 720, quarterTurn: true)
+        let imported = await gathered(try read(clipEffects: [resolve("Transform", [
             parameter("transformationPan", -0.5, default: 0.0, keyframes: [:]),
             parameter("transformationTilt", 0.25, default: 0.0, keyframes: [:]),
-        ])], target: movie.absoluteString)
+        ])], target: movie.absoluteString))
         #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
         // Fitted, it's 607.5 by 1080.
         let position = try clip(imported).transform.position.value
@@ -208,19 +213,19 @@ struct OTIOEffectTests {
     /// the clip's frames 0 and 67, zoom from 1 to 1.18, and the still,
     /// 1920 by 626 fitted, moved 45 pixels left and 27 down. Its Parameter
     /// Values are those at neither keyframe.
-    @Test func bringsInResolvesTransformKeyframes() throws {
+    @Test func bringsInResolvesTransformKeyframes() async throws {
         let folder = try folder()
         defer { try? FileManager.default.removeItem(at: folder) }
         let still = folder.appendingPathComponent("Picchu.png")
         try Self.writePNG(width: 960, height: 313, to: still)
         let push = ["0": key(1.0), "67": key(1.179999828338623)]
-        let imported = try read(clipEffects: [resolve("Transform", [
+        let imported = await gathered(try read(clipEffects: [resolve("Transform", [
             parameter("transformationZoomX", 1.0, default: 1.0, keyframes: push),
             parameter("transformationZoomY", 1.0, default: 1.0, keyframes: push),
             parameter("transformationPan", 0.0, default: 0.0, keyframes: ["0": key(0), "67": key(-0.0234375)]),
             parameter("transformationTilt", 0.0, default: 0.0, keyframes: ["0": key(0), "67": key(-0.043130990117788315)]),
             parameter("transformationRotationAngle", 0.0, default: 0.0, keyframes: [:]),
-        ])], target: still.absoluteString)
+        ])], target: still.absoluteString))
         #expect(imported.report.isEmpty, "\(imported.report.items.map(\.issue))")
         let shot = try clip(imported)
         #expect(shot.transform.scale.keyframes.map(\.time) == [.zero, frames(67)])
@@ -332,28 +337,6 @@ struct OTIOEffectTests {
 
     // MARK: - Picture sizes
 
-    /// A movie with just enough of a movie box for its picture track's
-    /// header: `ftyp`, then `moov` holding one `trak`.
-    static func movieData(width: Int, height: Int, quarterTurn: Bool = false, version: UInt8 = 0) -> Data {
-        func box(_ type: String, _ body: Data) -> Data {
-            var data = Data()
-            withUnsafeBytes(of: UInt32(body.count + 8).bigEndian) { data.append(contentsOf: $0) }
-            data.append(contentsOf: Array(type.utf8))
-            return data + body
-        }
-        func word(_ value: Int32) -> Data { withUnsafeBytes(of: value.bigEndian) { Data($0) } }
-        var header = Data([version, 0, 0, 7])
-        header += Data(count: version == 1 ? 32 : 20) + Data(count: 16)
-        let one: Int32 = 0x10000
-        let matrix: [Int32] = quarterTurn ? [0, one, 0, -one, 0, 0, 0, 0, 0x4000_0000] : [one, 0, 0, 0, one, 0, 0, 0, 0x4000_0000]
-        header += matrix.reduce(Data()) { $0 + word($1) }
-        header += word(Int32(width) << 16) + word(Int32(height) << 16)
-        let handler = box("hdlr", Data(count: 8) + Data("vide".utf8) + Data(count: 13))
-        let sound = box("trak", box("mdia", box("hdlr", Data(count: 8) + Data("soun".utf8) + Data(count: 13))))
-        let picture = box("trak", box("tkhd", header) + box("mdia", handler))
-        return box("ftyp", Data("isom".utf8) + Data(count: 4)) + box("mdat", Data(count: 32)) + box("moov", sound + picture)
-    }
-
     static func writePNG(width: Int, height: Int, to url: URL) throws {
         let context = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                              space: CGColorSpaceCreateDeviceRGB(),
@@ -362,26 +345,5 @@ struct OTIOEffectTests {
         let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil))
         CGImageDestinationAddImage(destination, image, nil)
         #expect(CGImageDestinationFinalize(destination))
-    }
-
-    @Test func readsAPicturesSizeFromItsFile() throws {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: folder) }
-        let still = folder.appendingPathComponent("Bar.png")
-        try Self.writePNG(width: 192, height: 15, to: still)
-        let movie = folder.appendingPathComponent("Phone.mov")
-        try Self.movieData(width: 1920, height: 1080, quarterTurn: true).write(to: movie)
-        let wide = folder.appendingPathComponent("Wide.mp4")
-        try Self.movieData(width: 4096, height: 1716, version: 1).write(to: wide)
-
-        #expect(OTIOPictureSize.read(at: still)?.size == CGSize(width: 192, height: 15))
-        #expect(OTIOPictureSize.read(at: movie)?.size == CGSize(width: 1920, height: 1080))
-        #expect(OTIOPictureSize.read(at: movie)?.rotation == 90)
-        #expect(OTIOPictureSize.read(at: wide)?.size == CGSize(width: 4096, height: 1716))
-        #expect(OTIOPictureSize.read(at: wide)?.rotation == 0)
-        #expect(OTIOPictureSize.read(at: folder.appendingPathComponent("Gone.mov")) == nil)
-        try Data("not a movie".utf8).write(to: folder.appendingPathComponent("Text.mov"))
-        #expect(OTIOPictureSize.read(at: folder.appendingPathComponent("Text.mov")) == nil)
     }
 }

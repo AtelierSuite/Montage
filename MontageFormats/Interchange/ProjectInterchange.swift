@@ -58,6 +58,7 @@ public enum ProjectInterchange {
     /// project said it was, then by name in `searchFolders` (such as the
     /// folder the project was in). Media that isn't found stays as it is, its
     /// file missing, ready to be relinked, and is listed in the report.
+    /// Clips placed by their picture's shape are placed once it's probed.
     @concurrent
     public static func gatherMedia(
         for imported: ImportedProject, into store: PackageMediaStore, takenPaths: Set<String> = [],
@@ -102,6 +103,7 @@ public enum ProjectInterchange {
             imported.project.media[index].location = .package(path: fresh)
             taken.insert(fresh)
         }
+        imported.placeByProbedPictures()
         return imported
     }
 

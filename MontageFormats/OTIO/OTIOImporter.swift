@@ -31,8 +31,9 @@ struct OTIOImporter {
     private var settings = ProjectSettings()
     private var markers: [(time: CMTime, name: String)] = []
     private var placed: [PlacedClip] = []
-    /// The pictures' sizes read so far, by file, nil where one couldn't be.
-    private var pictureSizes: [URL: (size: CGSize, rotation: Int)?] = [:]
+    /// Clips Resolve moves by fractions of their picture, placed for now as
+    /// though it were of the frame's shape.
+    private var picturePlacedClips: Set<Clip.ID> = []
 
     /// A clip read from the file, before it's put on a track.
     private struct PlacedClip {
@@ -137,7 +138,8 @@ struct OTIOImporter {
         }
         // Resolve and Kdenlive leave the name empty; the file's is used then.
         let name = (timeline["name"] as? String).flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
-        return ImportedProject(project: project, report: report, name: name, mediaSources: media.sources)
+        return ImportedProject(project: project, report: report, name: name, mediaSources: media.sources,
+                               picturePlacedClips: picturePlacedClips)
     }
 
     /// The timelines in a file: itself, or those in a collection.
@@ -293,9 +295,7 @@ struct OTIOImporter {
         clip.sourceRange = CMTimeRange(start: mediaStart, duration: range.duration)
         clip.timelineStart = timelineStart
         if saved == nil {
-            let picture = media.items.first { $0.id == content.mediaID }.map { Self.uprightSize(of: $0.metadata) }
-            importEffects(of: item, to: &clip, isVideo: placement.kind == .video, picture: picture ?? settings.renderSize,
-                          clipName: clipName)
+            importEffects(of: item, to: &clip, isVideo: placement.kind == .video, clipName: clipName)
         }
         importMarkers(of: item, placement: placement)
 
@@ -314,9 +314,8 @@ struct OTIOImporter {
     /// metadata, so only those whose metadata says what they do map onto
     /// Montage's: the clip settings Resolve writes as effects, and
     /// Kdenlive's fades. Changes of speed are reported, and anything else
-    /// is kept on the clip, turned off. `picture` is the upright size of
-    /// the clip's picture.
-    private mutating func importEffects(of item: Object, to clip: inout Clip, isVideo: Bool, picture: CGSize, clipName: String?) {
+    /// is kept on the clip, turned off.
+    private mutating func importEffects(of item: Object, to clip: inout Clip, isVideo: Bool, clipName: String?) {
         for effect in (item["effects"] as? [Any] ?? []).compactMap({ $0 as? Object }) {
             switch Self.schema(of: effect)?.name {
             case "LinearTimeWarp":
@@ -326,7 +325,7 @@ struct OTIOImporter {
                 report.add(.speedChange, clipName: clipName, time: clip.timelineStart)
             default:
                 if let block = Self.resolveBlock(effect) {
-                    applyResolveBlock(block, to: &clip, picture: picture, clipName: clipName)
+                    applyResolveBlock(block, to: &clip, clipName: clipName)
                     continue
                 }
                 if applyKdenliveFade(effect, to: &clip) { continue }
@@ -400,8 +399,10 @@ struct OTIOImporter {
     /// `transformationTilt` move the picture right and up by fractions of
     /// its own width and height as fitted into the frame, before zoom, so
     /// they move a clip of another shape than the frame's less than one of
-    /// the same shape.
-    private mutating func applyResolveBlock(_ block: Object, to clip: inout Clip, picture: CGSize, clipName: String?) {
+    /// the same shape. They're taken here as fractions of the frame, and
+    /// made fractions of the picture once its media has been probed, by
+    /// `ImportedProject.placeByProbedPictures`.
+    private mutating func applyResolveBlock(_ block: Object, to clip: inout Clip, clipName: String?) {
         guard !Self.isNeutral(block) else { return }
         var leftOver = false
         // Both zooms, and both pan and tilt, as one alone may be changed.
@@ -445,10 +446,10 @@ struct OTIOImporter {
             }
         }
         if isMoved {
-            let reach = reach(of: picture)
             clip.transform.position = Self.position(
                 pan: curves["transformationpan"] ?? Animatable(0), tilt: curves["transformationtilt"] ?? Animatable(0)
-            ) { pan, tilt in CGPoint(x: 0.5 + pan * reach.width, y: 0.5 - tilt * reach.height) }
+            ) { pan, tilt in CGPoint(x: 0.5 + pan, y: 0.5 - tilt) }
+            picturePlacedClips.insert(clip.id)
         }
         if leftOver {
             report.add(.unsupportedEffect(name: block["Effect Name"] as? String ?? "Resolve Effect"), clipName: clipName,
@@ -530,24 +531,6 @@ struct OTIOImporter {
         return Animatable(keyframes[0].value, keyframes: keyframes)
     }
 
-    /// How far a pan or tilt of 1 moves a picture of a size, as fractions
-    /// of the frame's width and height: as far as the picture reaches
-    /// across and down once fitted into the frame. The frame is the
-    /// project's: the size Montage wrote into the timeline's metadata, or
-    /// else 1920 by 1080, as Resolve's file holds no frame size.
-    private func reach(of picture: CGSize) -> CGSize {
-        let frame = settings.renderSize
-        guard picture.width > 0, picture.height > 0, frame.width > 0, frame.height > 0 else { return CGSize(width: 1, height: 1) }
-        let fit = min(frame.width / picture.width, frame.height / picture.height)
-        return CGSize(width: picture.width * fit / frame.width, height: picture.height * fit / frame.height)
-    }
-
-    /// A picture's size as it's shown, turned upright.
-    private static func uprightSize(of metadata: MediaMetadata) -> CGSize {
-        let size = metadata.naturalSize
-        return metadata.rotation % 180 == 0 ? size : CGSize(width: size.height, height: size.width)
-    }
-
     // MARK: - Kdenlive
 
     /// Kdenlive's fades, by how long they last: `fadein` and `fadeout` of
@@ -603,18 +586,10 @@ struct OTIOImporter {
         }
 
         // What the file holds is read from it once it's found; until then,
-        // what the other app said, and the project's shape. A picture's
-        // size is read now where the file is there, as Resolve moves a clip
-        // by fractions of its picture.
+        // what the other app said, and the project's shape.
         let available = OTIOTime.range(reference?["available_range"])
         var metadata = MediaMetadata(duration: kind == .image ? .zero : available?.duration ?? .zero)
-        if kind != .audio {
-            metadata.naturalSize = settings.renderSize
-            if let url, let picture = pictureSize(at: url) {
-                metadata.naturalSize = picture.size
-                metadata.rotation = picture.rotation
-            }
-        }
+        if kind != .audio { metadata.naturalSize = settings.renderSize }
         if kind == .video { metadata.nominalFrameRate = settings.frameRate }
         if kind != .image {
             metadata.audioChannelCount = 2
@@ -623,12 +598,6 @@ struct OTIOImporter {
         return media.item(key: referenceName ?? name, url: url, name: name, kind: kind, metadata: metadata)
     }
 
-    private mutating func pictureSize(at url: URL) -> (size: CGSize, rotation: Int)? {
-        if let known = pictureSizes[url] { return known }
-        let picture = OTIOPictureSize.read(at: url)
-        pictureSizes[url] = picture
-        return picture
-    }
 
     /// The clip as Montage saved it into the clip's metadata, if it did.
     private static func montageClip(in item: Object) -> Clip? {
