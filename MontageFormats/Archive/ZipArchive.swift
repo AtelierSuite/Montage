@@ -186,6 +186,9 @@ final class ZipArchive {
 
     /// Raw deflate, which is what the Compression framework's zlib is.
     private func inflate(from offset: UInt64, compressedSize: UInt64, consume: (UnsafeRawBufferPointer) throws -> Void) throws {
+        // Some tools write an empty file as deflated with no stream at all:
+        // nothing comes out, and its size says whether that's right.
+        guard compressedSize > 0 else { return }
         let stream = UnsafeMutablePointer<compression_stream>.allocate(capacity: 1)
         defer { stream.deallocate() }
         guard compression_stream_init(stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB) == COMPRESSION_STATUS_OK else {

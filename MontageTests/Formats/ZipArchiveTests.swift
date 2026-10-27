@@ -33,6 +33,22 @@ struct ZipArchiveTests {
         #expect(try Data(contentsOf: unpacked.appending(path: "Media/Binary.bin")) == binary)
     }
 
+    @Test func readsAnEmptyFileDeflatedWithNoStream() throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var empty = TestZip.File("Empty.txt", Data(), deflated: true)
+        empty.noStream = true
+        var cut = TestZip.File("Cut.txt", Self.text, deflated: true)
+        cut.noStream = true
+        let archive = try ZipArchive(url: try TestZip.write([empty, cut], named: "Empty.zip", in: folder))
+        let entry = try #require(archive.entry(at: "Empty.txt"))
+        #expect(entry.method == ZipArchive.deflated)
+        #expect(entry.compressedSize == 0)
+        #expect(try archive.data(for: entry, limit: 1 << 20) == Data())
+        // With nothing to inflate, a file that isn't empty is damaged.
+        #expect(throws: ZipArchive.Error.damaged) { try archive.data(for: try #require(archive.entry(at: "Cut.txt")), limit: 1 << 20) }
+    }
+
     @Test func refusesWhatIsntAnArchive() throws {
         let folder = try TestZip.temporaryFolder()
         defer { try? FileManager.default.removeItem(at: folder) }

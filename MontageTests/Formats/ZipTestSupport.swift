@@ -11,6 +11,8 @@ enum TestZip {
         /// Whether the name is flagged as UTF-8, as most tools do. It's
         /// written in UTF-8 either way.
         var utf8Flag = true
+        /// Deflated with no stream at all, as some tools write an empty file.
+        var noStream = false
 
         init(_ path: String, _ data: Data, deflated: Bool = false, utf8Flag: Bool = true) {
             self.path = path
@@ -30,7 +32,8 @@ enum TestZip {
         var output = Data()
         var central = Data()
         for file in files {
-            let contents = file.deflated ? try (file.data as NSData).compressed(using: .zlib) as Data : file.data
+            let contents = file.noStream ? Data()
+                : file.deflated ? try (file.data as NSData).compressed(using: .zlib) as Data : file.data
             let name = Data(file.path.utf8)
             let crc = CRC32.checksum(file.data)
             let offset = UInt64(output.count)
