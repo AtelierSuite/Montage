@@ -176,6 +176,10 @@ struct PremiereObjectGraph {
             texts[texts.count - 1] += string
         }
 
+        func parser(_ parser: XMLParser, foundCDATA CDATABlock: Data) {
+            self.parser(parser, foundCharacters: String(decoding: CDATABlock, as: UTF8.self))
+        }
+
         func parser(
             _ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?
         ) {

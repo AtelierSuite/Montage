@@ -423,6 +423,18 @@ struct PremiereObjectGraphTests {
         #expect(graph.objects.allSatisfy { PremiereObjectGraph.keeps($0.name) })
     }
 
+    @Test func readsTextInCDATASections() throws {
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: "<Name>Main Edit</Name>", with: "<Name><![CDATA[Main]]> <![CDATA[Edit]]></Name>")
+            .replacingOccurrences(of: #"<DVAMarker>{"DVAMarker":{"mMarkerID":"7e1f0000-0000-4000-8000-000000000901","mName":"Intro""#,
+                                  with: #"<DVAMarker><![CDATA[{"DVAMarker":{"mMarkerID":"7e1f0000-0000-4000-8000-000000000901","mName":"<Intro>""#)
+            .replacingOccurrences(of: #""mStartTime":{"ticks":254016000000},"mType":"Comment"}}</DVAMarker>"#,
+                                  with: #""mStartTime":{"ticks":254016000000},"mType":"Comment"}}]]></DVAMarker>"#)
+        let imported = try PremiereFixtures.read(xml)
+        #expect(imported.name == "Main Edit")
+        #expect(imported.project.markers.map(\.name) == ["<Intro>", "Outro"])
+    }
+
     @Test func stopsReadingAtARefusedVersion() {
         var asked: [Int] = []
         #expect(throws: PremiereProjectError.unsupportedVersion) {
