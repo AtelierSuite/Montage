@@ -189,4 +189,20 @@ struct ResolveXMEMLQuirkTests {
         #expect(imported.report.items.contains { $0.issue == .setting(name: "Compound clip") && $0.clipName == "E57_OUT" })
         #expect(imported.issues(.missingMedia).isEmpty)
     }
+
+    /// Premiere's synthetic media, such as Black Video, has no path at all
+    /// and names its source: kept as missing media, not a compound clip.
+    @Test func keepsMediaWithNoPathThatIsntACompoundClip() throws {
+        let black = """
+            <clipitem id="Black Video 0"><name>Black Video</name><start>0</start><end>48</end><in>0</in><out>48</out>
+            <file id="Black Video 2"><name>Black Video</name><mediaSource>Slug</mediaSource><media><video/></media></file></clipitem>
+            """
+        let offline = """
+            <clipitem id="Offline 0"><name>Offline</name><start>48</start><end>96</end><in>0</in><out>48</out>
+            <file id="Offline 2"><name>Offline</name><media><video/></media></file></clipitem>
+            """
+        let imported = try ProjectInterchange.read(sequence(black + offline))
+        #expect(imported.project.media.map(\.name).sorted() == ["Black Video", "Offline"])
+        #expect(!imported.report.items.contains { $0.issue == .setting(name: "Compound clip") })
+    }
 }
