@@ -469,7 +469,9 @@ enum ResolveZstd {
                     }
                 }
             }
-            // The last symbol's weight is what makes the total a power of two.
+            // The last symbol's weight is what makes the total a power of two,
+            // and there are at most 256 symbols with it.
+            guard weights.count < 256 else { throw Failure.malformed }
             var total = 0
             for weight in weights {
                 guard weight <= 11 else { throw Failure.malformed }
