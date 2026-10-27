@@ -128,7 +128,7 @@ enum ResolveClipSettings {
                     notes.append(.setting("Opacity"))
                 }
                 if let mode = parameters.removeValue(forKey: 0) {
-                    if let blendMode = mode.number.flatMap({ Self.blendModes[Int($0)] }) {
+                    if let blendMode = mode.number.flatMap(Int.init(exactly:)).flatMap({ Self.blendModes[$0] }) {
                         clip.blendMode = blendMode
                     } else {
                         notes.append(.setting("Composite mode"))
