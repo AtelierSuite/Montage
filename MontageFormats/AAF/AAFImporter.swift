@@ -167,9 +167,7 @@ struct AAFImporter {
         for slot in composition.strongReferences(AAFProperty.ID.slots) {
             guard let slotRate = validRate(slot.rational(AAFProperty.ID.editRate)),
                   let segment = slot.strongReference(AAFProperty.ID.segment) else { continue }
-            let timecode = segment.isKind(of: AAFClass.timecode) ? segment
-                : segment.strongReferences(AAFProperty.ID.components).first { $0.isKind(of: AAFClass.timecode) }
-            if let timecode {
+            if let timecode = timecode(in: segment) {
                 rate = slotRate
                 fps = timecode.integer(AAFProperty.ID.timecodeFPS)
                 drop = timecode.bool(AAFProperty.ID.timecodeDrop) ?? false
@@ -553,13 +551,17 @@ struct AAFImporter {
         for slot in mob.strongReferences(AAFProperty.ID.slots) {
             guard let rate = Self.validRate(slot.rational(AAFProperty.ID.editRate)),
                   let segment = slot.strongReference(AAFProperty.ID.segment) else { continue }
-            let timecode = segment.isKind(of: AAFClass.timecode) ? segment
-                : segment.strongReferences(AAFProperty.ID.components).first { $0.isKind(of: AAFClass.timecode) }
-            guard let start = timecode?.int64(AAFProperty.ID.timecodeStart).flatMap({ Self.time($0, rate) }) else { continue }
+            guard let start = Self.timecode(in: segment)?.int64(AAFProperty.ID.timecodeStart).flatMap({ Self.time($0, rate) }) else { continue }
             let adjusted = position - start
             if adjusted >= .zero, adjusted <= duration { return adjusted }
         }
         return position
+    }
+
+    /// A slot's timecode: its segment, or the first timecode in its sequence.
+    private static func timecode(in segment: AAFObject) -> AAFObject? {
+        segment.isKind(of: AAFClass.timecode) ? segment
+            : segment.strongReferences(AAFProperty.ID.components).first { $0.isKind(of: AAFClass.timecode) }
     }
 
     /// The source clip that plays at a time in a slot, and where it starts.
