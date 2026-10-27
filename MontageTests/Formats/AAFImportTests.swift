@@ -273,6 +273,36 @@ struct AAFImportTests {
         #expect(item.metadata.duration == CMTime(value: 10, timescale: 1))
     }
 
+    @Test func readsTheFrameRateOfMultipleDescriptors() throws {
+        // As Avid writes them: the whole file's length, then each track's, as long.
+        let picture = AAFTestObject(AAFClass.cdciDescriptor)
+            .set(AAFProperty.ID.sampleRate, rational: 25, 1).set(AAFProperty.ID.fileLength, int64: 250)
+            .set(AAFProperty.ID.storedWidth, uint32: 1920).set(AAFProperty.ID.storedHeight, uint32: 1080)
+        let descriptor = AAFTestObject(AAFClass.multipleDescriptor)
+            .set(AAFProperty.ID.sampleRate, rational: 25, 1).set(AAFProperty.ID.fileLength, int64: 250)
+            .vector(0x3F01, [picture])
+            .vector(AAFProperty.ID.locators, [
+                AAFTestObject(AAFClass.networkLocator).set(AAFProperty.ID.urlString, string: "file:///Media/Avid.mxf"),
+            ])
+        let fileMob = F.mob(AAFClass.sourceMob, id: alphaFile, name: "Avid", slots: [
+            F.timelineSlot(1, F.sourceClip(AAFDefinition.picture, length: 250, mob: nil, slot: 0)),
+        ]).strong(AAFProperty.ID.essenceDescription, descriptor)
+        let master = F.mob(AAFClass.masterMob, id: alphaMaster, name: "Avid", slots: [
+            F.timelineSlot(1, F.sequence(AAFDefinition.picture, [
+                F.sourceClip(AAFDefinition.picture, length: 250, mob: alphaFile),
+            ])),
+        ])
+        var file = F()
+        file.mobs = [master, fileMob, timeline([
+            F.timelineSlot(1, F.sequence(AAFDefinition.picture, [
+                F.sourceClip(AAFDefinition.picture, length: 20, mob: alphaMaster),
+            ])),
+        ])]
+        let item = try #require(try read(file).project.media.first)
+        #expect(item.metadata.duration == frames(250))
+        #expect(item.metadata.nominalFrameRate == 25)
+    }
+
     @Test func followsOriginsAndSourceMobChains() throws {
         // Master → file mob without a locator → import source with one,
         // whose slot starts an hour in, at its timecode.

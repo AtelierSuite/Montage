@@ -631,12 +631,11 @@ struct AAFImporter {
         let kind: MediaItem.Kind = isImage ? .image : hasPicture ? .video : .audio
 
         var metadata = MediaMetadata()
-        for descriptor in descriptors {
-            if let rate = Self.validRate(descriptor.rational(AAFProperty.ID.sampleRate)),
-               let length = descriptor.int64(AAFProperty.ID.fileLength), let duration = Self.time(length, rate),
-               duration > metadata.duration, !isImage {
-                metadata.duration = duration
-                if descriptor.entry == picture?.entry { metadata.nominalFrameRate = Double(rate.numerator) / Double(rate.denominator) }
+        for descriptor in descriptors where !isImage {
+            guard let rate = Self.validRate(descriptor.rational(AAFProperty.ID.sampleRate)) else { continue }
+            if descriptor.entry == picture?.entry { metadata.nominalFrameRate = Double(rate.numerator) / Double(rate.denominator) }
+            if let length = descriptor.int64(AAFProperty.ID.fileLength), let duration = Self.time(length, rate) {
+                metadata.duration = max(metadata.duration, duration)
             }
         }
         if let picture {
