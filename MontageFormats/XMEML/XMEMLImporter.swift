@@ -194,9 +194,11 @@ struct XMEMLImporter {
             return
         }
         guard let file = item.child("file").flatMap({ $0["id"].flatMap { files[$0] } ?? $0 }) else { return }
-        // Resolve writes a compound clip as a file with no path or type,
-        // and leaves out what's inside it.
-        if (file.child("pathurl")?.text ?? "").isEmpty,
+        // Resolve writes a compound clip as a file with an empty path and no
+        // type, and leaves out what's inside it. Premiere leaves the path out
+        // of its own synthetic media, such as Black Video, which it names
+        // a source of instead, and those come in as missing media.
+        if let path = file.child("pathurl"), path.text.isEmpty, file.child("mediaSource") == nil,
            ((file.child("name")?.text ?? name ?? "") as NSString).pathExtension.isEmpty {
             report.add(.setting(name: "Compound clip"), clipName: name, time: timelineStart)
             return
