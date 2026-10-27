@@ -32,6 +32,12 @@ public enum ProjectInterchange {
     /// Reads another editor's project. Media referred to by relative paths
     /// is taken from `baseURL`, the folder the file was in.
     public static func read(_ data: Data, baseURL: URL? = nil) throws -> ImportedProject {
+        // Final Cut XML may come gzipped too, and is read uncompressed.
+        if GzipInputStream.isGzip(data), let start = GzipInputStream.decompress(data, limit: 4096),
+           ["<fcpxml", "<xmeml"].contains(where: String(decoding: start, as: UTF8.self).contains),
+           let xml = GzipInputStream.decompress(data) {
+            return try read(xml, baseURL: baseURL)
+        }
         // Premiere projects are gzipped, and too large to read whole.
         if GzipInputStream.isGzip(data) || PremiereObjectGraph.isPremiereXML(data) {
             return try PremiereProjectImporter.read(data, baseURL: baseURL)

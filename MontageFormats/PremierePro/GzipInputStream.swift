@@ -17,6 +17,23 @@ final class GzipInputStream: InputStream {
         data.count >= 2 && data[data.startIndex] == 0x1f && data[data.startIndex + 1] == 0x8b
     }
 
+    /// Gzipped data uncompressed, as far as `limit` if there's one, or nil
+    /// if it's damaged before then.
+    static func decompress(_ data: Data, limit: Int = .max) -> Data? {
+        let stream = GzipInputStream(gzipped: data)
+        stream.open()
+        defer { stream.close() }
+        var output = Data()
+        var buffer = [UInt8](repeating: 0, count: 64 * 1024)
+        while output.count < limit {
+            let count = stream.read(&buffer, maxLength: min(buffer.count, limit - output.count))
+            if count < 0 { return nil }
+            if count == 0 { break }
+            output.append(buffer, count: count)
+        }
+        return output
+    }
+
     /// Why the data couldn't be read, once it couldn't.
     private(set) var failure: GzipError?
 

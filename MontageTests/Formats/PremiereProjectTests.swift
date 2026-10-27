@@ -640,7 +640,7 @@ struct PremiereObjectGraphTests {
 
     @Test func refusesWhatIsntAPremiereProject() {
         #expect(throws: InterchangeError.unsupportedFormat) {
-            try ProjectInterchange.read(PremiereFixtures.gzip(Data("<xmeml version=\"4\"/>".utf8)))
+            try ProjectInterchange.read(PremiereFixtures.gzip(Data("<project version=\"4\"/>".utf8)))
         }
         let empty = #"<PremiereData Version="3"><Project ObjectID="1" ClassID="62ad66dd-0dcd-42da-a660-6d8fbde94876" Version="40"/></PremiereData>"#
         #expect(throws: InterchangeError.noTimeline) { try PremiereFixtures.read(empty) }
