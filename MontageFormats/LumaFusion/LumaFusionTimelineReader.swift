@@ -401,11 +401,13 @@ struct LumaFusionTimelineReader {
         let fromURL = (clip["assetURL"] as? String).flatMap { URL(string: $0)?.lastPathComponent } ?? ""
         // The name the package stores the file under, then the names the
         // clip gives it; one without an extension is a placeholder.
-        let names = [assetID.flatMap { packageNames[$0] }, Self.lastComponent(original), attributes["title"] as? String, fromURL]
+        let packageName = assetID.flatMap { packageNames[$0] }.flatMap { $0.isEmpty ? nil : $0 }
+        let names = [packageName, Self.lastComponent(original), attributes["title"] as? String, fromURL]
             .compactMap { $0 }.filter { !$0.isEmpty }
         let name = names.first { !($0 as NSString).pathExtension.isEmpty } ?? names.first ?? "Media"
         // Where the file was, when that's a path rather than LumaFusion's
-        // own library.
+        // own library. The package's name for it stays its name, which is
+        // what it's found by in the package.
         let source = original.hasPrefix("/") ? URL(fileURLWithPath: original) : nil
 
         let type = UTType(filenameExtension: (name as NSString).pathExtension)
@@ -423,7 +425,7 @@ struct LumaFusionTimelineReader {
             metadata.audioChannelCount = 2
             metadata.audioSampleRate = Self.double(attributes["audioSamplerate"]) ?? 48000
         }
-        return media.item(key: assetID ?? name, url: source, name: name, kind: kind, metadata: metadata)
+        return media.item(key: assetID ?? name, url: source, name: name, keepsName: name == packageName, kind: kind, metadata: metadata)
     }
 
     // MARK: - Values

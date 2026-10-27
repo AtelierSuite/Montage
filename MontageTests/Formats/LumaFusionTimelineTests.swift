@@ -395,12 +395,17 @@ struct LumaFusionTimelineTests {
                 // A placeholder for a name.
                 .init(file: "Photo.heic", start: 1200, duration: 600, assetType: 2, audio: false,
                       originalFilename: "sioProviderRelink"),
+                // Both: named as the package stores it, which is where it's
+                // found, with where it was to look as well.
+                .init(file: "IMG_0002.MOV", start: 1800, duration: 600, originalFilename: "/var/mobile/Media/IMG_0002.MOV"),
             ]),
-        ], mediaMap: ["Holiday 1.mov": Fixture.assetID("IMG_0001.MOV")]))
-        #expect(imported.project.media.map(\.name) == ["Holiday 1.mov", "Trip.mov", "Photo.heic"])
-        #expect(imported.project.media.map(\.kind) == [.video, .video, .image])
+        ], mediaMap: ["Holiday 1.mov": Fixture.assetID("IMG_0001.MOV"), "Holiday 2.mov": Fixture.assetID("IMG_0002.MOV")]))
+        #expect(imported.project.media.map(\.name) == ["Holiday 1.mov", "Trip.mov", "Photo.heic", "Holiday 2.mov"])
+        #expect(imported.project.media.map(\.kind) == [.video, .video, .image, .video])
         let trip = try #require(imported.project.media.first { $0.name == "Trip.mov" })
         #expect(imported.mediaSources[trip.id] == URL(fileURLWithPath: "/Volumes/Card/DCIM/Trip.mov"))
+        let both = try #require(imported.project.media.first { $0.name == "Holiday 2.mov" })
+        #expect(imported.mediaSources[both.id] == URL(fileURLWithPath: "/var/mobile/Media/IMG_0002.MOV"))
         let photo = try #require(imported.clip("Photo.heic"))
         #expect(photo.clip.sourceRange == CMTimeRange(start: .zero, duration: Self.seconds(600)))
     }
