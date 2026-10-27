@@ -259,20 +259,23 @@ struct LumaFusionTimelineReader {
             clip.opacity = Animatable(min(1, max(0, alpha.numbers.first ?? 1)))
             if alpha.isKeyframed { notes.append("Opacity keyframes") }
         }
+        // iOS's combined transform, where there is one, holds the scale and
+        // position: separate ones beside it aren't the clip's.
         if let transform = attributes["videoTransform"] as? Object {
             applyTransform(transform, to: &clip, notes: &notes, name: name)
-        }
-        if let scale = Self.setting(attributes["videoScale"]), scale.numbers.count == 2,
-           scale.numbers.allSatisfy({ $0 > 0 }) {
-            let (across, down) = (scale.numbers[0], scale.numbers[1])
-            clip.transform.scale = Animatable((across + down) / 2)
-            if abs(across - down) > 0.0001 { report.add(.unevenAveraged(name: "Scale"), clipName: name, time: clip.timelineStart) }
-            if scale.isKeyframed { notes.append("Scale keyframes") }
-        }
-        if let translation = Self.setting(attributes["videoTranslation"]), translation.numbers.count == 2 {
-            let (x, y) = (translation.numbers[0], translation.numbers[1])
-            clip.transform.position = Animatable(CGPoint(x: 0.5 + x / 2, y: 0.5 + y / 2))
-            if translation.isKeyframed { notes.append("Position keyframes") }
+        } else {
+            if let scale = Self.setting(attributes["videoScale"]), scale.numbers.count == 2,
+               scale.numbers.allSatisfy({ $0 > 0 }) {
+                let (across, down) = (scale.numbers[0], scale.numbers[1])
+                clip.transform.scale = Animatable((across + down) / 2)
+                if abs(across - down) > 0.0001 { report.add(.unevenAveraged(name: "Scale"), clipName: name, time: clip.timelineStart) }
+                if scale.isKeyframed { notes.append("Scale keyframes") }
+            }
+            if let translation = Self.setting(attributes["videoTranslation"]), translation.numbers.count == 2 {
+                let (x, y) = (translation.numbers[0], translation.numbers[1])
+                clip.transform.position = Animatable(CGPoint(x: 0.5 + x / 2, y: 0.5 + y / 2))
+                if translation.isKeyframed { notes.append("Position keyframes") }
+            }
         }
         // A turn by a quarter is the file's own orientation, which the
         // file carries and Montage applies itself.

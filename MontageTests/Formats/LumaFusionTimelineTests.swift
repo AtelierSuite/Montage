@@ -55,6 +55,9 @@ enum LumaFusionFixture {
         var crop: [[Double]] = [[0, 0], [1, 1]]
         var effects: [String] = []
         var originalFilename: String?
+        /// iOS only: a separate `videoScale` and `videoTranslation` at their
+        /// defaults, beside `videoTransform`.
+        var separateDefaults = false
     }
 
     struct TransformKeyframe {
@@ -106,6 +109,10 @@ enum LumaFusionFixture {
             if !iOS { attributes["speed"] = nil }
             if iOS, video {
                 for key in ["videoAnchor", "videoScale", "videoTranslation", "videoTransformRotation"] { attributes[key] = nil }
+                if clip.separateDefaults {
+                    attributes["videoScale"] = setting([1.0, 1.0], type: 14)
+                    attributes["videoTranslation"] = setting(["point": [0.0, 0.0]], type: 13)
+                }
                 attributes["videoRotation"] = setting(0.0)
                 let interpolation: [String: Any] = ["type": clip.easing, "controlPointIn": [1, 1], "controlPointOut": [0, 0]]
                 attributes["videoTransform"] = [
@@ -331,6 +338,22 @@ struct LumaFusionTimelineTests {
 
         #expect(clips[2].transform.scale == Animatable(1.25))
         #expect(clips[2].transform.position == Animatable(CGPoint(x: 0.5, y: 0.5)))
+        #expect(imported.report.isEmpty)
+    }
+
+    @Test func takesTheIOSTransformOverSeparateScaleAndPosition() throws {
+        let imported = try Self.read(try Fixture.project([
+            Fixture.track(type: 0, offset: 0, anchor: true, [
+                .init(file: "Zoom.jpg", start: 0, duration: 600, assetType: 2, audio: false, scale: [2, 2],
+                      translation: [0.5, 0], keyframes: [
+                          .init(time: 0, scale: [2, 2], translation: [0.5, 0]),
+                          .init(time: 15000, scale: [1, 1]),
+                      ], separateDefaults: true),
+            ], iOS: true),
+        ]))
+        let transform = try #require(imported.project.tracks.first?.clips.first).transform
+        #expect(transform.scale.keyframes.map(\.value) == [2, 1])
+        #expect(transform.position.keyframes.map(\.value) == [CGPoint(x: 0.75, y: 0.5), CGPoint(x: 0.5, y: 0.5)])
         #expect(imported.report.isEmpty)
     }
 
