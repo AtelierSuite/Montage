@@ -57,6 +57,25 @@ struct LumaFusionImportTests {
         #expect(file.title == "Holiday")
     }
 
+    /// Opened, only the project is unpacked, to be read before the media is.
+    @Test func unpacksTheProjectBeforeTheMedia() throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = try TestZip.write([
+            TestZip.File("__MACOSX/Holiday/._Holiday.lfarchive", "fork"),
+            TestZip.File("Holiday/Media/Clip.mov", Data(repeating: 1, count: 1000)),
+            TestZip.File("Holiday/Holiday.lfarchive", #"{"attributes":{"appVersion":"9.0"}}"#, deflated: true),
+        ], named: "Holiday.lfz", in: folder)
+        let unpacked = folder.appending(path: "Unpacked", directoryHint: .isDirectory)
+        var package = try LumaFusionPackage(opening: url, into: unpacked)
+        #expect(package.files.map(\.lastPathComponent) == ["Holiday.lfarchive"])
+        #expect(package.projectFile?.path(percentEncoded: false).hasSuffix("Unpacked/Holiday/Holiday.lfarchive") == true)
+        #expect(!FileManager.default.fileExists(atPath: unpacked.appending(path: "Holiday/Media/Clip.mov").path))
+        #expect(throws: LumaFusionError.unsupportedVersion("9.0")) { try LumaFusionImporter.read(package) }
+        try package.unpackMedia()
+        #expect(package.files.map(\.lastPathComponent) == ["Holiday.lfarchive", "Clip.mov"])
+    }
+
     @Test func recognizesPackages() throws {
         let folder = try TestZip.temporaryFolder()
         defer { try? FileManager.default.removeItem(at: folder) }

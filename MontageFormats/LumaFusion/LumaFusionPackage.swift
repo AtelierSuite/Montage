@@ -28,25 +28,59 @@ struct LumaFusionPackage {
     /// project file, as LumaFusion's own FCPXML export, zipped, does.
     let fcpxmlFile: URL?
     /// Every file unpacked.
-    let files: [URL]
+    private(set) var files: [URL]
+    private let archive: ZipArchive
+    private let unpacked: Set<String>
 
     /// Unpacks the package at `url` into `folder`, which is made if need be.
     init(unpacking url: URL, into folder: URL) throws {
+        try self.init(opening: url, into: folder)
+        try unpackMedia()
+    }
+
+    /// Unpacks only the package's project file and FCPXML document, so the
+    /// project can be checked before its media, which may be gigabytes, is
+    /// unpacked with `unpackMedia`.
+    init(opening url: URL, into folder: URL) throws {
         let archive: ZipArchive
         do {
             archive = try ZipArchive(url: url)
         } catch let error as ZipArchive.Error {
             throw error == .notAnArchive ? LumaFusionError.notAPackage : LumaFusionError.damaged
         }
+        self.archive = archive
+        func shallowest(_ fileExtension: String) -> ZipArchive.Entry? {
+            archive.entries.compactMap { entry in
+                ZipArchive.unpackedComponents(of: entry).map { (entry, $0) }
+            }
+            .filter { ($0.1.last.map { ($0 as NSString).pathExtension.lowercased() }) == fileExtension }
+            .min { $0.1.count < $1.1.count }?.0
+        }
+        let project = shallowest(Self.projectFileExtension)
+        let fcpxml = shallowest("fcpxml")
+        let unpacked = Set([project, fcpxml].compactMap { $0?.path })
+        self.unpacked = unpacked
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         do {
-            files = try archive.extractAll(into: folder)
+            files = try archive.extractAll(into: folder) { unpacked.contains($0.path) }
         } catch is ZipArchive.Error {
             throw LumaFusionError.damaged
         }
         self.folder = folder
-        projectFile = Self.shallowest(files.filter { $0.pathExtension.lowercased() == Self.projectFileExtension })
-        fcpxmlFile = Self.shallowest(files.filter { $0.pathExtension.lowercased() == "fcpxml" })
+        func file(for entry: ZipArchive.Entry?) -> URL? {
+            entry.flatMap(ZipArchive.unpackedComponents).map { $0.reduce(folder) { $0.appending(path: $1) } }
+        }
+        projectFile = file(for: project)
+        fcpxmlFile = file(for: fcpxml)
+    }
+
+    /// Unpacks the rest of the package: its media.
+    mutating func unpackMedia() throws {
+        do {
+            files += try archive.extractAll(into: folder) { [unpacked] in !unpacked.contains($0.path) }
+        } catch is ZipArchive.Error {
+            throw LumaFusionError.damaged
+        }
     }
 
     /// The folders media might be in: the package's top level, then every
@@ -71,9 +105,5 @@ struct LumaFusionPackage {
         return archive.entries.contains {
             !$0.isDirectory && ($0.fileName as NSString).pathExtension.lowercased() == projectFileExtension
         }
-    }
-
-    private static func shallowest(_ files: [URL]) -> URL? {
-        files.min { $0.pathComponents.count < $1.pathComponents.count }
     }
 }

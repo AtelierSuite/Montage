@@ -106,28 +106,37 @@ extension ProjectInterchange {
 
     /// Imports a LumaFusion project package: unpacks it, reads its project,
     /// and copies the media it carries into staging, as `gatherMedia` does,
-    /// looking in the package first and then beside it.
+    /// looking in the package first and then beside it. The project is read
+    /// before the media is unpacked, so one that can't be read is refused
+    /// without unpacking it.
     @concurrent
     public static func importLumaFusionPackage(
         at url: URL, into store: PackageMediaStore, takenPaths: Set<String> = []
     ) async throws -> ImportedProject {
         let folder = URL.temporaryDirectory.appending(path: "LumaFusion-\(UUID().uuidString)", directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: folder) }
-        let package = try coordinatedUnpack(url, into: folder)
-        let imported = try LumaFusionImporter.read(package)
+        let (package, imported) = try coordinatedUnpack(url, into: folder)
         return await gatherMedia(
             for: imported, into: store, takenPaths: takenPaths,
             searchFolders: package.mediaFolders + [url.deletingLastPathComponent()]
         )
     }
 
-    /// Unpacks the package, coordinated, so a package in cloud storage that
-    /// isn't on the device yet is downloaded first.
-    private static func coordinatedUnpack(_ url: URL, into folder: URL) throws -> LumaFusionPackage {
+    /// Reads the package's project and then unpacks its media, coordinated,
+    /// so a package in cloud storage that isn't on the device yet is
+    /// downloaded first.
+    private static func coordinatedUnpack(
+        _ url: URL, into folder: URL
+    ) throws -> (package: LumaFusionPackage, imported: ImportedProject) {
         var coordinationError: NSError?
-        var result: Result<LumaFusionPackage, Error> = .failure(CocoaError(.fileReadUnknown))
+        var result: Result<(LumaFusionPackage, ImportedProject), Error> = .failure(CocoaError(.fileReadUnknown))
         NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) { readURL in
-            result = Result { try LumaFusionPackage(unpacking: readURL, into: folder) }
+            result = Result {
+                var package = try LumaFusionPackage(opening: readURL, into: folder)
+                let imported = try LumaFusionImporter.read(package)
+                try package.unpackMedia()
+                return (package, imported)
+            }
         }
         if let coordinationError { throw coordinationError }
         return try result.get()

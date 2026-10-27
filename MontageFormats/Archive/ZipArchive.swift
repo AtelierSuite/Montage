@@ -118,15 +118,15 @@ final class ZipArchive {
         }
     }
 
-    /// Writes every file in the archive into `folder`, keeping the folders
-    /// they're in. Entries whose path would land outside the folder, and the
-    /// resource forks Finder adds, are passed over. Returns the files written.
+    /// Writes every file in the archive into `folder`, or those `include`
+    /// takes, keeping the folders they're in. Entries whose path would land
+    /// outside the folder, and the resource forks Finder adds, are passed
+    /// over. Returns the files written.
     @discardableResult
-    func extractAll(into folder: URL) throws -> [URL] {
+    func extractAll(into folder: URL, where include: (Entry) -> Bool = { _ in true }) throws -> [URL] {
         var written: [URL] = []
-        for entry in entries where !entry.isDirectory {
-            guard let components = Self.safeComponents(of: entry.path),
-                  components.first != "__MACOSX", components.last?.hasPrefix("._") == false else { continue }
+        for entry in entries where include(entry) {
+            guard let components = Self.unpackedComponents(of: entry) else { continue }
             let destination = components.reduce(folder) { $0.appending(path: $1) }
             try FileManager.default.createDirectory(
                 at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
@@ -135,6 +135,14 @@ final class ZipArchive {
             written.append(destination)
         }
         return written
+    }
+
+    /// The folder and file names a file entry is unpacked to by
+    /// `extractAll`, or nil for one it passes over.
+    static func unpackedComponents(of entry: Entry) -> [String]? {
+        guard !entry.isDirectory, let components = safeComponents(of: entry.path),
+              components.first != "__MACOSX", components.last?.hasPrefix("._") == false else { return nil }
+        return components
     }
 
     /// An entry's path as folder and file names that stay inside the folder
