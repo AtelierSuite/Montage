@@ -16,7 +16,7 @@ final class ProjectImport {
     /// Whether a project is being read or its media copied in.
     private(set) var isImporting = false
     /// What the last import couldn't bring across, until it's been shown.
-    var report: ImportReport?
+    var report: Report?
     /// Why the last import failed, until it's been shown.
     var failure: String?
 
@@ -57,13 +57,20 @@ final class ProjectImport {
             do {
                 let imported = try await Self.read(url, store: store, takenPaths: takenPaths)
                 editor.replaceContents(with: imported.project)
-                report = imported.report
+                report = Report(contents: imported.report, timelineName: imported.name)
             } catch {
                 let error = error as NSError
                 failure = [error.localizedDescription, error.localizedRecoverySuggestion].compactMap { $0 }
                     .joined(separator: " ")
             }
         }
+    }
+
+    /// An import's report, with the name of the timeline it read to title
+    /// it by, if the timeline had one.
+    struct Report {
+        let contents: ImportReport
+        let timelineName: String?
     }
 
     /// Reads the file and gathers its media, off the main actor: copying in

@@ -60,7 +60,10 @@ private struct ProjectInterchangeModifier: ViewModifier {
             }
             .sheet(isPresented: isShowingReport) {
                 if let report = projectImport?.report {
-                    ImportReportView(report: report, frames: FrameTime(frameDuration: editor.project.settings.frameDuration)) {
+                    ImportReportView(
+                        report: report.contents, timelineName: report.timelineName, documentName: title,
+                        frames: FrameTime(frameDuration: editor.project.settings.frameDuration)
+                    ) {
                         projectImport?.report = nil
                     }
                 }

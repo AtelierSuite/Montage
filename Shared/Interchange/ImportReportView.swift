@@ -7,6 +7,10 @@ import SwiftUI
 /// with the clip it was on and where.
 struct ImportReportView: View {
     let report: ImportReport
+    /// The name of the timeline it came from, if it had one.
+    let timelineName: String?
+    /// The name of the document it was imported into, for a timeline without one.
+    let documentName: String
     /// The project's frames, to say where things were as timecode.
     let frames: FrameTime
     let dismiss: () -> Void
@@ -29,7 +33,7 @@ struct ImportReportView: View {
                             row(for: item)
                         }
                     } header: {
-                        Text(title(of: category))
+                        Text(header(for: category))
                     } footer: {
                         if category == .missingMedia { Text("ImportReport.MissingMediaNote") }
                     }
@@ -39,13 +43,23 @@ struct ImportReportView: View {
             .listStyle(.inset)
             .frame(minWidth: 480, minHeight: 360)
             #endif
-            .navigationTitle("ImportReport.Title")
+            .navigationTitle(title)
+            .navigationSubtitle(String(localized: "ImportReport.Title"))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("ImportReport.Done", action: dismiss)
                 }
             }
         }
+    }
+
+    /// The imported timeline's name, or, for a timeline with none, the
+    /// document's.
+    var title: String {
+        guard let name = timelineName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+            return documentName
+        }
+        return name
     }
 
     private var categories: [ImportReport.Category] {
@@ -76,7 +90,7 @@ struct ImportReportView: View {
         }
     }
 
-    private func title(of category: ImportReport.Category) -> LocalizedStringKey {
+    private func header(for category: ImportReport.Category) -> LocalizedStringKey {
         switch category {
         case .unsupportedEffect: "ImportReport.Section.UnsupportedEffect"
         case .missingMedia: "ImportReport.Section.MissingMedia"
