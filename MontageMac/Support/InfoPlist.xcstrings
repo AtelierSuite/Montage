@@ -60,6 +60,35 @@
         }
       }
     },
+    "CMX 3600 EDL" : {
+      "comment" : "Document type name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        }
+      }
+    },
     "Final Cut Pro XML" : {
       "comment" : "Document type name",
       "localizations" : {
@@ -118,6 +147,35 @@
         }
       }
     },
+    "LumaFusion Project Package" : {
+      "comment" : "Document type name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion Project Package"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusionプロジェクトパッケージ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion 项目包"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion 專案套件"
+          }
+        }
+      }
+    },
     "Montage Media Reference" : {
       "comment" : "Document type name",
       "localizations" : {
@@ -172,6 +230,93 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Montage 專案"
+          }
+        }
+      }
+    },
+    "OpenTimelineIO Bundle" : {
+      "comment" : "Document type name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO Bundle"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIOバンドル"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO 包"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO 套件"
+          }
+        }
+      }
+    },
+    "OpenTimelineIO Directory Bundle" : {
+      "comment" : "Document type name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO Directory Bundle"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIOフォルダバンドル"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO 文件夹包"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO 資料夾套件"
+          }
+        }
+      }
+    },
+    "OpenTimelineIO Timeline" : {
+      "comment" : "Document type name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO Timeline"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIOタイムライン"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO 时间线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO 時間軸"
           }
         }
       }
