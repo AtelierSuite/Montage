@@ -339,6 +339,47 @@ struct PremiereProjectImportTests {
         #expect(interview.timelineRange.end == seconds(5))
     }
 
+    @Test func cutsOnlyAtANestedSequencesTransitionsInThePartShown() throws {
+        // Nested is shown from 1s to 3s into it, at 1s to 3s on the timeline.
+        func transition(_ id: String, _ name: String, start: Int64, end: Int64) -> String {
+            """
+            <VideoTransitionTrackItem ObjectID="\(id)" ClassID="1a4b2c3d-0000-4000-8000-000000000250" Version="6">
+            		<TransitionTrackItem Version="5">
+            			<TrackItem Version="3">
+            				<Start>\(start * PremiereProject.ticksPerSecond / 2)</Start>
+            				<End>\(end * PremiereProject.ticksPerSecond / 2)</End>
+            			</TrackItem>
+            			<DisplayName>\(name)</DisplayName>
+            		</TransitionTrackItem>
+            	</VideoTransitionTrackItem>
+
+            """
+        }
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: """
+            					<TrackItem Index="0" ObjectRef="220"/>
+            				</TrackItems>
+            			</ClipItems>
+            """, with: """
+            					<TrackItem Index="0" ObjectRef="220"/>
+            				</TrackItems>
+            			</ClipItems>
+            			<TransitionItems Version="3">
+            				<TrackItems Version="1">
+            					<TrackItem Index="0" ObjectRef="251"/>
+            					<TrackItem Index="1" ObjectRef="252"/>
+            				</TrackItems>
+            			</TransitionItems>
+            """)
+            .replacingOccurrences(of: "<!-- Media -->", with: transition("251", "Push", start: 3, end: 5)
+                + transition("252", "Dip to Black", start: 60, end: 62) + "\t<!-- Media -->")
+        let transitions = try PremiereFixtures.read(xml).report.items.filter {
+            if case .transition = $0.issue { true } else { false }
+        }
+        #expect(transitions.map(\.issue) == [.transition(name: "Cross Dissolve"), .transition(name: "Push")])
+        #expect(transitions.last?.time == seconds(3, 2))
+    }
+
     @Test func bringsInSequenceMarkersAndReportsClipMarkers() throws {
         #expect(imported.project.markers.map(\.time) == [seconds(1), seconds(10)])
         #expect(imported.project.markers.map(\.name) == ["Intro", "Outro"])

@@ -196,8 +196,13 @@ struct PremiereProjectImporter {
             guard let transition = graph.resolve(reference)?.child("TransitionTrackItem") else { continue }
             let start = PremiereProject.ticks(transition.descendant("TrackItem", "Start")?.text) ?? 0
             let end = PremiereProject.ticks(transition.descendant("TrackItem", "End")?.text) ?? start
-            let range = CMTimeRange(start: placement.timeline(PremiereProject.time(start)),
+            var range = CMTimeRange(start: placement.timeline(PremiereProject.time(start)),
                                     end: placement.timeline(PremiereProject.time(end)))
+            // A nested sequence's own, only within the part of it shown.
+            if let window = placement.window {
+                range = range.intersection(window)
+                guard range.duration > .zero else { continue }
+            }
             assembler.addTransition(range, lane: lane)
             let name = transition.child("DisplayName")?.text ?? transition.child("MatchName")?.text ?? ""
             report.add(.transition(name: name.isEmpty ? "Transition" : name), time: range.start)
