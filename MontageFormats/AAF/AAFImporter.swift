@@ -565,15 +565,18 @@ struct AAFImporter {
             for component in segment.strongReferences(AAFProperty.ID.components) {
                 let length = Self.length(of: component)
                 if component.isKind(of: AAFClass.transition) {
-                    position -= length
+                    let (start, overflow) = position.subtractingReportingOverflow(length)
+                    guard !overflow else { return nil }
+                    position = start
                     continue
                 }
-                guard let start = Self.time(position, rate), let end = Self.time(position + length, rate) else { return nil }
+                let (next, overflow) = position.addingReportingOverflow(length)
+                guard !overflow, let start = Self.time(position, rate), let end = Self.time(next, rate) else { return nil }
                 if time >= start, time < end || length == 0 && time == start,
                    let found = sourceClip(in: component, at: time - start, rate: rate, depth: depth + 1) {
                     return (found.clip, start + found.start)
                 }
-                position += length
+                position = next
             }
             return nil
         }

@@ -563,6 +563,23 @@ struct AAFImportTests {
         _ = try read(file)
     }
 
+    @Test func survivesHugeLengthsInSourceMobs() throws {
+        let hugeMaster = F.mob(AAFClass.masterMob, id: alphaMaster, name: "Huge", slots: [
+            F.timelineSlot(1, F.sequence(picture, [
+                F.filler(picture, length: .max),
+                F.sourceClip(picture, length: .max, mob: alphaFile),
+                F.transition(picture, length: .max, cutPoint: 0),
+                F.transition(picture, length: .max, cutPoint: 0),
+                F.transition(picture, length: .max, cutPoint: 0),
+            ])),
+        ])
+        var file = F()
+        file.mobs = [hugeMaster, timeline([
+            F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 10, start: 10, mob: alphaMaster)])),
+        ])]
+        _ = try read(file)
+    }
+
     @Test func refusesCompoundFilesThatArentAAF() {
         var writer = CompoundFileTestWriter()
         writer.root.add(.init(stream: "WordDocument", contents: Data(repeating: 1, count: 100)))
