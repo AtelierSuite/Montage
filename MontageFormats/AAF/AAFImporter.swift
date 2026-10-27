@@ -493,10 +493,10 @@ struct AAFImporter {
     /// Follows a source clip down from a master mob, through source mobs,
     /// to the file it plays: the first source mob with a URL, or failing
     /// that, the first file source mob, as media to relink.
-    private mutating func resolve(_ mob: AAFObject, slotID: Int64, offset: CMTime) -> Source? {
+    private mutating func resolve(_ mob: AAFObject, slotID: Int64, offset start: CMTime) -> Source? {
         var current = mob
         var slotID = slotID
-        var offset = offset
+        var offset = start
         var visited: Set<Int> = []
         var masterName = currentMasterName
         var fallback: (mob: AAFObject, start: CMTime)?
@@ -535,9 +535,10 @@ struct AAFImporter {
         if let fallback {
             return Source(item: mediaItem(for: fallback.mob, name: masterName), start: fallback.start)
         }
-        // Nothing below the master mob: media known only by name.
+        // Nothing below the master mob: media known only by name, played
+        // from where the clip starts in the master, not in a tape under it.
         guard mob.isKind(of: AAFClass.masterMob) || mob.isKind(of: AAFClass.sourceMob) else { return nil }
-        return Source(item: mediaItem(for: mob, name: masterName), start: offset)
+        return Source(item: mediaItem(for: mob, name: masterName), start: start)
     }
 
     /// A time in a file's source mob as a time in the file. Some

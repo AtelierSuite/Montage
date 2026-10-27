@@ -334,6 +334,22 @@ struct AAFImportTests {
         #expect(imported.mediaSources[item.id]?.path == "/Media/Original.mov")
     }
 
+    @Test func playsMastersOfTapesFromTheirOwnStart() throws {
+        // A master straight on a tape counted from 01:00:00:00, with no file.
+        let tape = F.mob(AAFClass.sourceMob, id: alphaFile, name: "Tape 1", slots: [
+            F.timelineSlot(1, F.sourceClip(picture, length: 200_000, mob: nil, slot: 0)),
+        ]).strong(AAFProperty.ID.essenceDescription, AAFTestObject(AAFClass.tapeDescriptor))
+        let master = F.mob(AAFClass.masterMob, id: alphaMaster, name: "Shot", slots: [
+            F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 500, start: 90_000, mob: alphaFile)])),
+        ])
+        var file = F()
+        file.mobs = [master, tape, timeline([
+            F.timelineSlot(1, F.sequence(picture, [F.sourceClip(picture, length: 20, start: 10, mob: alphaMaster)])),
+        ])]
+        let clip = try #require(try read(file).clip("Shot")?.clip)
+        #expect(clip.sourceRange.start == frames(10))
+    }
+
     @Test func readsNestedCompositions() throws {
         let nestedID = F.mobID(10)
         var file = F()
