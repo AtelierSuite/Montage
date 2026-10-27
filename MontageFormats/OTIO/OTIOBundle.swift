@@ -21,6 +21,9 @@ struct OTIOBundle {
     /// unpacked.
     let folder: URL
     let timelineFile: URL
+    /// The timeline, read as the bundle's opened, while an `.otiod` in cloud
+    /// storage is being read coordinated.
+    let timeline: Data
 
     /// Unpacks an `.otioz` into `folder`, which is made if need be.
     init(unpacking url: URL, into folder: URL) throws {
@@ -35,6 +38,7 @@ struct OTIOBundle {
         }
         self.folder = folder
         timelineFile = try Self.timelineFile(among: files, in: folder)
+        timeline = try Data(contentsOf: timelineFile)
     }
 
     /// An `.otiod` folder, read where it is.
@@ -43,6 +47,7 @@ struct OTIOBundle {
             .compactMap { $0 as? URL } ?? []
         self.folder = folder
         timelineFile = try Self.timelineFile(among: files, in: folder)
+        timeline = try Data(contentsOf: timelineFile)
     }
 
     /// `content.otio` at the top of the bundle, or failing that the
@@ -91,7 +96,7 @@ extension ProjectInterchange {
         let unpacked = URL.temporaryDirectory.appending(path: "OTIO-\(UUID().uuidString)", directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: unpacked) }
         let bundle = try coordinatedOpen(url, unpackingInto: unpacked)
-        var imported = try read(Data(contentsOf: bundle.timelineFile), baseURL: bundle.timelineFile.deletingLastPathComponent())
+        var imported = try read(bundle.timeline, baseURL: bundle.timelineFile.deletingLastPathComponent())
         if imported.name?.trimmingCharacters(in: .whitespaces).isEmpty ?? true {
             imported.name = url.deletingPathExtension().lastPathComponent
         }
@@ -109,9 +114,10 @@ extension ProjectInterchange {
         return gathered
     }
 
-    /// Opens the bundle, coordinated, so one in cloud storage that isn't on
-    /// the device yet is downloaded first. An `.otioz` is unpacked into
-    /// `folder`; an `.otiod` is read where it is.
+    /// Opens the bundle and reads its timeline, coordinated, so one in cloud
+    /// storage that isn't on the device yet is downloaded first. An `.otioz`
+    /// is unpacked into `folder`; an `.otiod` is read where it is, and its
+    /// media copied in later, each file coordinated as it is.
     private static func coordinatedOpen(_ url: URL, unpackingInto folder: URL) throws -> OTIOBundle {
         var coordinationError: NSError?
         var result: Result<OTIOBundle, Error> = .failure(CocoaError(.fileReadUnknown))
