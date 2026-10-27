@@ -373,7 +373,13 @@ struct DRPImporter {
                 audioIndex += 1
             case .subtitle:
                 for item in Self.items(of: track.element) {
-                    report.add(.caption, time: ResolveBlobs.frames(item.child("Start")?.text).map { placement.time($0.whole) })
+                    let start = ResolveBlobs.frames(item.child("Start")?.text).map { placement.time($0.whole) }
+                    if let window = placement.window, let start,
+                       let length = ResolveBlobs.frames(item.child("Duration")?.text)?.whole,
+                       window.intersection(CMTimeRange(start: start, duration: placement.duration(length))).isEmpty {
+                        continue
+                    }
+                    report.add(.caption, time: start)
                 }
                 continue
             }
@@ -397,13 +403,16 @@ struct DRPImporter {
               let length = ResolveBlobs.frames(item.child("Duration")?.text)?.whole, length > 0 else { return }
         let timelineStart = placement.time(start)
         let duration = placement.duration(length)
+        let clipRange = CMTimeRange(start: timelineStart, duration: duration)
+        // Inside a containing clip, only what's in the part of it shown.
+        if let window = placement.window, window.intersection(clipRange).isEmpty { return }
         let prettyType = item.child("PrettyType")?.text ?? ""
         let poolItem = item.child("MediaRef").flatMap { pool[$0.text] }
         let name = [item.child("Name")?.text, poolItem?.name, prettyType].compactMap { $0 }.first { !$0.isEmpty }
 
         switch item.name {
         case "Sm2TiTransition":
-            let range = CMTimeRange(start: timelineStart, duration: duration)
+            let range = placement.window.map { $0.intersection(clipRange) } ?? clipRange
             assembler.addTransition(range, lane: lane)
             report.add(.transition(name: prettyType.isEmpty ? (name ?? "Transition") : prettyType), time: timelineStart)
             return
@@ -424,7 +433,6 @@ struct DRPImporter {
         reportMarkers(on: item, clipName: name, at: timelineStart)
 
         let inPoint = ResolveBlobs.frames(item.child("In")?.text)?.whole
-        let clipRange = CMTimeRange(start: timelineStart, duration: duration)
         let window = placement.window.map { $0.intersection(clipRange) } ?? clipRange
 
         // A compound clip or a timeline in this one: the clips inside it.

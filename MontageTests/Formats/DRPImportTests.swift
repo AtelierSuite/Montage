@@ -136,6 +136,28 @@ struct DRPImportTests {
         let project = try DRPImporter.read(builder.archive(), baseURL: nil)
         #expect(project.project.media.map(\.name) == ["B004.mov"])
     }
+    /// A compound clip shows its first 24 frames: a transition and a
+    /// subtitle past them, inside it, aren't brought onto the timeline.
+    @Test func leavesOutWhatsInsideACompoundClipPastThePartShown() throws {
+        var builder = DRPTestBuilder()
+        builder.overrides["SeqContainer/5d1c2a90-compound.xml"] = DRPTestBuilder.container(id: "container-compound", video: [
+            DRPTestBuilder.track(0, sequence: "seq-compound", items: [
+                DRPTestBuilder.item("Sm2TiVideoClip", id: "item-inner", start: 0, duration: 48, inPoint: "10",
+                                    media: "media-a001", name: "A001.mov"),
+                DRPTestBuilder.item("Sm2TiTransition", id: "item-inner-dissolve", start: 30, duration: 10,
+                                    extra: "<PrettyType>Dip To Color Dissolve</PrettyType>"),
+            ]),
+        ], subtitle: [
+            DRPTestBuilder.track(2, sequence: "seq-compound", items: [
+                DRPTestBuilder.item("Sm2TiSubtitle", id: "item-inner-sub", start: 36, duration: 8),
+            ]),
+        ])
+        let project = try DRPImporter.read(builder.archive(), baseURL: nil)
+        let issues = project.report.items.map(\.issue)
+        #expect(issues.contains(.transition(name: "Cross Dissolve")))
+        #expect(!issues.contains(.transition(name: "Dip To Color Dissolve")))
+        #expect(project.report.items.filter { $0.issue == .caption }.map(\.time) == [.zero])
+    }
 }
 
 /// Projects that can't be read, and are refused with a reason.
