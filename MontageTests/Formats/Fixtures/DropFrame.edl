@@ -1,0 +1,9 @@
+TITLE: Drop Frame
+FCM: DROP FRAME
+001  BL       V     C        00:00:00;00 00:00:00;00 01:00:00;00 01:00:00;00
+001  CAM_A    B     D    030 00:01:00;02 00:01:10;02 01:00:00;00 01:00:10;00
+* TO CLIP NAME: Camera A.mov
+002  CAM_A    B     C        00:10:00;00 00:10:10;00 01:00:10;00 01:00:20;00
+* FROM CLIP NAME: Camera A.mov
+003  CAM_A    B     C        00:00:20;00 00:00:30;00 01:01:00;02 01:01:10;02
+* FROM CLIP NAME: Camera A.mov

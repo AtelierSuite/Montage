@@ -2,9 +2,10 @@ import AppKit
 import MontageEngine
 import MontageFormats
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// File > Import Project and File > Export Final Cut Pro XML: projects to
-/// and from other editors.
+/// File > Import Project, File > Export Final Cut Pro XML and File > Export
+/// EDL and File > Export OpenTimelineIO: projects to and from other editors.
 extension ProjectWindowController {
     // MARK: - Importing
 
@@ -73,21 +74,35 @@ extension ProjectWindowController {
 
     /// Writes the project as FCPXML, to open in Final Cut Pro.
     @objc func exportFCPXML(_ sender: Any?) {
+        export(as: .fcpxml, fileExtension: "fcpxml", contents: { $0.fcpxml(named: $1) }, omission: { $0.fcpxmlOmissionMessage })
+    }
+
+    /// Writes the project as a CMX 3600 EDL, for editors that read cut lists.
+    @objc func exportEDL(_ sender: Any?) {
+        export(as: .edl, fileExtension: "edl", contents: { $0.edl(named: $1) }, omission: { $0.edlOmissionMessage })
+    }
+
+    /// Asks where to save the project as another editor's file, writes it,
+    /// and says what it had to leave out.
+    private func export(
+        as contentType: UTType, fileExtension: String, contents: @escaping (ProjectEditor, String) -> Data,
+        omission: @escaping (ProjectEditor) -> String?
+    ) {
         guard let window, editor.canExport else { return }
         let title = (document as? NSDocument)?.displayName ?? String(localized: "Export.Untitled")
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.fcpxml]
+        panel.allowedContentTypes = [contentType]
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
-        panel.nameFieldStringValue = "\(title).fcpxml"
+        panel.nameFieldStringValue = "\(title).\(fileExtension)"
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let destination = panel.url else { return }
             MainActor.assumeIsolated {
                 guard let self else { return }
                 do {
-                    try self.editor.fcpxml(named: destination.deletingPathExtension().lastPathComponent)
+                    try contents(self.editor, destination.deletingPathExtension().lastPathComponent)
                         .write(to: destination, options: .atomic)
-                    if let message = self.editor.fcpxmlOmissionMessage {
+                    if let message = omission(self.editor) {
                         let alert = NSAlert()
                         alert.messageText = String(localized: "FCPXMLExport.LeftOut.Title")
                         alert.informativeText = message
@@ -98,5 +113,11 @@ extension ProjectWindowController {
                 }
             }
         }
+    }
+
+    /// Writes the project as OpenTimelineIO, to open in Resolve, Premiere
+    /// Pro and other apps that read it.
+    @objc func exportOTIO(_ sender: Any?) {
+        export(as: .otio, fileExtension: "otio", contents: { $0.otio(named: $1) }, omission: { _ in nil })
     }
 }
