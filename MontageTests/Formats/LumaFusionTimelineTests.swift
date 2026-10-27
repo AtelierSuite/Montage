@@ -486,6 +486,23 @@ struct LumaFusionTimelineTests {
         #expect(imported.project.tracks[1].clips.first?.isAudioDetached == false)
     }
 
+    @Test func takesAVideoFileUsedForItsSoundFirstForVideo() throws {
+        // Its sound alone, on the main track, is read before its picture,
+        // on an overlay.
+        let imported = try Self.read(try Fixture.project([
+            Fixture.track(type: 0, offset: 0, anchor: true, [.init(file: "A.mov", start: 0, duration: 600, video: false)]),
+            Fixture.track(type: 0, offset: 1, [.init(file: "A.mov", start: 0, duration: 600, audio: false)]),
+        ]))
+        #expect(imported.project.media.count == 1)
+        let item = try #require(imported.project.media.first)
+        #expect(item.kind == .video)
+        #expect(item.metadata.naturalSize == CGSize(width: 1920, height: 1080))
+        #expect(item.metadata.nominalFrameRate == 25)
+        #expect(item.metadata.audioChannelCount == 2)
+        #expect(imported.project.tracks.map(\.kind) == [.video, .audio])
+        #expect(imported.project.tracks[0].clips.first?.isAudioDetached == true)
+    }
+
     @Test func refusesProjectsLaidOutOtherwise() throws {
         let data = Data(#"{"title":"Holiday","attributes":{"appVersion":"9.0"},"timeline":{}}"#.utf8)
         #expect(throws: LumaFusionError.unsupportedVersion("9.0")) {

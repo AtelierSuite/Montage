@@ -425,7 +425,20 @@ struct LumaFusionTimelineReader {
             metadata.audioChannelCount = 2
             metadata.audioSampleRate = Self.double(attributes["audioSamplerate"]) ?? 48000
         }
-        return media.item(key: assetID ?? name, url: source, name: name, keepsName: name == packageName, kind: kind, metadata: metadata)
+        var item = media.item(key: assetID ?? name, url: source, name: name, keepsName: name == packageName, kind: kind, metadata: metadata)
+        // A video file first used for its sound alone, as detached sound on
+        // an audio track ahead of its picture is, was taken for a sound
+        // file: it's a video file once a clip shows its picture.
+        if item.kind == .audio, kind == .video {
+            if metadata.audioChannelCount == 0 {
+                metadata.audioChannelCount = item.metadata.audioChannelCount
+                metadata.audioSampleRate = item.metadata.audioSampleRate
+            }
+            item.kind = .video
+            item.metadata = metadata
+            media.update(item)
+        }
+        return item
     }
 
     // MARK: - Values

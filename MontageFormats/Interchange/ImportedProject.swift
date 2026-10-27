@@ -46,6 +46,13 @@ struct ImportedMedia {
         return item
     }
 
+    /// Puts back an item made earlier, changed: one first taken for a sound
+    /// file that turns out to have a picture.
+    mutating func update(_ item: MediaItem) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[index] = item
+    }
+
     /// A file reference as a URL: a URL as written, or a path, which is
     /// taken from beside the file being read when it isn't absolute.
     static func url(from reference: String?, relativeTo base: URL?) -> URL? {
