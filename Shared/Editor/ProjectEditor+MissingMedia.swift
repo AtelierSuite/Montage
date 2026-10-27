@@ -1,6 +1,6 @@
-import CoreMedia
 import Foundation
 import MontageEngine
+import MontageFormats
 
 /// Finding the media whose files have gone, and pointing it at files again.
 extension ProjectEditor {
@@ -56,13 +56,10 @@ extension ProjectEditor {
     /// confirmed. Each item keeps its name, bin and clips, and takes the new
     /// file's location and what it's like. Whatever was made from the old
     /// files, if anything, is thrown away first, as it isn't of the new ones.
-    /// Clips whose source points are in a file's timecode, as an edit
-    /// decision list gives them, are moved onto it by `timecodeStarts`, the
-    /// timecode each new file starts at.
-    func relinkMedia(
-        _ relinks: [MediaItem.ID: (location: MediaLocation, metadata: MediaMetadata)],
-        timecodeStarts: [MediaItem.ID: CMTime] = [:]
-    ) async {
+    /// Clips whose source points are in the file's timecode, as an edit
+    /// decision list gives them, are moved onto it by the timecode it
+    /// starts at.
+    func relinkMedia(_ relinks: [MediaItem.ID: (location: MediaLocation, metadata: MediaMetadata)]) async {
         guard !relinks.isEmpty else { return }
         for id in relinks.keys {
             cacheStore?.removeCache(for: id)
@@ -76,9 +73,10 @@ extension ProjectEditor {
                 guard let relink = relinks[project.media[index].id] else { continue }
                 project.media[index].location = relink.location
                 project.media[index].metadata = relink.metadata
-                if let start = timecodeStarts[project.media[index].id] {
-                    project.alignSourceRanges(of: project.media[index].id, toTimecodeStart: start, duration: relink.metadata.duration)
+                if let counting = project.media[index].sourceTimecode, let start = relink.metadata.timecode {
+                    project.moveSourceRanges(of: project.media[index].id, ontoFileStartingAt: counting.offset(toStartOf: start))
                 }
+                project.media[index].sourceTimecode = nil
             }
         }
         // Done once the relinked media is no longer missing.

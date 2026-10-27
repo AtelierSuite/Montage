@@ -93,7 +93,7 @@ public enum ProjectInterchange {
             imported.project.media[index].location = .package(path: fresh)
             taken.insert(fresh)
         }
-        if let conform = imported.conformToMedia { imported = await conform(imported, store) }
+        if let conform = imported.conformToMedia { imported = conform(imported) }
         return imported
     }
 

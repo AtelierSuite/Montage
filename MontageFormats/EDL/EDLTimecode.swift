@@ -1,5 +1,6 @@
 import CoreMedia
 import Foundation
+import MontageEngine
 
 /// A timecode as an EDL writes it, "01:00:02:12", with a semicolon before
 /// the frames ("01:00:02;12") in drop frame.
@@ -126,5 +127,29 @@ struct EDLRate: Equatable, Sendable {
         formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = 3
         return formatter.string(from: NSNumber(value: (framesPerSecond * 1000).rounded() / 1000)) ?? "\(timecodeBase)"
+    }
+}
+
+extension MediaTimecode {
+    /// The file's start timecode as a count of frames at `rate`. It's read
+    /// as the hours, minutes, seconds and frames it's stamped with, as an
+    /// EDL's source points are, so a list counted at another rate than the
+    /// file's still lines up with it. A stamp with no frames, such as a
+    /// Broadcast WAV's, is counted from its time.
+    func frameCount(at rate: EDLRate, dropFrame: Bool) -> Int {
+        guard let frames else { return rate.frames(time) }
+        let own = EDLRate(frameDuration: frames.frameDuration)
+        var stamp = EDLTimecode(frameCount: Int(frames.number), rate: own, dropFrame: frames.isDropFrame)
+        stamp.frames = stamp.frames * rate.timecodeBase / own.timecodeBase
+        return stamp.frameCount(at: rate, dropFrame: dropFrame)
+    }
+}
+
+extension MediaItem.SourceTimecode {
+    /// How far into a file's timecode its start is, counted as the item's
+    /// source points were: how far back to move them to put them on it.
+    public func offset(toStartOf timecode: MediaTimecode) -> CMTime {
+        let rate = EDLRate(frameDuration: frameDuration)
+        return rate.time(timecode.frameCount(at: rate, dropFrame: isDropFrame && rate.canDropFrames))
     }
 }

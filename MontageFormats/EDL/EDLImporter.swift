@@ -18,7 +18,11 @@ import UniformTypeIdentifiers
 /// starting at 01:00:00:00, as most do, starts at the start of the
 /// timeline; a list starting more than ten minutes into its hour, as one
 /// with a leader before the hour does, starts at its first event. Source
-/// timecode is taken as time from the start of the media.
+/// timecode is the media's own, so once a file is found, at import or
+/// when it's relinked, its clips are moved back by the timecode it starts
+/// at (see `MediaItem.sourceTimecode`). A file with no timecode, or a list
+/// whose source points all come before it, as one counted from the start
+/// of each file does, is left as the list has it.
 ///
 /// Picture goes on one video track (keyed foregrounds on a second), and
 /// sound on an audio track for each channel. Where a picture event and a
@@ -43,8 +47,8 @@ struct EDLImporter {
         var imported = importer.run(rateIsGuessed: guessed)
         if guessed {
             let metadata = imported.project.media.map(\.metadata)
-            imported.conformToMedia = { gathered, store in
-                await conform(gathered, store: store, data: data, baseURL: baseURL, document: document, unprobed: metadata)
+            imported.conformToMedia = { gathered in
+                conform(gathered, data: data, baseURL: baseURL, document: document, unprobed: metadata)
             }
         }
         return imported
@@ -182,6 +186,7 @@ struct EDLImporter {
         var name: String
         var hasVideo = false
         var hasAudio = false
+        var isDropFrame = false
     }
 
     /// The key an event's file is known by: its path, else its clip name,
@@ -209,6 +214,7 @@ struct EDLImporter {
             let index = indices[key]!
             uses[index].hasVideo = uses[index].hasVideo || event.hasVideo
             uses[index].hasAudio = uses[index].hasAudio || !event.audioChannels.isEmpty
+            uses[index].isDropFrame = uses[index].isDropFrame || event.isDropFrame
         }
 
         var items: [String: MediaItem] = [:]
@@ -218,15 +224,19 @@ struct EDLImporter {
                 else if fileType?.conforms(to: .audio) == true { .audio }
                 else if use.hasVideo { .video }
                 else { .audio }
-            // Its length isn't known until it's found: the list's source
-            // points are timecode, which may start anywhere.
+            // Stand-ins until it's found. Its length isn't known at all: the
+            // list's source points are timecode, which may start anywhere.
             var metadata = MediaMetadata()
             if kind != .audio { metadata.naturalSize = renderSize }
             if kind != .image, use.hasAudio || kind == .audio {
                 metadata.audioChannelCount = 2
                 metadata.audioSampleRate = 48000
             }
-            items[use.key] = media.item(key: use.key, url: use.url, name: use.name, kind: kind, metadata: metadata)
+            let sourceTimecode = kind == .image ? nil
+                : MediaItem.SourceTimecode(frameDuration: rate.frameDuration, isDropFrame: use.isDropFrame && rate.canDropFrames)
+            items[use.key] = media.item(
+                key: use.key, url: use.url, name: use.name, kind: kind, metadata: metadata, sourceTimecode: sourceTimecode
+            )
         }
         return items
     }
@@ -402,26 +412,26 @@ struct EDLImporter {
 
     // MARK: - Conforming to the media
 
-    /// Reads the list again at the rate of its media, once that's been
-    /// found and probed, if it's not the rate that was guessed. The media
-    /// as found is kept.
     /// Lines the list up with its media once that's been found: read at the
     /// media's rate, and with each found file's clips moved back by the
-    /// timecode it starts at, as source points are given in it.
+    /// timecode it starts at, as source points are given in it. The media
+    /// not found keeps its clips in timecode, to be moved once it's relinked.
     private static func conform(
-        _ gathered: ImportedProject, store: PackageMediaStore, data: Data, baseURL: URL?, document: EDLDocument,
-        unprobed: [MediaMetadata]
-    ) async -> ImportedProject {
+        _ gathered: ImportedProject, data: Data, baseURL: URL?, document: EDLDocument, unprobed: [MediaMetadata]
+    ) -> ImportedProject {
         var conformed = conformRate(gathered, data: data, baseURL: baseURL, document: document, unprobed: unprobed)
         for (index, item) in conformed.project.media.enumerated()
-        where index < unprobed.count && item.metadata != unprobed[index] && item.kind != .image {
-            guard case .package(let path) = item.location, let url = store.stagedURL(forPackagePath: path),
-                  let start = await MediaTimecode.start(of: url) else { continue }
-            conformed.project.shiftSourceRanges(of: item.id, by: start)
+        where index < unprobed.count && item.metadata != unprobed[index] {
+            conformed.project.media[index].sourceTimecode = nil
+            guard let counting = item.sourceTimecode, let start = item.metadata.timecode else { continue }
+            conformed.project.moveSourceRanges(of: item.id, ontoFileStartingAt: counting.offset(toStartOf: start))
         }
         return conformed
     }
 
+    /// Reads the list again at the rate of its media, once that's been
+    /// found and probed, if it's not the rate that was guessed. The media
+    /// as found is kept.
     private static func conformRate(
         _ gathered: ImportedProject, data: Data, baseURL: URL?, document: EDLDocument, unprobed: [MediaMetadata]
     ) -> ImportedProject {
@@ -448,7 +458,10 @@ struct EDLImporter {
             reread.project.media[index].location = old.location
         }
         for (index, old) in gathered.project.media.enumerated() where old.metadata != unprobed[index] {
+            // Found: as gathered, with its source points as the new reading counts them.
+            let counting = reread.project.media[index].sourceTimecode
             reread.project.media[index] = old
+            reread.project.media[index].sourceTimecode = counting
         }
         reread.project.tracks = reread.project.tracks.map { track in
             var track = track

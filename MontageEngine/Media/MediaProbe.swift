@@ -97,6 +97,7 @@ public enum MediaProbe {
         if let audio = audioTracks.first {
             try await readAudio(audio, into: &metadata)
         }
+        metadata.timecode = await MediaTimecode.start(of: asset)
         if metadata.hasVideo {
             return ProbedMedia(kind: .video, metadata: metadata)
         } else if metadata.hasAudio {

@@ -20,8 +20,8 @@ public struct ImportedProject: Sendable {
     /// Reads the file again once its media has been found, for formats
     /// that need something only the media says, such as an EDL's frame
     /// rate or the timecode its files start at. `ProjectInterchange.gatherMedia`
-    /// calls it last, with the store the media was staged in.
-    var conformToMedia: (@Sendable (ImportedProject, PackageMediaStore) async -> ImportedProject)?
+    /// calls it last.
+    var conformToMedia: (@Sendable (ImportedProject) -> ImportedProject)?
 }
 
 /// The media an importer comes across, one item for each file however many
@@ -33,16 +33,21 @@ struct ImportedMedia {
     private var takenPaths: Set<String> = []
 
     /// The item for a file, made the first time the file is seen. `key`
-    /// tells files apart where there's no URL to.
+    /// tells files apart where there's no URL to. `sourceTimecode` is how
+    /// its clips' source points count, where they're in its timecode.
     mutating func item(
-        key: String, url: URL?, name: String, kind: MediaItem.Kind, metadata: MediaMetadata
+        key: String, url: URL?, name: String, kind: MediaItem.Kind, metadata: MediaMetadata,
+        sourceTimecode: MediaItem.SourceTimecode? = nil
     ) -> MediaItem {
         let key = url?.absoluteString ?? key
         if let id = idsByKey[key], let item = items.first(where: { $0.id == id }) { return item }
         let fileName = url.map { $0.lastPathComponent } ?? name
         let path = ProjectPackage.uniqueMediaPath(for: fileName.isEmpty ? name : fileName, avoiding: takenPaths)
         takenPaths.insert(path)
-        let item = MediaItem(name: fileName.isEmpty ? name : fileName, kind: kind, location: .package(path: path), metadata: metadata)
+        let item = MediaItem(
+            name: fileName.isEmpty ? name : fileName, kind: kind, location: .package(path: path), metadata: metadata,
+            sourceTimecode: sourceTimecode
+        )
         items.append(item)
         idsByKey[key] = item.id
         if let url { sources[item.id] = url }
