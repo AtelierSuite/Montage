@@ -45,9 +45,12 @@ struct LumaFusionPackage {
     /// An FCPXML document, if the package has one beside or instead of the
     /// project file, as LumaFusion's own FCPXML export, zipped, does.
     let fcpxmlFile: ZipArchive.Entry?
+    /// The folder the package is in.
+    let folder: URL
 
     /// Opens the package at `url`, reading no more than its list of files.
     init(reading url: URL) throws {
+        folder = url.deletingLastPathComponent()
         do {
             archive = try ZipArchive(url: url)
         } catch let error as ZipArchive.Error {
@@ -67,9 +70,6 @@ struct LumaFusionPackage {
         keyedArchiveFile = shallowest(withExtension: Self.keyedArchiveExtension)
         fcpxmlFile = shallowest(withExtension: "fcpxml")
     }
-
-    /// The folder the package is in.
-    var folder: URL { archive.url.deletingLastPathComponent() }
 
     /// A file's contents, refused as damaged when they'd be larger than
     /// `limit`.

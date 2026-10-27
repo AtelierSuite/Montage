@@ -177,6 +177,8 @@ public enum InterchangeFormat: String, Sendable {
     case lumaFusion
     /// OpenTimelineIO, written by Resolve, Premiere Pro and others.
     case otio
+    /// A DaVinci Resolve project exported as a `.drp`.
+    case drp
 
     /// The format's name, for the report.
     public var displayName: String {
@@ -188,6 +190,7 @@ public enum InterchangeFormat: String, Sendable {
         case .edl: String(localized: "Interchange.Format.EDL", bundle: #bundle)
         case .lumaFusion: String(localized: "Interchange.Format.LumaFusion", bundle: #bundle)
         case .otio: String(localized: "Interchange.Format.OTIO", bundle: #bundle)
+        case .drp: String(localized: "Interchange.Format.DRP", bundle: #bundle)
         }
     }
 }

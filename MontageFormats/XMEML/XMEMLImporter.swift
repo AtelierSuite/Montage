@@ -104,7 +104,9 @@ struct XMEMLImporter {
         let isTrackEnabled = track.child("enabled")?.text.uppercased() != "FALSE"
         // The last transition, for a clip that starts inside it.
         var transitionStart: CMTime?
-        for item in track.children {
+        // Where the last transition put its cut, for a clip that starts inside it.
+        var transitionCut: CMTime?
+        for (index, item) in track.children.enumerated() {
             switch item.name {
             case "transitionitem":
                 let start = frames(item.child("start")?.text, placement.rate) ?? .zero
@@ -113,12 +115,21 @@ struct XMEMLImporter {
                 assembler.addTransition(range, lane: lane)
                 report.add(.transition(name: item.descendant("effect", "name")?.text ?? "Transition"), time: range.start)
                 transitionStart = start
+                transitionCut = Self.cut(of: item, start: start, end: end)
             case "clipitem":
                 guard isTrackEnabled else {
                     report.add(.disabledClip, clipName: item.child("name")?.text, time: frames(item.child("start")?.text, placement.rate))
                     continue
                 }
-                importClipItem(item, kind: kind, lane: lane, placement: placement, transitionStart: transitionStart,
+                // The transition the clip ends inside, if it does.
+                let next = track.children[(index + 1)...].prefix { $0.name != "clipitem" }.first { $0.name == "transitionitem" }
+                let nextCut = next.flatMap { transition in
+                    frames(transition.child("start")?.text, placement.rate).map { start in
+                        Self.cut(of: transition, start: start, end: frames(transition.child("end")?.text, placement.rate) ?? start)
+                    }
+                }
+                let cuts = transitionCut.flatMap { previous in nextCut.map { (previous, $0) } }
+                importClipItem(item, kind: kind, lane: lane, placement: placement, transitionStart: transitionStart, cuts: cuts,
                                audioItems: audioItems)
             case "generatoritem":
                 report.add(.generator(name: item.descendant("effect", "name")?.text ?? item.child("name")?.text ?? ""),
@@ -134,18 +145,31 @@ struct XMEMLImporter {
 
     private mutating func importClipItem(
         _ item: MarkupElement, kind: Track.Kind, lane: Int, placement: Placement, transitionStart: CMTime?,
+        cuts: (CMTime, CMTime)? = nil,
         audioItems: [MarkupElement]
     ) {
         if let id = item["id"], mergedAudio.contains(id) { return }
         let name = item.child("name")?.text
         let clipRate = item.child("rate").map(Self.frameDuration(of:)) ?? placement.rate
-        let sourceIn = frames(item.child("in")?.text, clipRate) ?? .zero
-        let sourceOut = frames(item.child("out")?.text, clipRate) ?? sourceIn
-        let duration = sourceOut - sourceIn
+        let writtenIn = frames(item.child("in")?.text, clipRate) ?? .zero
+        let sourceOut = frames(item.child("out")?.text, clipRate) ?? writtenIn
+        let duration = sourceOut - writtenIn
         // Inside a transition, the start or end is written as -1.
         let start = frames(item.child("start")?.text, placement.rate)
         let end = frames(item.child("end")?.text, placement.rate)
-        guard let sequenceStart = start ?? end.map({ $0 - duration }) ?? transitionStart, duration > .zero else { return }
+        // Between two transitions, Final Cut 7 and Premiere count a clip
+        // from where the first starts, its overlap included. Resolve gives
+        // it only the length it plays from cut to cut, but still counts its
+        // in point from where the first transition starts; its sound,
+        // written without the transition, shows it. Such a clip starts at
+        // the first cut, that far into its media.
+        var inside = transitionStart
+        var sourceIn = writtenIn
+        if let (previous, next) = cuts, let transitionStart, start == nil, end == nil, next - previous == duration {
+            inside = previous
+            sourceIn = writtenIn + (previous - transitionStart)
+        }
+        guard let sequenceStart = start ?? end.map({ $0 - duration }) ?? inside, duration > .zero else { return }
         let timelineStart = placement.timeline(sequenceStart)
 
         for marker in item.children("marker") {
@@ -170,6 +194,15 @@ struct XMEMLImporter {
             return
         }
         guard let file = item.child("file").flatMap({ $0["id"].flatMap { files[$0] } ?? $0 }) else { return }
+        // Resolve writes a compound clip as a file with an empty path and no
+        // type, and leaves out what's inside it. Premiere leaves the path out
+        // of its own synthetic media, such as Black Video, which it names
+        // a source of instead, and those come in as missing media.
+        if let path = file.child("pathurl"), path.text.isEmpty, file.child("mediaSource") == nil,
+           ((file.child("name")?.text ?? name ?? "") as NSString).pathExtension.isEmpty {
+            report.add(.setting(name: "Compound clip"), clipName: name, time: timelineStart)
+            return
+        }
 
         let mediaItem = mediaItem(for: file)
         var clip = Clip(
@@ -362,6 +395,16 @@ struct XMEMLImporter {
     }
 
     // MARK: - Times
+
+    /// Where a transition puts the cut between its clips: its middle,
+    /// unless it's aligned to start or end there.
+    private static func cut(of transition: MarkupElement, start: CMTime, end: CMTime) -> CMTime {
+        switch transition.child("alignment")?.text.lowercased() {
+        case "start", "start-black": start
+        case "end", "end-black": end
+        default: start + CMTimeMultiplyByRatio(end - start, multiplier: 1, divisor: 2)
+        }
+    }
 
     private static func frameDuration(of element: MarkupElement) -> CMTime {
         let rate = element.name == "rate" ? element : element.child("rate")

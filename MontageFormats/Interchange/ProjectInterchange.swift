@@ -14,6 +14,10 @@ extension UTType {
     public static let edl = UTType(importedAs: "com.cmx.edl", conformingTo: .plainText)
     /// An OpenTimelineIO timeline, as JSON.
     public static let otio = UTType(importedAs: "io.aswf.opentimelineio", conformingTo: .json)
+    /// A DaVinci Resolve project exported as a `.drp`, a ZIP archive.
+    public static let resolveProject = UTType(importedAs: "com.blackmagic-design.resolve.project", conformingTo: .data)
+    /// A DaVinci Resolve timeline exported as a `.drt`, laid out as a project is.
+    public static let resolveTimeline = UTType(importedAs: "com.blackmagic-design.resolve.timeline", conformingTo: .data)
 }
 
 /// Projects to and from other editors: Final Cut Pro and LumaFusion through
@@ -24,7 +28,7 @@ public enum ProjectInterchange {
     /// packages are imported with `importLumaFusionPackage`, and OTIO bundles
     /// with `importOTIOBundle`.
     public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle] + PremiereProject.types + [
-        .xml, .edl, .lumaFusionPackage, .otio, .otioz, .otiod, .aaf,
+        .xml, .edl, .lumaFusionPackage, .otio, .otioz, .otiod, .aaf, .resolveProject, .resolveTimeline,
     ]
 
     // MARK: - Importing
@@ -63,6 +67,10 @@ public enum ProjectInterchange {
         }
         if EDLImporter.canRead(data) { return try EDLImporter.read(data, baseURL: baseURL) }
         if OTIOImporter.isJSON(data) { return try OTIOImporter.read(data, baseURL: baseURL) }
+        // A Resolve project or timeline is a ZIP archive of XML, not XML
+        // itself. No other format read here is an archive, so Resolve's
+        // reader takes any, and says why it can't read one that isn't its own.
+        if ZipArchive.hasSignature(data) { return try DRPImporter.read(data, baseURL: baseURL) }
         let root = try MarkupElement.parse(data)
         switch root.name {
         case "fcpxml": return try FCPXMLImporter.read(root, baseURL: baseURL)
