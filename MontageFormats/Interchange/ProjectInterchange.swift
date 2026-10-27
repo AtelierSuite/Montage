@@ -40,10 +40,8 @@ public enum ProjectInterchange {
     /// is taken from `baseURL`, the folder the file was in.
     public static func read(_ data: Data, baseURL: URL? = nil) throws -> ImportedProject {
         // A Resolve project or timeline is a ZIP archive of XML, not XML
-        // itself. It's told from other zipped projects by its project.xml,
-        // so check for it before any other reader claims an archive.
-        if DRPImporter.isResolveArchive(data) { return try DRPImporter.read(data, baseURL: baseURL) }
-        // Any other archive: Resolve's reader says why it can't be read.
+        // itself. No other format read here is an archive, so Resolve's
+        // reader takes any, and says why it can't read one that isn't its own.
         if ZipArchive.hasSignature(data) { return try DRPImporter.read(data, baseURL: baseURL) }
         let root = try MarkupElement.parse(data)
         switch root.name {
