@@ -268,12 +268,11 @@ struct LumaFusionTimelineReader {
                scale.numbers.allSatisfy({ $0 > 0 }) {
                 let (across, down) = (scale.numbers[0], scale.numbers[1])
                 clip.transform.scale = Animatable((across + down) / 2)
-                if abs(across - down) > 0.0001 { report.add(.unevenAveraged(name: "Scale"), clipName: name, time: clip.timelineStart) }
+                if Self.isUneven(across, down) { report.add(.unevenAveraged(name: "Scale"), clipName: name, time: clip.timelineStart) }
                 if scale.isKeyframed { notes.append("Scale keyframes") }
             }
             if let translation = Self.setting(attributes["videoTranslation"]), translation.numbers.count == 2 {
-                let (x, y) = (translation.numbers[0], translation.numbers[1])
-                clip.transform.position = Animatable(CGPoint(x: 0.5 + x / 2, y: 0.5 + y / 2))
+                clip.transform.position = Animatable(Self.position(translation.numbers[0], translation.numbers[1]))
                 if translation.isKeyframed { notes.append("Position keyframes") }
             }
         }
@@ -319,12 +318,10 @@ struct LumaFusionTimelineReader {
 
         /// Montage's scale: across and down averaged.
         var scale: Double { (abs(scaling[0]) + abs(scaling[1])) / 2 }
-        /// The centre as a fraction of the frame, from a translation that
-        /// runs from -1 to 1 across it, down being positive.
-        var position: CGPoint { CGPoint(x: 0.5 + translation[0] / 2, y: 0.5 + translation[1] / 2) }
+        var position: CGPoint { LumaFusionTimelineReader.position(translation[0], translation[1]) }
         /// Clockwise, in degrees.
         var degrees: Double { rotation * 180 / .pi }
-        var isUneven: Bool { abs(abs(scaling[0]) - abs(scaling[1])) > 0.0001 }
+        var isUneven: Bool { LumaFusionTimelineReader.isUneven(abs(scaling[0]), abs(scaling[1])) }
         var isFlipped: Bool { scaling.contains { $0 < 0 } }
         var isAnchorMoved: Bool { abs(anchorPoint[0] - 0.5) > 0.0001 || abs(anchorPoint[1] - 0.5) > 0.0001 }
     }
@@ -358,6 +355,18 @@ struct LumaFusionTimelineReader {
         clip.transform.scale = Self.animatable(base.scale, keyframes.map { ($0.time, $0.value.scale) })
         clip.transform.position = Self.animatable(base.position, keyframes.map { ($0.time, $0.value.position) })
         clip.transform.rotation = Self.animatable(base.degrees, keyframes.map { ($0.time, $0.value.degrees) })
+    }
+
+    /// The centre as a fraction of the frame, from a translation that runs
+    /// from -1 to 1 across it, down being positive, as both LumaFusion for
+    /// Android's position and iOS's transform do.
+    private static func position(_ x: Double, _ y: Double) -> CGPoint {
+        CGPoint(x: 0.5 + x / 2, y: 0.5 + y / 2)
+    }
+
+    /// Whether a scale across and down differ, to be averaged.
+    private static func isUneven(_ across: Double, _ down: Double) -> Bool {
+        abs(across - down) > 0.0001
     }
 
     /// A value keyframed where its keyframes differ; where they don't, the
