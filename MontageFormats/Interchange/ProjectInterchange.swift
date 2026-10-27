@@ -1,3 +1,4 @@
+import CoreMedia
 import Foundation
 import MontageEngine
 import UniformTypeIdentifiers
@@ -58,7 +59,8 @@ public enum ProjectInterchange {
     /// project said it was, then by name in `searchFolders` (such as the
     /// folder the project was in). Media that isn't found stays as it is, its
     /// file missing, ready to be relinked, and is listed in the report.
-    /// Clips placed by their picture's shape are placed once it's probed.
+    /// Clips placed by their picture's shape are placed once it's probed,
+    /// and clips timed by their media's timecode are timed from its start.
     @concurrent
     public static func gatherMedia(
         for imported: ImportedProject, into store: PackageMediaStore, takenPaths: Set<String> = [],
@@ -66,6 +68,7 @@ public enum ProjectInterchange {
     ) async -> ImportedProject {
         var imported = imported
         var taken = takenPaths
+        var timecodeStarts: [MediaItem.ID: CMTime] = [:]
         for index in imported.project.media.indices {
             let item = imported.project.media[index]
             let source = imported.mediaSources[item.id]
@@ -86,6 +89,9 @@ public enum ProjectInterchange {
                 imported.project.media[index].location = .package(path: path)
                 imported.project.media[index].kind = probed.kind
                 imported.project.media[index].metadata = probed.metadata
+                if imported.untimedMedia.contains(item.id), probed.kind == .video {
+                    timecodeStarts[item.id] = await MediaTimecode.start(of: staged)
+                }
                 taken.insert(path)
                 found = true
                 break
@@ -104,6 +110,7 @@ public enum ProjectInterchange {
             taken.insert(fresh)
         }
         imported.placeByProbedPictures()
+        imported.startClipsAtTimecode(timecodeStarts)
         return imported
     }
 

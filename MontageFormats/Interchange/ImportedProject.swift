@@ -21,6 +21,9 @@ public struct ImportedProject: Sendable {
     /// Resolve moves them, but placed as though their picture were of the
     /// frame's shape, until its media is probed.
     var picturePlacedClips: Set<Clip.ID> = []
+    /// Media whose clips' times may be by its timecode, as the file didn't
+    /// say where the media's own time starts.
+    var untimedMedia: Set<MediaItem.ID> = []
 }
 
 extension ImportedProject {
@@ -49,6 +52,24 @@ extension ImportedProject {
             }
         }
         picturePlacedClips = []
+    }
+
+    /// Takes the start of each media's timecode, from `starts`, off its
+    /// clips' times, where they run past the end of the media as they are
+    /// but fit it counted from its timecode: they were given by timecode.
+    mutating func startClipsAtTimecode(_ starts: [MediaItem.ID: CMTime]) {
+        for (id, start) in starts where start > .zero {
+            guard let duration = project.media.first(where: { $0.id == id })?.metadata.duration, duration > .zero else { continue }
+            let clips = project.tracks.flatMap(\.clips).filter { $0.mediaID == id }
+            guard clips.contains(where: { $0.sourceRange.end > duration }),
+                  clips.allSatisfy({ CMTimeRange(start: start, duration: duration).containsTimeRange($0.sourceRange) }) else { continue }
+            for track in project.tracks.indices {
+                for clip in project.tracks[track].clips where clip.mediaID == id {
+                    project.tracks[track].update(clip.id) { $0.sourceRange.start = $0.sourceRange.start - start }
+                }
+            }
+        }
+        untimedMedia = []
     }
 }
 

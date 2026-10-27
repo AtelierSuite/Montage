@@ -34,6 +34,9 @@ struct OTIOImporter {
     /// Clips Resolve moves by fractions of their picture, placed for now as
     /// though it were of the frame's shape.
     private var picturePlacedClips: Set<Clip.ID> = []
+    /// Media whose clips' times are given with no range to say where the
+    /// media's own time starts.
+    private var untimedMedia: Set<MediaItem.ID> = []
 
     /// A clip read from the file, before it's put on a track.
     private struct PlacedClip {
@@ -139,7 +142,7 @@ struct OTIOImporter {
         // Resolve and Kdenlive leave the name empty; the file's is used then.
         let name = (timeline["name"] as? String).flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
         return ImportedProject(project: project, report: report, name: name, mediaSources: media.sources,
-                               picturePlacedClips: picturePlacedClips)
+                               picturePlacedClips: picturePlacedClips, untimedMedia: untimedMedia)
     }
 
     /// The timelines in a file: itself, or those in a collection.
@@ -271,7 +274,13 @@ struct OTIOImporter {
         case "ExternalReference", "MissingReference", nil:
             let mediaItem = mediaItem(for: reference, clipName: clipName, kind: placement.kind)
             content = mediaItem.content
-            if let available = OTIOTime.range(reference?["available_range"]) { mediaStart = range.start - available.start }
+            if let available = OTIOTime.range(reference?["available_range"]) {
+                mediaStart = range.start - available.start
+            } else if mediaItem.kind != .image {
+                // Some writers give times by the media's timecode, which is
+                // read once the media is found.
+                untimedMedia.insert(mediaItem.id)
+            }
             if mediaItem.kind == .image || mediaStart < .zero { mediaStart = .zero }
         case "GeneratorReference" where saved?.content.isGenerated == true:
             // Montage's text and shapes, which it writes as generators.

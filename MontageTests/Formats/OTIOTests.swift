@@ -159,6 +159,36 @@ struct OTIOImportTests {
         #expect(try ProjectInterchange.read(contentsOf: file).name == "OTIO Sample")
     }
 
+    /// A clip timed by its media's timecode, with no available range to say
+    /// where the media's time starts, as some writers leave it: 01:00:00:10
+    /// is a third of a second into a movie whose timecode starts at
+    /// 01:00:00:00. Once there's no timecode, the times are as they are.
+    @Test(arguments: [true, false])
+    func timesAClipByItsMediasTimecode(hasTimecode: Bool) async throws {
+        let folder = URL.temporaryDirectory.appending(path: "OTIO-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let movie = folder.appending(path: "A001.mov")
+        let hour: Int32 = 60 * 60 * 30
+        try await TestMovie.write(to: movie, width: 64, height: 36, timecode: hasTimecode ? hour : nil)
+        let start = Double(hasTimecode ? hour + 10 : 10)
+        let clip: [String: Any] = [
+            "OTIO_SCHEMA": "Clip.2", "name": "A001",
+            "source_range": ["OTIO_SCHEMA": "TimeRange.1", "start_time": rational(start, 30), "duration": rational(15, 30)],
+            "media_references": ["DEFAULT_MEDIA": ["OTIO_SCHEMA": "ExternalReference.1", "target_url": movie.absoluteString]],
+            "active_media_reference_key": "DEFAULT_MEDIA",
+        ]
+        let timeline: [String: Any] = [
+            "OTIO_SCHEMA": "Timeline.1", "name": "Cut",
+            "tracks": ["OTIO_SCHEMA": "Stack.1", "children": [["OTIO_SCHEMA": "Track.1", "kind": "Video", "children": [clip]]]],
+        ]
+        let read = try ProjectInterchange.read(JSONSerialization.data(withJSONObject: timeline))
+        let imported = await ProjectInterchange.gatherMedia(for: read, into: PackageMediaStore())
+        #expect(imported.issues(.missingMedia).isEmpty)
+        let placed = try #require(imported.project.tracks.first?.clips.first)
+        #expect(placed.sourceRange == CMTimeRange(start: seconds(10, 30), duration: seconds(15, 30)))
+    }
+
     @Test func refusesWhatIsntOTIO() {
         #expect(throws: InterchangeError.unsupportedFormat) { try ProjectInterchange.read(Data(#"{"name": "x"}"#.utf8)) }
         #expect(throws: InterchangeError.self) { try ProjectInterchange.read(Data(#"{"OTIO_SCHEMA": "#.utf8)) }
