@@ -133,6 +133,8 @@ struct LumaFusionTimelineReader {
         // A track's volume is its clips' gain; LumaFusion writes it
         // negative for a muted track, keeping the level to unmute to.
         let trackVolume = Self.double(track["trackVolume"]) ?? 1
+        // A clip's `transitionType` is the transition into it, from the clip
+        // before; the clip after it has a flag of its own.
         var placed: [(clip: Placed, hasTransition: Bool)] = []
         for clip in clips {
             guard var next = importClip(clip, onAudioTrack: type == 1, trackVolume: abs(trackVolume)) else { continue }
@@ -142,7 +144,7 @@ struct LumaFusionTimelineReader {
             }
             // Times in different timescales can overlap by less than a
             // frame where clips meet: the later starts where the earlier ends.
-            if let last = placed.last, !hasTransition, !last.hasTransition {
+            if let last = placed.last, !hasTransition {
                 let overlap = last.clip.clip.timelineRange.intersection(next.clip.timelineRange)
                 if overlap.duration > .zero, overlap.duration < settings.frameDuration,
                    let trimmed = next.clip.trimmed(to: CMTimeRange(start: overlap.end, end: next.clip.timelineRange.end)) {
@@ -156,7 +158,7 @@ struct LumaFusionTimelineReader {
         for (index, (clip, hasTransition)) in placed.enumerated() {
             // Where a transition joins two clips they overlap: the cut goes
             // in its middle.
-            if index > 0, hasTransition || placed[index - 1].hasTransition {
+            if index > 0, hasTransition {
                 let overlap = placed[index - 1].clip.clip.timelineRange.intersection(clip.clip.timelineRange)
                 if overlap.duration > .zero { assembler.addTransition(overlap, lane: 0) }
             }

@@ -475,6 +475,24 @@ struct LumaFusionTimelineTests {
         #expect(imported.report.isEmpty)
     }
 
+    @Test func takesATransitionForTheJoinIntoItsClipAlone() throws {
+        let imported = try Self.read(try Fixture.project([
+            Fixture.track(type: 0, offset: 0, anchor: true, [
+                .init(file: "A.mov", start: 0, duration: 1200),
+                // Crossfades in from A.
+                .init(file: "B.mov", start: 900, duration: 1200, transition: 1),
+                // Cut to straight after B, a three-thousandth of a second
+                // early.
+                .init(file: "C.mov", start: 83992, duration: 600, startTimescale: 24000),
+            ]),
+        ]))
+        #expect(imported.project.tracks.count == 1)
+        let clips = imported.project.tracks[0].clips
+        #expect(clips.map(\.timelineStart) == [.zero, Self.seconds(1050), Self.seconds(2100)])
+        #expect(clips[1].timelineRange.end == Self.seconds(2100))
+        #expect(imported.report.items.map(\.issue) == [.transition(name: "Transition")])
+    }
+
     @Test func detachesSoundAClipDoesntPlay() throws {
         let imported = try Self.read(try Fixture.project([
             Fixture.track(type: 0, offset: 0, anchor: true, [.init(file: "A.mov", start: 0, duration: 600, audio: false)]),
