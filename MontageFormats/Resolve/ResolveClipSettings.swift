@@ -91,6 +91,9 @@ enum ResolveClipSettings {
             return Animatable(value.value, keyframes: keyframes)
         }
 
+        // The picture's fades, put on its opacity once Composite has set it,
+        // whichever filter comes first.
+        var pictureFades: (in: ResolveBlobs.Parameter?, out: ResolveBlobs.Parameter?)?
         for filter in filters where !filter.parameters.isEmpty || filter.plugin != nil {
             var parameters = filter.parameters
             switch filter.type {
@@ -148,7 +151,7 @@ enum ResolveClipSettings {
             case Filter.dynamicZoom:
                 notes.append(.setting("Dynamic zoom"))
             case Filter.videoFades where isVideo:
-                clip.opacity = faded(clip.opacity, in: parameters.removeValue(forKey: 137), out: parameters.removeValue(forKey: 138))
+                pictureFades = (parameters.removeValue(forKey: 137), parameters.removeValue(forKey: 138))
                 if !parameters.isEmpty { notes.append(.setting("Fade")) }
             case Filter.audio:
                 if let volume = animatable(parameters.removeValue(forKey: 95), default: 0) {
@@ -179,6 +182,9 @@ enum ResolveClipSettings {
             default:
                 notes.append(.effect(identifier: "EffectFiltersBA", name: "Resolve effects"))
             }
+        }
+        if let pictureFades {
+            clip.opacity = faded(clip.opacity, in: pictureFades.in, out: pictureFades.out)
         }
         return notes
     }

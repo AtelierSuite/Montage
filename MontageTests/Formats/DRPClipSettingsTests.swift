@@ -242,6 +242,16 @@ struct DRPClipSettingsTests {
         ], to: &keyed)
         #expect(keyed.opacity.keyframes.count == 2)
         #expect(keyedNotes == [.setting("Fade")])
+
+        // The fade comes first: it fades the opacity Composite gives.
+        var first = self.clip()
+        let firstNotes = try apply([
+            Writer.filter(72, [Writer.parameter(137, .double(12)), nil]),
+            Writer.filter(2, [nil, Writer.parameter(1, .double(50))]),
+        ], to: &first)
+        #expect(firstNotes.isEmpty)
+        #expect(first.opacity.value == 0.5)
+        #expect(first.opacity.keyframes.map(\.value) == [0, 0.5])
     }
 
     @Test func readsVolumeInDecibelsWithFades() throws {
