@@ -110,6 +110,17 @@ struct ZipArchiveTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: unpacked.path).isEmpty)
     }
 
+    /// A file where another entry has a folder, whichever comes first.
+    @Test(arguments: [["Media", "Media/Clip.mov"], ["Media/Clip.mov", "media"]])
+    func refusesAFileWhereAFolderIs(paths: [String]) throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = try TestZip.write(paths.map { TestZip.File($0, "a") }, named: "Clash.zip", in: folder)
+        #expect(throws: ZipArchive.Error.damaged) {
+            try ZipArchive(url: url).extractAll(into: folder.appending(path: "Unpacked", directoryHint: .isDirectory))
+        }
+    }
+
     @Test(arguments: [false, true])
     func readsAnArchiveInMemory(zip64: Bool) throws {
         let binary = Data((0..<300_000).map { UInt8(truncatingIfNeeded: $0 &* 31) })

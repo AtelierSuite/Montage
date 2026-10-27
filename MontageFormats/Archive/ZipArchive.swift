@@ -124,7 +124,8 @@ final class ZipArchive {
     ///
     /// An archive whose files wouldn't fit on the folder's volume is refused
     /// before any is written, as an entry's contents are only checked once
-    /// they've all been.
+    /// they've all been. One with a file where another entry has a folder
+    /// is damaged.
     @discardableResult
     func extractAll(into folder: URL) throws -> [URL] {
         let files = entries.compactMap { entry -> (entry: Entry, components: [String])? in
@@ -144,7 +145,17 @@ final class ZipArchive {
         }
 
         var written: [URL] = []
+        // By lowercased path, as the volume may not tell case apart.
+        var filePaths: Set<String> = []
+        var folderPaths: Set<String> = []
         for (entry, components) in files {
+            let lowercased = components.map { $0.lowercased() }
+            let parents = lowercased.indices.dropLast().map { lowercased[...$0].joined(separator: "/") }
+            let path = lowercased.joined(separator: "/")
+            guard !folderPaths.contains(path), !parents.contains(where: filePaths.contains) else { throw Error.damaged }
+            filePaths.insert(path)
+            folderPaths.formUnion(parents)
+
             let destination = components.reduce(folder) { $0.appending(path: $1) }
             try FileManager.default.createDirectory(
                 at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
