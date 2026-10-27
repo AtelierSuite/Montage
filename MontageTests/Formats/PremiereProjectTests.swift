@@ -390,6 +390,37 @@ struct PremiereProjectImportTests {
         #expect(clipMarkers.first?.time == seconds(1))
     }
 
+    @Test func timesAClipsMarkersAtItsSpeed() throws {
+        // The double-speed Broll.mp4 starts at 10s, its in point written as
+        // 4s; a marker written at 5s is 0.5s into the clip.
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: """
+            			<Source ObjectRef="501"/>
+            			<InPoint>1016064000000</InPoint>
+            """, with: """
+            			<MarkerOwner Version="1">
+            				<Markers ObjectRef="920"/>
+            			</MarkerOwner>
+            			<Source ObjectRef="501"/>
+            			<InPoint>1016064000000</InPoint>
+            """)
+            .replacingOccurrences(of: "</PremiereData>", with: """
+            	<Markers ObjectID="920" ClassID="bee50706-b524-416c-9f03-b596ce5f6866" Version="4">
+            		<Markers Version="1">
+            			<Marker Version="1" Index="0">
+            				<Second ObjectRef="921"/>
+            			</Marker>
+            		</Markers>
+            	</Markers>
+            	<Marker ObjectID="921" ClassID="a45508e0-3ff7-4d04-90a7-2e0dfff4c910" Version="3">
+            		<DVAMarker>{"DVAMarker":{"mName":"Fast","mStartTime":{"ticks":1270080000000},"mType":"Comment"}}</DVAMarker>
+            	</Marker>
+            </PremiereData>
+            """)
+        let marker = try #require(try PremiereFixtures.read(xml).report.items.first { $0.issue == .marker(name: "Fast") })
+        #expect(marker.time == seconds(21, 2))
+    }
+
     @Test func reportsWhatHasNoPlaceInMontage() {
         let notImported = imported.issues(.notImported)
         // The disabled clip, and the one on the muted track.

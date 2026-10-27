@@ -236,6 +236,14 @@ struct PremiereProjectImporter {
         var source: MarkupElement?
         var isDisabled: Bool
 
+        /// Ticks in the media as the in and out points are written, at the
+        /// clip's speed, as ticks at normal speed.
+        func atNormalSpeed(_ ticks: Int64) -> Int64 {
+            guard speed != 0, speed != 1 else { return ticks }
+            let scaled = Double(ticks) / abs(speed)
+            return scaled.isFinite && abs(scaled) < 9e18 ? Int64(scaled) : ticks
+        }
+
         var mediaUID: String? { source?.descendant("MediaSource", "Media")?["ObjectURef"] }
     }
 
@@ -246,22 +254,18 @@ struct PremiereProjectImporter {
         let end = PremiereProject.ticks(core.descendant("TrackItem", "End")?.text) ?? start
         let subClip = graph.resolve(core.child("SubClip"))
         let clip = graph.resolve(subClip?.child("Clip"))?.child("Clip")
-        let speed = clip?.child("PlaybackSpeed").flatMap { PremiereProject.number($0.text) } ?? 1
         // A clip's speed is left out at normal speed; when it's changed, its
         // in and out points are written as if at that speed.
-        func source(_ name: String) -> Int64 {
-            let raw = PremiereProject.ticks(clip?.child(name)?.text) ?? 0
-            guard speed != 0, speed != 1 else { return raw }
-            let scaled = Double(raw) / abs(speed)
-            return scaled.isFinite && abs(scaled) < 9e18 ? Int64(scaled) : raw
-        }
-        return TrackItem(
+        var item = TrackItem(
             id: object["ObjectID"] ?? object["ObjectUID"] ?? UUID().uuidString, object: object,
-            name: subClip?.child("Name")?.text, start: start, end: end,
-            inPoint: source("InPoint"), outPoint: source("OutPoint"), speed: speed, clip: clip,
+            name: subClip?.child("Name")?.text, start: start, end: end, inPoint: 0, outPoint: 0,
+            speed: clip?.child("PlaybackSpeed").flatMap { PremiereProject.number($0.text) } ?? 1, clip: clip,
             source: graph.resolve(clip?.child("Source")),
             isDisabled: core.child("IsMuted")?.text == "true"
         )
+        item.inPoint = item.atNormalSpeed(PremiereProject.ticks(clip?.child("InPoint")?.text) ?? 0)
+        item.outPoint = item.atNormalSpeed(PremiereProject.ticks(clip?.child("OutPoint")?.text) ?? 0)
+        return item
     }
 
     private mutating func importClip(
@@ -275,13 +279,18 @@ struct PremiereProjectImporter {
         let sourceIn = PremiereProject.time(item.inPoint)
         let timelineStart = placement.timeline(PremiereProject.time(item.start))
         let components = components(of: item)
+        // Keyframes and markers are timed in the media, as in and out points
+        // are, at the clip's speed: in real projects a fade's last keyframe
+        // falls on the clip's out point in the media, and a still's
+        // keyframes an hour in, with its in point.
+        let toClip: (Int64) -> CMTime = { PremiereProject.time(item.atNormalSpeed($0)) - sourceIn }
 
         // A clip's markers are its media's, wherever they fall; only those
         // within the part used are on the timeline.
-        for marker in markers(item.clip?.descendant("MarkerOwner", "Markers"))
-        where marker.ticks >= item.inPoint && marker.ticks < item.inPoint + length {
-            report.add(.marker(name: marker.name), clipName: item.name,
-                       time: timelineStart + (PremiereProject.time(marker.ticks) - sourceIn))
+        for marker in markers(item.clip?.descendant("MarkerOwner", "Markers")) {
+            let ticks = item.atNormalSpeed(marker.ticks)
+            guard ticks >= item.inPoint, ticks < item.inPoint + length else { continue }
+            report.add(.marker(name: marker.name), clipName: item.name, time: timelineStart + toClip(marker.ticks))
         }
         if item.isDisabled {
             report.add(.disabledClip, clipName: item.name, time: timelineStart)
@@ -344,10 +353,6 @@ struct PremiereProjectImporter {
             }.map { placement.key($0.id) })
         }
 
-        // Keyframes are timed in the media, as in and out points are: in
-        // real projects a fade's last keyframe falls on the clip's out point
-        // in the media, and a still's keyframes an hour in, with its in point.
-        let toClip: (Int64) -> CMTime = { PremiereProject.time($0) - sourceIn }
         for components in settingsFrom {
             apply(components, to: &clip, item: mediaItem, toClip: toClip, clipName: name)
         }
