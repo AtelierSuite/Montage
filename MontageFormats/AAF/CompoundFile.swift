@@ -61,6 +61,9 @@ struct CompoundFile {
     private let miniStream: Data
     /// The directory, in the file's order; entry 0 is the root.
     let entries: [Entry]
+    /// Each storage's children by name, as written and with case folded,
+    /// so looking one up doesn't walk the tree again.
+    private let childNames: [Int: (exact: [String: Int], folded: [String: Int])]
 
     static func isCompoundFile(_ data: Data) -> Bool {
         data.count >= signature.count && data.prefix(signature.count).elementsEqual(signature)
@@ -141,6 +144,19 @@ struct CompoundFile {
         }
         guard let root = entries.first, root.kind == .root else { throw .malformed("no root entry") }
         self.entries = entries
+        var childNames: [Int: (exact: [String: Int], folded: [String: Int])] = [:]
+        for index in entries.indices where entries[index].kind == .storage || entries[index].kind == .root {
+            var exact: [String: Int] = [:]
+            var folded: [String: Int] = [:]
+            // The first of any children with the same name, as the tree's order has it.
+            for child in Self.children(of: index, in: entries) {
+                let name = entries[child].name
+                if exact[name] == nil { exact[name] = child }
+                if folded[name.lowercased()] == nil { folded[name.lowercased()] = child }
+            }
+            childNames[index] = (exact, folded)
+        }
+        self.childNames = childNames
 
         // The mini stream and its table, for small streams.
         if root.size > 0, root.startSector <= Self.lastRegularSector {
@@ -164,6 +180,10 @@ struct CompoundFile {
     /// The entries in a storage, in the tree's order. Siblings that loop or
     /// point outside the directory are left out.
     func children(of index: Int) -> [Int] {
+        Self.children(of: index, in: entries)
+    }
+
+    private static func children(of index: Int, in entries: [Entry]) -> [Int] {
         guard entries.indices.contains(index) else { return [] }
         var result: [Int] = []
         var visited: Set<Int> = [index]
@@ -185,9 +205,8 @@ struct CompoundFile {
     /// The child of a storage with a name. Names compare as the format
     /// does, ignoring case.
     func child(named name: String, of index: Int) -> Int? {
-        let children = children(of: index)
-        return children.first { entries[$0].name == name }
-            ?? children.first { entries[$0].name.caseInsensitiveCompare(name) == .orderedSame }
+        guard let names = childNames[index] else { return nil }
+        return names.exact[name] ?? names.folded[name.lowercased()]
     }
 
     // MARK: - Streams
