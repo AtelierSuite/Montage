@@ -378,6 +378,35 @@
         }
       }
     },
+    "Interchange.Format.PremierePro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Pro project"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Proプロジェクト"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Pro 项目"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Pro 專案"
+          }
+        }
+      }
+    },
     "Interchange.Format.XMEML" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1244,6 +1273,151 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此專案由 Montage 尚不支援輸入的 LumaFusion 版本儲存。"
+          }
+        }
+      }
+    },
+    "PremiereProject.Error.Damaged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Premiere Pro project is damaged or incomplete, so it can’t be imported."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このPremiere Proプロジェクトは破損しているか不完全なため、読み込めません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Premiere Pro 项目已损坏或不完整，因此无法导入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Premiere Pro 專案已損毀或不完整，因此無法輸入。"
+          }
+        }
+      }
+    },
+    "PremiereProject.Error.UnsupportedVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This project was saved by a version of Premiere Pro that Montage can’t import yet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトは、Montageでまだ読み込めないバージョンのPremiere Proで保存されています。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目由 Montage 尚无法导入的 Premiere Pro 版本存储。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案由 Montage 尚無法輸入的 Premiere Pro 版本儲存。"
+          }
+        }
+      }
+    },
+    "PremiereProject.Error.UseFinalCutXML" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Premiere Pro, choose File > Export > Final Cut Pro XML, then import that file instead."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Proで「ファイル」>「書き出し」>「Final Cut Pro XML」を選択し、そのファイルを代わりに読み込んでください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在 Premiere Pro 中选择“文件”>“导出”>“Final Cut Pro XML”，然后改为导入该文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在 Premiere Pro 中選擇「檔案」>「轉存」>「Final Cut Pro XML」，然後改為輸入該檔案。"
+          }
+        }
+      }
+    },
+    "PremiereProject.UnnamedAudioEffect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio effect"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディオエフェクト"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频效果"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音訊效果"
+          }
+        }
+      }
+    },
+    "PremiereProject.UnnamedVideoEffect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video effect"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオエフェクト"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频效果"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影片效果"
           }
         }
       }

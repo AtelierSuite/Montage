@@ -166,6 +166,8 @@ public enum InterchangeFormat: String, Sendable {
     case fcpxml
     /// Final Cut Pro 7's XML, also written by Premiere Pro and Resolve.
     case xmeml
+    /// Premiere Pro's own project file.
+    case prproj
     /// A CMX 3600 edit decision list, which most editors write.
     case edl
     /// LumaFusion's own project file, inside its project packages.
@@ -178,6 +180,7 @@ public enum InterchangeFormat: String, Sendable {
         switch self {
         case .fcpxml: String(localized: "Interchange.Format.FCPXML", bundle: #bundle)
         case .xmeml: String(localized: "Interchange.Format.XMEML", bundle: #bundle)
+        case .prproj: String(localized: "Interchange.Format.PremierePro", bundle: #bundle)
         case .edl: String(localized: "Interchange.Format.EDL", bundle: #bundle)
         case .lumaFusion: String(localized: "Interchange.Format.LumaFusion", bundle: #bundle)
         case .otio: String(localized: "Interchange.Format.OTIO", bundle: #bundle)

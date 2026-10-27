@@ -21,8 +21,8 @@ public enum ProjectInterchange {
     /// has no type of its own, so any XML file is offered. LumaFusion
     /// packages are imported with `importLumaFusionPackage`, and OTIO bundles
     /// with `importOTIOBundle`.
-    public static let importableTypes: [UTType] = [
-        .fcpxml, .fcpxmlBundle, .xml, .edl, .lumaFusionPackage, .otio, .otioz, .otiod,
+    public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle] + PremiereProject.types + [
+        .xml, .edl, .lumaFusionPackage, .otio, .otioz, .otiod,
     ]
 
     // MARK: - Importing
@@ -46,6 +46,16 @@ public enum ProjectInterchange {
     /// Reads another editor's project. Media referred to by relative paths
     /// is taken from `baseURL`, the folder the file was in.
     public static func read(_ data: Data, baseURL: URL? = nil) throws -> ImportedProject {
+        // Final Cut XML may come gzipped too, and is read uncompressed.
+        if GzipInputStream.isGzip(data), let start = GzipInputStream.decompress(data, limit: 4096),
+           ["<fcpxml", "<xmeml"].contains(where: String(decoding: start, as: UTF8.self).contains),
+           let xml = GzipInputStream.decompress(data) {
+            return try read(xml, baseURL: baseURL)
+        }
+        // Premiere projects are gzipped, and too large to read whole.
+        if GzipInputStream.isGzip(data) || PremiereObjectGraph.isPremiereXML(data) {
+            return try PremiereProjectImporter.read(data, baseURL: baseURL)
+        }
         if EDLImporter.canRead(data) { return try EDLImporter.read(data, baseURL: baseURL) }
         if OTIOImporter.isJSON(data) { return try OTIOImporter.read(data, baseURL: baseURL) }
         let root = try MarkupElement.parse(data)
