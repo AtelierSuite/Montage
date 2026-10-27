@@ -1,5 +1,6 @@
 import Compression
 import Foundation
+import zlib
 
 /// Reads a ZIP archive through its central directory, a file at a time, so
 /// an archive of several gigabytes is never held in memory. Entries stored
@@ -350,22 +351,23 @@ final class ZipArchive {
     }
 }
 
-/// The CRC-32 that ZIP checks each entry's contents against.
+/// The CRC-32 that ZIP checks each entry's contents against, worked out by
+/// zlib's, which is far quicker than a byte at a time.
 struct CRC32 {
     private(set) var value: UInt32 = 0
 
-    private static let table: [UInt32] = (0..<256).map { index in
-        (0..<8).reduce(UInt32(index)) { crc, _ in crc & 1 == 1 ? 0xEDB8_8320 ^ (crc >> 1) : crc >> 1 }
-    }
-
     mutating func update(_ buffer: UnsafeRawBufferPointer) {
-        var crc = ~value
-        Self.table.withUnsafeBufferPointer { table in
-            for byte in buffer {
-                crc = table[Int((crc ^ UInt32(byte)) & 0xFF)] ^ (crc >> 8)
-            }
+        guard var bytes = buffer.baseAddress?.assumingMemoryBound(to: Bytef.self) else { return }
+        var remaining = buffer.count
+        var crc = uLong(value)
+        // zlib takes a 32-bit length.
+        while remaining > 0 {
+            let count = min(remaining, Int(UInt32.max))
+            crc = zlib.crc32(crc, bytes, uInt(count))
+            bytes += count
+            remaining -= count
         }
-        value = ~crc
+        value = UInt32(crc)
     }
 
     static func checksum(_ data: Data) -> UInt32 {
