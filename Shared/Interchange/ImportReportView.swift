@@ -31,7 +31,7 @@ struct ImportReportView: View {
                             row(for: item)
                         }
                     } header: {
-                        Text(title(of: category))
+                        Text(header(for: category))
                     } footer: {
                         if category == .missingMedia { Text("ImportReport.MissingMediaNote") }
                     }
@@ -78,7 +78,7 @@ struct ImportReportView: View {
         }
     }
 
-    private func title(of category: ImportReport.Category) -> LocalizedStringKey {
+    private func header(for category: ImportReport.Category) -> LocalizedStringKey {
         switch category {
         case .unsupportedEffect: "ImportReport.Section.UnsupportedEffect"
         case .missingMedia: "ImportReport.Section.MissingMedia"
