@@ -746,7 +746,9 @@ struct AAFImporter {
 
         let isGain = operation == AAFDefinition.monoAudioGain || operation == AAFDefinition.stereoAudioGain
             || (context.kind == .audio && lowercasedName.contains("gain"))
-        let isPan = operation == AAFDefinition.monoAudioPan || (context.kind == .audio && lowercasedName.contains("pan"))
+        // A word starting "pan", as in "Audio Pan" or "Panner", not "Expander".
+        let words = lowercasedName.split { !$0.isLetter }
+        let isPan = operation == AAFDefinition.monoAudioPan || (context.kind == .audio && words.contains { $0.hasPrefix("pan") })
         if isGain {
             guard let level = curve(parameter(AAFDefinition.amplitude, named: "amplitude")) else {
                 // Avid's own gain, with no level AAF defines.

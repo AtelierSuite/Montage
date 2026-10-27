@@ -187,6 +187,25 @@ struct AAFImportTests {
         #expect(imported.issues(.notImported) == [.generator(name: "Blur")])
     }
 
+    @Test func keepsSoundEffectsNamedLikePansTurnedOff() throws {
+        let expander = AUID("11111111-2222-3333-4444-666666666666")
+        var file = F()
+        file.operationDefinitions = [
+            F.definition(AUID("0d010101-0101-1c00-060e-2b3402060101"), id: expander, name: "Expander/Gate"),
+        ]
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(sound, [
+                F.operationGroup(sound, length: 40, operation: expander,
+                                 inputs: [F.sourceClip(sound, length: 40, mob: alphaMaster, slot: 2)]),
+            ])),
+        ])]
+        let imported = try read(file)
+        let alpha = try #require(imported.clip("Alpha.mov", on: .audio)?.clip)
+        #expect(alpha.effects.count == 1)
+        #expect(alpha.effects.first?.isEnabled == false)
+        #expect(imported.issues(.unsupportedEffect) == [.unsupportedEffect(name: "Expander/Gate")])
+    }
+
     @Test func readsMarkers() throws {
         var file = F()
         file.mobs = standardMedia() + [timeline([
