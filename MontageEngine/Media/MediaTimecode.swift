@@ -48,34 +48,32 @@ public struct MediaTimecode: Equatable, Sendable {
     /// for a WAV file with none, its Broadcast WAV time reference.
     static func start(of asset: AVURLAsset) async -> MediaTimecode? {
         if let track = try? await asset.loadTracks(withMediaType: .timecode).first {
-            return await start(of: track, in: asset)
+            return await start(of: track)
         }
         return BroadcastWAV.timeReference(of: asset.url)
     }
 
-    private static func start(of track: AVAssetTrack, in asset: AVAsset) async -> MediaTimecode? {
+    /// Reads the track's first sample straight from the file, where the
+    /// track's sample cursor says it's stored. An asset reader would do,
+    /// but on iOS it can wait forever for a timecode track's samples.
+    private static func start(of track: AVAssetTrack) async -> MediaTimecode? {
         guard let description = try? await track.load(.formatDescriptions).first,
-              let reader = try? AVAssetReader(asset: asset) else { return nil }
-        let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
-        guard reader.canAdd(output) else { return nil }
-        reader.add(output)
-        guard reader.startReading() else { return nil }
-        defer { reader.cancelReading() }
-        // The first buffers can be markers, such as an edit's boundary, with
-        // no data in them.
-        var dataBuffer: CMBlockBuffer?
-        while dataBuffer == nil, let sample = output.copyNextSampleBuffer() {
-            dataBuffer = CMSampleBufferGetDataBuffer(sample)
-        }
-        guard let buffer = dataBuffer else { return nil }
+              (try? await track.load(.canProvideSampleCursors)) == true,
+              let cursor = track.makeSampleCursorAtFirstSampleInDecodeOrder(),
+              let file = cursor.currentChunkStorageURL, file.isFileURL else { return nil }
+        let storage = cursor.currentSampleStorageRange
+        guard storage.offset >= 0, let handle = try? FileHandle(forReadingFrom: file) else { return nil }
+        defer { try? handle.close() }
+        guard (try? handle.seek(toOffset: UInt64(storage.offset))) != nil,
+              let data = try? handle.read(upToCount: Int(min(max(storage.length, 0), 8))) else { return nil }
 
         let frameNumber: Int64
         switch CMFormatDescriptionGetMediaSubType(description) {
         case kCMTimeCodeFormatType_TimeCode32:
-            guard let value = bigEndian(Int32.self, in: buffer) else { return nil }
+            guard let value = bigEndian(Int32.self, in: data) else { return nil }
             frameNumber = Int64(value)
         case kCMTimeCodeFormatType_TimeCode64:
-            guard let value = bigEndian(Int64.self, in: buffer) else { return nil }
+            guard let value = bigEndian(Int64.self, in: data) else { return nil }
             frameNumber = value
         default:
             return nil
@@ -91,14 +89,13 @@ public struct MediaTimecode: Equatable, Sendable {
         )
     }
 
-    private static func bigEndian<Value: FixedWidthInteger>(_ type: Value.Type, in buffer: CMBlockBuffer) -> Value? {
-        let size = MemoryLayout<Value>.size
-        guard CMBlockBufferGetDataLength(buffer) >= size else { return nil }
+    private static func bigEndian<Value: FixedWidthInteger>(_ type: Value.Type, in data: Data) -> Value? {
+        guard data.count >= MemoryLayout<Value>.size else { return nil }
         var value: Value = 0
-        let status = withUnsafeMutableBytes(of: &value) { bytes in
-            CMBlockBufferCopyDataBytes(buffer, atOffset: 0, dataLength: size, destination: bytes.baseAddress!)
+        withUnsafeMutableBytes(of: &value) { bytes in
+            bytes.copyBytes(from: data.prefix(MemoryLayout<Value>.size))
         }
-        return status == kCMBlockBufferNoErr ? Value(bigEndian: value) : nil
+        return Value(bigEndian: value)
     }
 }
 
