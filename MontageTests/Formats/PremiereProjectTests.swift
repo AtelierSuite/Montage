@@ -297,6 +297,12 @@ struct PremiereProjectImportTests {
         #expect(!imported.issues(.notImported).contains(.setting(name: "Pan")))
     }
 
+    @Test func readsACS6PannersParameterWhateverItsCase() throws {
+        let xml = Self.cs6Panner("MonoToStereoPanProcessor", parameter: "pan", value: "0.25")
+        let music = try #require(try PremiereFixtures.read(xml).clip("Music.wav", on: .audio)).clip
+        #expect(Self.pans(music).map(\.position) == [Animatable(-0.5)])
+    }
+
     @Test func leavesACentredCS6PannerOut() throws {
         let xml = Self.cs6Panner("MonoToStereoPanProcessor", parameter: "Pan", value: "0.5")
         let music = try #require(try PremiereFixtures.read(xml).clip("Music.wav", on: .audio)).clip

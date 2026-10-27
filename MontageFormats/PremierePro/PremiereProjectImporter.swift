@@ -381,8 +381,8 @@ struct PremiereProjectImporter {
            let inner = panner.descendant("PanProcessor", "AudioComponent", "Component") {
             let parameters = (inner.child("Params")?.children("Param") ?? []).compactMap(graph.resolve)
             let isOffCentre = parameters.contains { parameter in
-                let name = parameter.child("Name")?.text
-                guard name == "Pan" || name == "Balance" else { return false }
+                let name = parameter.child("Name")?.text.lowercased()
+                guard name == "pan" || name == "balance" else { return false }
                 return PremiereKeyframes.isAnimated(parameter)
                     || PremiereKeyframes.value(of: parameter).flatMap(PremiereProject.number).map { abs($0 - 0.5) > 0.0001 } == true
             }
