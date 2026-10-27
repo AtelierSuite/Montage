@@ -7,8 +7,10 @@ import SwiftUI
 /// with the clip it was on and where.
 struct ImportReportView: View {
     let report: ImportReport
-    /// The imported timeline's name, or the document's: see `ImportReport.title`.
-    let title: String
+    /// The name of the timeline it came from, if it had one.
+    let timelineName: String?
+    /// The name of the document it was imported into, for a timeline without one.
+    let documentName: String
     /// The project's frames, to say where things were as timecode.
     let frames: FrameTime
     let dismiss: () -> Void
@@ -48,6 +50,15 @@ struct ImportReportView: View {
                 }
             }
         }
+    }
+
+    /// The imported timeline's name, or, for a timeline with none, the
+    /// document's.
+    var title: String {
+        guard let name = timelineName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+            return documentName
+        }
+        return name
     }
 
     private var categories: [ImportReport.Category] {

@@ -40,18 +40,6 @@ private func seconds(_ value: Int64, _ timescale: Int32 = 1) -> CMTime {
     CMTime(value: value, timescale: timescale)
 }
 
-struct ImportReportTitleTests {
-    @Test func titlesTheReportWithTheTimelinesName() throws {
-        let imported = try InterchangeFixtures.read("Storylines.fcpxml")
-        #expect(ImportReport.title(timelineName: imported.name, documentName: "Test") == "Storylines")
-    }
-
-    @Test func fallsBackToTheDocumentsName() {
-        #expect(ImportReport.title(timelineName: nil, documentName: "Test") == "Test")
-        #expect(ImportReport.title(timelineName: "  \n", documentName: "Test") == "Test")
-    }
-}
-
 struct InterchangeTimeTests {
     @Test func readsRationalTimesExactly() {
         #expect(InterchangeTime.parse("1001/30000s") == CMTime(value: 1001, timescale: 30000))

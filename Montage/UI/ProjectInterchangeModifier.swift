@@ -57,7 +57,7 @@ private struct ProjectInterchangeModifier: ViewModifier {
             .sheet(isPresented: isShowingReport) {
                 if let report = projectImport?.report {
                     ImportReportView(
-                        report: report.contents, title: ImportReport.title(timelineName: report.timelineName, documentName: title),
+                        report: report.contents, timelineName: report.timelineName, documentName: title,
                         frames: FrameTime(frameDuration: editor.project.settings.frameDuration)
                     ) {
                         projectImport?.report = nil
