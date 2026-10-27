@@ -69,7 +69,7 @@ struct LumaFusionPackage {
     }
 
     /// The folder the package is in.
-    var folder: URL? { archive.url?.deletingLastPathComponent() }
+    var folder: URL { archive.url.deletingLastPathComponent() }
 
     /// A file's contents, refused as damaged when they'd be larger than
     /// `limit`.

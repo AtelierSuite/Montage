@@ -54,7 +54,7 @@ struct LumaFusionImportTests {
         #expect(package.projectFile?.fileName == "Holiday.lfarchive")
         #expect(package.fcpxmlFile == nil)
         #expect(package.files.map(\.fileName) == ["Holiday.lfarchive", "Clip.mov", "Music.m4a"])
-        #expect(package.folder?.standardizedFileURL == folder.standardizedFileURL)
+        #expect(package.folder.standardizedFileURL == folder.standardizedFileURL)
         // Nothing is unpacked beside it.
         #expect(try FileManager.default.contentsOfDirectory(atPath: folder.path) == ["Holiday.lfz"])
         let file = try LumaFusionProjectFile(data: package.data(of: try #require(package.projectFile), limit: 1 << 20))

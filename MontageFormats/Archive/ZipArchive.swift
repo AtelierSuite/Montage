@@ -5,9 +5,6 @@ import Foundation
 /// an archive of several gigabytes is never held in memory. Entries stored
 /// as they are or compressed with deflate are read, ZIP64 included.
 /// Encrypted entries and other compression methods aren't.
-///
-/// An archive already in memory, as a project file read whole is, can be
-/// read the same way with `init(data:)`.
 final class ZipArchive {
     struct Entry: Equatable, Sendable {
         /// The entry's path in the archive, with forward slashes.
@@ -39,24 +36,18 @@ final class ZipArchive {
     static let stored: UInt16 = 0
     static let deflated: UInt16 = 8
 
-    /// The file the archive was read from; nil for one read from memory.
-    let url: URL?
+    /// The file the archive was read from.
+    let url: URL
     private(set) var entries: [Entry] = []
-    private let source: Source
+    private let handle: FileHandle
     private let fileSize: UInt64
-
-    /// Where the archive's bytes come from.
-    private enum Source {
-        case file(FileHandle)
-        case memory(Data)
-    }
 
     private static let chunkSize = 256 * 1024
 
     init(url: URL) throws {
         self.url = url
         let handle = try FileHandle(forReadingFrom: url)
-        source = .file(handle)
+        self.handle = handle
         do {
             fileSize = try handle.seekToEnd()
             entries = try readCentralDirectory()
@@ -66,24 +57,8 @@ final class ZipArchive {
         }
     }
 
-    /// An archive held in memory.
-    init(data: Data) throws {
-        url = nil
-        // Indexed from zero, whatever slice it came from.
-        source = .memory(Data(data))
-        fileSize = UInt64(data.count)
-        entries = try readCentralDirectory()
-    }
-
     deinit {
-        if case .file(let handle) = source { try? handle.close() }
-    }
-
-    /// Whether data starts as a ZIP archive does: with a local file header,
-    /// or with the end record of an empty archive.
-    static func hasSignature(_ data: Data) -> Bool {
-        let head = [UInt8](data.prefix(4))
-        return head == [0x50, 0x4B, 0x03, 0x04] || head == [0x50, 0x4B, 0x05, 0x06]
+        try? handle.close()
     }
 
     /// The entry at a path in the archive.
@@ -117,27 +92,8 @@ final class ZipArchive {
         }
     }
 
-    /// Writes every file in the archive into `folder`, keeping the folders
-    /// they're in. Entries whose path would land outside the folder, and the
-    /// resource forks Finder adds, are passed over. Returns the files written.
-    @discardableResult
-    func extractAll(into folder: URL) throws -> [URL] {
-        var written: [URL] = []
-        for entry in entries where !entry.isDirectory {
-            guard let components = Self.safeComponents(of: entry.path),
-                  components.first != "__MACOSX", components.last?.hasPrefix("._") == false else { continue }
-            let destination = components.reduce(folder) { $0.appending(path: $1) }
-            try FileManager.default.createDirectory(
-                at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
-            )
-            try extract(entry, to: destination)
-            written.append(destination)
-        }
-        return written
-    }
-
-    /// An entry's path as folder and file names that stay inside the folder
-    /// it's unpacked into, or nil for an absolute path or one that climbs out.
+    /// An entry's path as folder and file names that stay inside the
+    /// archive, or nil for an absolute path or one that climbs out.
     static func safeComponents(of path: String) -> [String]? {
         let normalized = path.replacingOccurrences(of: "\\", with: "/")
         guard !normalized.hasPrefix("/") else { return nil }
@@ -248,14 +204,8 @@ final class ZipArchive {
     /// Up to `count` bytes from `offset`, fewer at the end of the archive.
     private func bytes(at offset: UInt64, upTo count: Int) throws -> Data {
         guard offset <= fileSize else { throw Error.damaged }
-        switch source {
-        case .file(let handle):
-            try handle.seek(toOffset: offset)
-            return try handle.read(upToCount: count) ?? Data()
-        case .memory(let data):
-            let end = Int(min(fileSize, offset + UInt64(count)))
-            return data.subdata(in: Int(offset)..<end)
-        }
+        try handle.seek(toOffset: offset)
+        return try handle.read(upToCount: count) ?? Data()
     }
 
     private func readCentralDirectory() throws -> [Entry] {

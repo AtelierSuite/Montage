@@ -135,7 +135,8 @@ enum LumaFusionImporter {
     /// A file's path from beside the package, as folder and file names; nil
     /// for one elsewhere.
     private static func relativePath(of url: URL, in package: LumaFusionPackage) -> [String]? {
-        guard url.isFileURL, let folder = package.folder?.standardizedFileURL.pathComponents else { return nil }
+        guard url.isFileURL else { return nil }
+        let folder = package.folder.standardizedFileURL.pathComponents
         let components = url.standardizedFileURL.pathComponents
         guard components.count > folder.count, Array(components.prefix(folder.count)) == folder else { return nil }
         return Array(components.dropFirst(folder.count))
