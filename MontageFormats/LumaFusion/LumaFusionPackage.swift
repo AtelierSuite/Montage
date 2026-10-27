@@ -4,106 +4,120 @@ import UniformTypeIdentifiers
 extension UTType {
     /// LumaFusion's project package: a ZIP archive of the project and the
     /// media it uses. LumaFusion's guide calls it `.lfpackage`, and `.lfz`
-    /// is accepted as well. LumaFusion publishes no type of its own.
+    /// is accepted as well, as is `.spryzip`, which LumaFusion for iOS used
+    /// for the same package before 2020. LumaFusion publishes no type of its
+    /// own.
     public static let lumaFusionPackage = UTType(importedAs: "com.luma-touch.lumafusion.package", conformingTo: .zip)
 }
 
-/// A LumaFusion project package, unpacked into a folder.
+/// A LumaFusion project package, read where it is: its project file is read
+/// from the archive, and the media its project uses unpacked from there
+/// straight into staging, so a package of several gigabytes is never
+/// unpacked whole.
 ///
 /// As real packages from LumaFusion for Android 2.6 are laid out: a ZIP
 /// archive, ZIP64 past 4 GB, holding a single `*.lfarchive` file, the
 /// project as JSON, with the media beside it at the top, deflated. An
 /// open-source reader describes packages from LumaFusion for iOS 5.5 the
-/// same way, with the media stored uncompressed. Other versions may use
+/// same way, with the media stored uncompressed, as a real package from
+/// LumaFusion for iOS 3.1 is. Packages from LumaFusion for iOS 3.0.9 and
+/// earlier hold a keyed archive, `*.spryArchive`, in place of the JSON,
+/// with names in UTF-8 not flagged as such and the same file listed more
+/// than once; they're recognised, and refused. Other versions may use
 /// folders, so media is looked for by name wherever it is in the archive.
 struct LumaFusionPackage {
-    static let fileExtensions = ["lfpackage", "lfz"]
+    static let fileExtensions = ["lfpackage", "lfz", "spryzip"]
     static let projectFileExtension = "lfarchive"
+    /// The project file of LumaFusion for iOS 3.0.9 and earlier: a keyed
+    /// archive, which isn't read.
+    static let keyedArchiveExtension = "spryarchive"
 
-    /// The folder the package was unpacked into.
-    let folder: URL
+    private let archive: ZipArchive
+    /// The package's files, each path once, as the archive lists them. Those
+    /// whose path would climb out of the package, and the resource forks
+    /// Finder adds, are passed over.
+    let files: [ZipArchive.Entry]
     /// The project file, if the package has one.
-    let projectFile: URL?
+    let projectFile: ZipArchive.Entry?
+    /// The project file of an older version of LumaFusion, if the package
+    /// has one.
+    let keyedArchiveFile: ZipArchive.Entry?
     /// An FCPXML document, if the package has one beside or instead of the
     /// project file, as LumaFusion's own FCPXML export, zipped, does.
-    let fcpxmlFile: URL?
-    /// Every file unpacked.
-    private(set) var files: [URL]
-    private let archive: ZipArchive
-    private let unpacked: Set<String>
+    let fcpxmlFile: ZipArchive.Entry?
+    /// The folder the package is in.
+    let folder: URL
 
-    /// Unpacks the package at `url` into `folder`, which is made if need be.
-    init(unpacking url: URL, into folder: URL) throws {
-        try self.init(opening: url, into: folder)
-        try unpackMedia()
-    }
-
-    /// Unpacks only the package's project file and FCPXML document, so the
-    /// project can be checked before its media, which may be gigabytes, is
-    /// unpacked with `unpackMedia`.
-    init(opening url: URL, into folder: URL) throws {
-        let archive: ZipArchive
+    /// Opens the package at `url`, reading no more than its list of files.
+    init(reading url: URL) throws {
+        folder = url.deletingLastPathComponent()
         do {
             archive = try ZipArchive(url: url)
         } catch let error as ZipArchive.Error {
             throw error == .notAnArchive ? LumaFusionError.notAPackage : LumaFusionError.damaged
         }
-        self.archive = archive
-        func shallowest(_ fileExtension: String) -> ZipArchive.Entry? {
-            archive.entries.compactMap { entry in
-                ZipArchive.unpackedComponents(of: entry).map { (entry, $0) }
-            }
-            .filter { ($0.1.last.map { ($0 as NSString).pathExtension.lowercased() }) == fileExtension }
-            .min { $0.1.count < $1.1.count }?.0
+        var seen: Set<String> = []
+        let files = archive.entries.filter { entry in
+            guard !entry.isDirectory, let components = ZipArchive.safeComponents(of: entry.path),
+                  components.first != "__MACOSX", components.last?.hasPrefix("._") == false else { return false }
+            return seen.insert(components.joined(separator: "/")).inserted
         }
-        let project = shallowest(Self.projectFileExtension)
-        let fcpxml = shallowest("fcpxml")
-        let unpacked = Set([project, fcpxml].compactMap { $0?.path })
-        self.unpacked = unpacked
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        do {
-            files = try archive.extractAll(into: folder) { unpacked.contains($0.path) }
-        } catch is ZipArchive.Error {
-            throw LumaFusionError.damaged
+        self.files = files
+        func shallowest(withExtension pathExtension: String) -> ZipArchive.Entry? {
+            Self.shallowest(files.filter { ($0.fileName as NSString).pathExtension.lowercased() == pathExtension })
         }
-        self.folder = folder
-        func file(for entry: ZipArchive.Entry?) -> URL? {
-            entry.flatMap(ZipArchive.unpackedComponents).map { $0.reduce(folder) { $0.appending(path: $1) } }
-        }
-        projectFile = file(for: project)
-        fcpxmlFile = file(for: fcpxml)
+        projectFile = shallowest(withExtension: Self.projectFileExtension)
+        keyedArchiveFile = shallowest(withExtension: Self.keyedArchiveExtension)
+        fcpxmlFile = shallowest(withExtension: "fcpxml")
     }
 
-    /// Unpacks the rest of the package: its media.
-    mutating func unpackMedia() throws {
+    /// A file's contents, refused as damaged when they'd be larger than
+    /// `limit`.
+    func data(of file: ZipArchive.Entry, limit: Int) throws -> Data {
         do {
-            files += try archive.extractAll(into: folder) { [unpacked] in !unpacked.contains($0.path) }
+            return try archive.data(for: file, limit: limit)
         } catch is ZipArchive.Error {
             throw LumaFusionError.damaged
         }
     }
 
-    /// The folders media might be in: the package's top level, then every
-    /// folder that has files in it.
-    var mediaFolders: [URL] {
-        var folders = [folder.standardizedFileURL]
-        for file in files {
-            let parent = file.deletingLastPathComponent().standardizedFileURL
-            if !folders.contains(parent) { folders.append(parent) }
+    /// The file at a path in the package, as folder and file names.
+    func file(at components: [String]) -> ZipArchive.Entry? {
+        files.first { ZipArchive.safeComponents(of: $0.path) == components }
+    }
+
+    /// The file called one of `names`, exactly, wherever it is in the
+    /// package: the one in the shallowest folder, the first listed of those.
+    func file(namedAnyOf names: [String]) -> ZipArchive.Entry? {
+        Self.shallowest(files.filter { names.contains($0.fileName) })
+    }
+
+    /// Unpacks a file straight into staging, under its own name, and
+    /// returns the path it will have in the project's package.
+    func stage(_ file: ZipArchive.Entry, into store: PackageMediaStore, takenPaths: Set<String>) throws -> String {
+        do {
+            return try store.stage(named: file.fileName, takenPaths: takenPaths) { try archive.extract(file, to: $0) }
+        } catch is ZipArchive.Error {
+            throw LumaFusionError.damaged
         }
-        return folders
     }
 
     /// Whether a file is a LumaFusion package: by its type or extension, or,
-    /// failing those, by being a ZIP archive with a LumaFusion project file
-    /// in it. Other formats are ZIP archives too, so being one isn't enough.
+    /// failing those, by being a ZIP archive with a LumaFusion project file,
+    /// of any version, in it. Other formats are ZIP archives too, so being
+    /// one isn't enough.
     static func isPackage(_ url: URL) -> Bool {
         if fileExtensions.contains(url.pathExtension.lowercased()) { return true }
         if let type = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType,
            type.conforms(to: .lumaFusionPackage) { return true }
         guard !url.hasDirectoryPath, let archive = try? ZipArchive(url: url) else { return false }
         return archive.entries.contains {
-            !$0.isDirectory && ($0.fileName as NSString).pathExtension.lowercased() == projectFileExtension
+            !$0.isDirectory && [projectFileExtension, keyedArchiveExtension]
+                .contains(($0.fileName as NSString).pathExtension.lowercased())
         }
+    }
+
+    private static func shallowest(_ files: [ZipArchive.Entry]) -> ZipArchive.Entry? {
+        files.min { ($0.path.split(separator: "/").count) < ($1.path.split(separator: "/").count) }
     }
 }

@@ -12,6 +12,9 @@ public enum LumaFusionError: LocalizedError, Equatable {
     /// A project saved by a version of LumaFusion Montage hasn't been tested
     /// with, named where the project says.
     case unsupportedVersion(String?)
+    /// A project saved by LumaFusion for iOS 3.0.9 or earlier, as a keyed
+    /// archive (`*.spryArchive`) rather than JSON, which Montage can't read.
+    case olderVersion
 
     public var errorDescription: String? {
         switch self {
@@ -25,12 +28,15 @@ public enum LumaFusionError: LocalizedError, Equatable {
             String(format: String(localized: "LumaFusion.Error.UnsupportedVersion", bundle: #bundle), version)
         case .unsupportedVersion(nil):
             String(localized: "LumaFusion.Error.UnsupportedVersionUnknown", bundle: #bundle)
+        case .olderVersion:
+            String(localized: "LumaFusion.Error.OlderVersion", bundle: #bundle)
         }
     }
 
     public var recoverySuggestion: String? {
         switch self {
         case .noProject, .unsupportedVersion: String(localized: "LumaFusion.Error.ExportFCPXML", bundle: #bundle)
+        case .olderVersion: String(localized: "LumaFusion.Error.SaveAgain", bundle: #bundle)
         case .notAPackage, .damaged: nil
         }
     }
@@ -81,19 +87,59 @@ enum LumaFusionImporter {
     /// Largest project file read: a project's JSON, not its media.
     static let projectFileLimit = 256 * 1024 * 1024
 
-    /// Reads an unpacked package's project.
+    /// Reads a package's project. Media an FCPXML document in it refers to
+    /// by relative paths is taken to be beside the package, where it's
+    /// looked for in the package as well.
     static func read(_ package: LumaFusionPackage, decoders: [any LumaFusionProjectDecoder] = decoders) throws -> ImportedProject {
         if let fcpxml = package.fcpxmlFile {
-            return try ProjectInterchange.read(contentsOf: fcpxml)
+            return try ProjectInterchange.read(try package.data(of: fcpxml, limit: projectFileLimit), baseURL: package.folder)
         }
-        guard let url = package.projectFile else { throw LumaFusionError.noProject }
-        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-        guard size <= projectFileLimit else { throw LumaFusionError.damaged }
-        let file = try LumaFusionProjectFile(data: Data(contentsOf: url))
+        guard let entry = package.projectFile else {
+            throw package.keyedArchiveFile == nil ? LumaFusionError.noProject : LumaFusionError.olderVersion
+        }
+        let data = try package.data(of: entry, limit: projectFileLimit)
+        // A keyed archive under the JSON project's name.
+        if data.starts(with: Data("bplist".utf8)) { throw LumaFusionError.olderVersion }
+        let file = try LumaFusionProjectFile(data: data)
         guard let version = file.appVersion, let decoder = decoders.first(where: { $0.supports(appVersion: version) }) else {
             throw LumaFusionError.unsupportedVersion(file.appVersion)
         }
         return try decoder.decode(file, in: package)
+    }
+
+    /// Unpacks the files the project's media are in that the package
+    /// carries straight into staging, and returns the path each will have
+    /// in the project's package. Each is looked for where the project said,
+    /// when that's inside the package, then by name anywhere in it. If any
+    /// can't be unpacked, none stay staged.
+    static func stageMedia(
+        for imported: ImportedProject, from package: LumaFusionPackage, into store: PackageMediaStore,
+        takenPaths: Set<String> = []
+    ) throws -> [MediaItem.ID: String] {
+        var staged: [MediaItem.ID: String] = [:]
+        do {
+            for item in imported.project.media {
+                let source = imported.mediaSources[item.id]
+                let names = [item.name, source?.lastPathComponent].compactMap { $0 }.filter { !$0.isEmpty }
+                guard let file = source.flatMap({ relativePath(of: $0, in: package) }).flatMap(package.file(at:))
+                    ?? package.file(namedAnyOf: names) else { continue }
+                staged[item.id] = try package.stage(file, into: store, takenPaths: takenPaths)
+            }
+        } catch {
+            for path in staged.values { store.discardStaged(path) }
+            throw error
+        }
+        return staged
+    }
+
+    /// A file's path from beside the package, as folder and file names; nil
+    /// for one elsewhere.
+    private static func relativePath(of url: URL, in package: LumaFusionPackage) -> [String]? {
+        guard url.isFileURL else { return nil }
+        let folder = package.folder.standardizedFileURL.pathComponents
+        let components = url.standardizedFileURL.pathComponents
+        guard components.count > folder.count, Array(components.prefix(folder.count)) == folder else { return nil }
+        return Array(components.dropFirst(folder.count))
     }
 }
 
@@ -104,39 +150,30 @@ extension ProjectInterchange {
         LumaFusionPackage.isPackage(url)
     }
 
-    /// Imports a LumaFusion project package: unpacks it, reads its project,
-    /// and copies the media it carries into staging, as `gatherMedia` does,
-    /// looking in the package first and then beside it. The project is read
-    /// before the media is unpacked, so one that can't be read is refused
-    /// without unpacking it.
+    /// Imports a LumaFusion project package: reads its project, and copies
+    /// the media it carries into staging, unpacked straight there, then
+    /// looks for the rest as `gatherMedia` does, beside the package.
     @concurrent
     public static func importLumaFusionPackage(
         at url: URL, into store: PackageMediaStore, takenPaths: Set<String> = []
     ) async throws -> ImportedProject {
-        let folder = URL.temporaryDirectory.appending(path: "LumaFusion-\(UUID().uuidString)", directoryHint: .isDirectory)
-        defer { try? FileManager.default.removeItem(at: folder) }
-        let (package, imported) = try coordinatedUnpack(url, into: folder)
+        let (imported, staged) = try coordinatedRead(url) { readURL in
+            let package = try LumaFusionPackage(reading: readURL)
+            let imported = try LumaFusionImporter.read(package)
+            return (imported, try LumaFusionImporter.stageMedia(for: imported, from: package, into: store, takenPaths: takenPaths))
+        }
         return await gatherMedia(
-            for: imported, into: store, takenPaths: takenPaths,
-            searchFolders: package.mediaFolders + [url.deletingLastPathComponent()]
+            for: imported, into: store, takenPaths: takenPaths, searchFolders: [url.deletingLastPathComponent()], staged: staged
         )
     }
 
-    /// Reads the package's project and then unpacks its media, coordinated,
-    /// so a package in cloud storage that isn't on the device yet is
-    /// downloaded first.
-    private static func coordinatedUnpack(
-        _ url: URL, into folder: URL
-    ) throws -> (package: LumaFusionPackage, imported: ImportedProject) {
+    /// Reads the package, coordinated, so a package in cloud storage that
+    /// isn't on the device yet is downloaded first.
+    private static func coordinatedRead<Value>(_ url: URL, _ read: (URL) throws -> Value) throws -> Value {
         var coordinationError: NSError?
-        var result: Result<(LumaFusionPackage, ImportedProject), Error> = .failure(CocoaError(.fileReadUnknown))
+        var result: Result<Value, Error> = .failure(CocoaError(.fileReadUnknown))
         NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) { readURL in
-            result = Result {
-                var package = try LumaFusionPackage(opening: readURL, into: folder)
-                let imported = try LumaFusionImporter.read(package)
-                try package.unpackMedia()
-                return (package, imported)
-            }
+            result = Result { try read(readURL) }
         }
         if let coordinationError { throw coordinationError }
         return try result.get()

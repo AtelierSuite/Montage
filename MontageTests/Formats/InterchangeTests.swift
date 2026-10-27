@@ -243,6 +243,14 @@ struct XMEMLImportTests {
         CMTime(value: count * 1001, timescale: 30000)
     }
 
+    @Test func readsAGzippedFile() throws {
+        for name in ["Premiere.xml", "Storylines.fcpxml"] {
+            let data = try Data(contentsOf: InterchangeFixtures.directory.appending(path: name))
+            let gzipped = try ProjectInterchange.read(PremiereFixtures.gzip(data))
+            #expect(gzipped.project.tracks.count == (try ProjectInterchange.read(data)).project.tracks.count)
+        }
+    }
+
     @Test func takesTheSequenceSettings() {
         #expect(imported.name == "Premiere Sequence")
         #expect(imported.project.settings.frameDuration == frame)

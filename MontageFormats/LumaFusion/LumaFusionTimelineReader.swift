@@ -22,15 +22,30 @@ import UniformTypeIdentifiers
 ///   `trackDuration`, and `streams`: the picture (`mediaType` 0) and the
 ///   sound (`mediaType` 1) it plays from its file, each with its in point,
 ///   `sourceStart` (`sourceRange.start` on iOS), and its settings in
-///   `streamAttributes`. `assetType` is 0 for a video or sound file, 2 for a
+///   `streamAttributes`. LumaFusion for iOS writes a photo's picture as
+///   `mediaType` 2 and a title's as 3. `assetType` is 0 for a video file
+///   (or, on Android, a sound file), 1 for a sound file on iOS, 2 for a
 ///   photo and 4 for a title; `assetIsBlank` marks a gap.
 /// - A clip's file is named in `attributes`. `attributes.mediaMap` at the
 ///   top names each file as it's stored in the package, by asset ID.
 ///
 /// Settings are `{value: {type, value}, keyframes}`. Volume, opacity and pan
 /// are read as they are; scale and position as far as they can be, the
-/// position assumed to run from -1 to 1 across the frame, up being positive;
-/// everything else that's changed from its default goes in the report.
+/// position running from -1 to 1 across the frame, down being positive;
+/// everything else that's changed from its default goes in the report. The
+/// Android samples' overlays sit near the frame's edges only under -1 to 1;
+/// their vertical offsets are too small to show which way is down, so the
+/// sign is taken from LumaFusion for iOS's templates, below.
+///
+/// LumaFusion for iOS 3.1 keeps scale, position and rotation in one
+/// setting, `videoTransform`, whose value is `{scaling, translation,
+/// anchorPoint, rotation}`, keyframed at `clipTime`, from the clip's start.
+/// That's read with its keyframes. Its translation runs from -1 to 1 across
+/// the frame, down being positive: lower-third templates sit at about 0.5
+/// to 0.8 and grow from points inside the frame only under that reading. Its rotation is in radians, taken to be clockwise, as a
+/// positive angle is in a frame whose y axis runs down. Beside the settings
+/// each stream has a flat `parameters`, which holds their defaults rather
+/// than the clip's own values, so it isn't read.
 struct LumaFusionTimelineReader {
     private typealias Object = [String: Any]
 
@@ -60,6 +75,11 @@ struct LumaFusionTimelineReader {
             settings.frameDuration = step
         }
         reportMarkers(attributes)
+        // The level the whole mix plays at: `masterVolume` on iOS,
+        // `primaryVolume` on Android. Montage has none of its own.
+        if let volume = Self.double(root["masterVolume"]) ?? Self.double(root["primaryVolume"]), abs(volume - 1) > 0.0001 {
+            report.add(.setting(name: "Master volume"))
+        }
 
         // Video tracks bottom first, then audio tracks down from the picture.
         let ordered = tracks.sorted { a, b in
@@ -113,6 +133,8 @@ struct LumaFusionTimelineReader {
         // A track's volume is its clips' gain; LumaFusion writes it
         // negative for a muted track, keeping the level to unmute to.
         let trackVolume = Self.double(track["trackVolume"]) ?? 1
+        // A clip's `transitionType` is the transition into it, from the clip
+        // before; the clip after it has a flag of its own.
         var placed: [(clip: Placed, hasTransition: Bool)] = []
         for clip in clips {
             guard var next = importClip(clip, onAudioTrack: type == 1, trackVolume: abs(trackVolume)) else { continue }
@@ -122,7 +144,7 @@ struct LumaFusionTimelineReader {
             }
             // Times in different timescales can overlap by less than a
             // frame where clips meet: the later starts where the earlier ends.
-            if let last = placed.last, !hasTransition, !last.hasTransition {
+            if let last = placed.last, !hasTransition {
                 let overlap = last.clip.clip.timelineRange.intersection(next.clip.timelineRange)
                 if overlap.duration > .zero, overlap.duration < settings.frameDuration,
                    let trimmed = next.clip.trimmed(to: CMTimeRange(start: overlap.end, end: next.clip.timelineRange.end)) {
@@ -136,7 +158,7 @@ struct LumaFusionTimelineReader {
         for (index, (clip, hasTransition)) in placed.enumerated() {
             // Where a transition joins two clips they overlap: the cut goes
             // in its middle.
-            if index > 0, hasTransition || placed[index - 1].hasTransition {
+            if index > 0, hasTransition {
                 let overlap = placed[index - 1].clip.clip.timelineRange.intersection(clip.clip.timelineRange)
                 if overlap.duration > .zero { assembler.addTransition(overlap, lane: 0) }
             }
@@ -166,7 +188,7 @@ struct LumaFusionTimelineReader {
 
         let assetType = Self.int(object["assetType"]) ?? 0
         switch assetType {
-        case 0, 2: break
+        case 0, 1, 2: break
         case 4:
             report.add(.title, clipName: name, time: start)
             return nil
@@ -183,7 +205,7 @@ struct LumaFusionTimelineReader {
         let picture = pictures.first { Self.int($0["assetTrackID"]) == videoTrackID } ?? pictures.first
         let sound = sounds.first { Self.int($0["assetTrackID"]) == audioTrackID } ?? sounds.first
 
-        let item = mediaItem(for: object, isPhoto: assetType == 2, picture: picture, sound: sound)
+        let item = mediaItem(for: object, assetType: assetType, picture: picture, sound: sound)
         let stream = picture ?? sound
         let sourceStart = item.kind == .image ? .zero
             : Self.time((stream?["sourceRange"] as? Object)?["start"]) ?? Self.time(stream?["sourceStart"]) ?? .zero
@@ -237,17 +259,22 @@ struct LumaFusionTimelineReader {
             clip.opacity = Animatable(min(1, max(0, alpha.numbers.first ?? 1)))
             if alpha.isKeyframed { notes.append("Opacity keyframes") }
         }
-        if let scale = Self.setting(attributes["videoScale"]), scale.numbers.count == 2,
-           scale.numbers.allSatisfy({ $0 > 0 }) {
-            let (across, down) = (scale.numbers[0], scale.numbers[1])
-            clip.transform.scale = Animatable((across + down) / 2)
-            if abs(across - down) > 0.0001 { report.add(.uneven(name: "Scale"), clipName: name, time: clip.timelineStart) }
-            if scale.isKeyframed { notes.append("Scale keyframes") }
-        }
-        if let translation = Self.setting(attributes["videoTranslation"]), translation.numbers.count == 2 {
-            let (x, y) = (translation.numbers[0], translation.numbers[1])
-            clip.transform.position = Animatable(CGPoint(x: 0.5 + x / 2, y: 0.5 - y / 2))
-            if translation.isKeyframed { notes.append("Position keyframes") }
+        // iOS's combined transform, where there is one, holds the scale and
+        // position: separate ones beside it aren't the clip's.
+        if let transform = attributes["videoTransform"] as? Object {
+            applyTransform(transform, to: &clip, notes: &notes, name: name)
+        } else {
+            if let scale = Self.setting(attributes["videoScale"]), scale.numbers.count == 2,
+               scale.numbers.allSatisfy({ $0 > 0 }) {
+                let (across, down) = (scale.numbers[0], scale.numbers[1])
+                clip.transform.scale = Animatable((across + down) / 2)
+                if Self.isUneven(across, down) { report.add(.unevenAveraged(name: "Scale"), clipName: name, time: clip.timelineStart) }
+                if scale.isKeyframed { notes.append("Scale keyframes") }
+            }
+            if let translation = Self.setting(attributes["videoTranslation"]), translation.numbers.count == 2 {
+                clip.transform.position = Animatable(Self.position(translation.numbers[0], translation.numbers[1]))
+                if translation.isKeyframed { notes.append("Position keyframes") }
+            }
         }
         // A turn by a quarter is the file's own orientation, which the
         // file carries and Montage applies itself.
@@ -266,6 +293,98 @@ struct LumaFusionTimelineReader {
             let changed = setting.numbers.count != value.count || zip(setting.numbers, value).contains { abs($0 - $1) > 0.0001 }
             if changed || setting.isKeyframed { notes.append(label) }
         }
+    }
+
+    /// One value of LumaFusion for iOS's `videoTransform`.
+    private struct Transform {
+        var scaling: [Double]
+        var translation: [Double]
+        var anchorPoint: [Double]
+        /// In radians.
+        var rotation: Double
+
+        init?(_ value: Any?) {
+            // A setting's value is `{type: 5, value: {scaling, ...}}`.
+            guard let outer = value as? [String: Any] else { return nil }
+            let object = outer["scaling"] == nil ? outer["value"] as? [String: Any] ?? [:] : outer
+            scaling = LumaFusionTimelineReader.numbers(object["scaling"])
+            translation = LumaFusionTimelineReader.numbers(object["translation"])
+            anchorPoint = LumaFusionTimelineReader.numbers(object["anchorPoint"])
+            let rotation = LumaFusionTimelineReader.numbers(object["rotation"])
+            guard scaling.count == 2, translation.count == 2, rotation.count <= 1 else { return nil }
+            if anchorPoint.count != 2 { anchorPoint = [0.5, 0.5] }
+            self.rotation = rotation.first ?? 0
+        }
+
+        /// Montage's scale: across and down averaged.
+        var scale: Double { (abs(scaling[0]) + abs(scaling[1])) / 2 }
+        var position: CGPoint { LumaFusionTimelineReader.position(translation[0], translation[1]) }
+        /// Clockwise, in degrees.
+        var degrees: Double { rotation * 180 / .pi }
+        var isUneven: Bool { LumaFusionTimelineReader.isUneven(abs(scaling[0]), abs(scaling[1])) }
+        var isFlipped: Bool { scaling.contains { $0 < 0 } }
+        var isAnchorMoved: Bool { abs(anchorPoint[0] - 0.5) > 0.0001 || abs(anchorPoint[1] - 0.5) > 0.0001 }
+    }
+
+    /// LumaFusion for iOS's scale, position and rotation, with their
+    /// keyframes. An anchor point away from the middle, uneven or flipped
+    /// scale, eased keyframes and curved motion paths go in the report.
+    private mutating func applyTransform(_ setting: Object, to clip: inout Clip, notes: inout [String], name: String) {
+        guard let base = Transform(setting["value"]) else {
+            notes.append("Transform")
+            return
+        }
+        var keyframes: [(time: CMTime, value: Transform)] = []
+        for case let keyframe as Object in setting["keyframes"] as? [Any] ?? [] {
+            guard let time = Self.time(keyframe["clipTime"]) ?? Self.time(keyframe["time"]), time >= .zero,
+                  let value = Transform(keyframe["value"]) else {
+                notes.append("Transform keyframes")
+                continue
+            }
+            if Self.interpolationType(keyframe["interpolation"]) != 0 { notes.append("Keyframe easing") }
+            if Self.interpolationType(keyframe["spatialInterpolation"]) != 0 { notes.append("Motion path") }
+            keyframes.append((time, value))
+        }
+        let values = [base] + keyframes.map(\.value)
+        if values.contains(where: \.isUneven) {
+            report.add(.unevenAveraged(name: "Scale"), clipName: name, time: clip.timelineStart)
+        }
+        if values.contains(where: \.isFlipped) { notes.append("Flip") }
+        if values.contains(where: \.isAnchorMoved) { notes.append("Anchor point") }
+
+        clip.transform.scale = Self.animatable(base.scale, keyframes.map { ($0.time, $0.value.scale) })
+        clip.transform.position = Self.animatable(base.position, keyframes.map { ($0.time, $0.value.position) })
+        clip.transform.rotation = Self.animatable(base.degrees, keyframes.map { ($0.time, $0.value.degrees) })
+    }
+
+    /// The centre as a fraction of the frame, from a translation that runs
+    /// from -1 to 1 across it, down being positive, as both LumaFusion for
+    /// Android's position and iOS's transform do.
+    private static func position(_ x: Double, _ y: Double) -> CGPoint {
+        CGPoint(x: 0.5 + x / 2, y: 0.5 + y / 2)
+    }
+
+    /// Whether a scale across and down differ, to be averaged.
+    private static func isUneven(_ across: Double, _ down: Double) -> Bool {
+        abs(across - down) > 0.0001
+    }
+
+    /// A value keyframed where its keyframes differ; where they don't, the
+    /// one value they all hold. Of keyframes at the same time the last wins.
+    private static func animatable<Value: Interpolatable>(_ value: Value, _ keyframes: [(CMTime, Value)]) -> Animatable<Value> {
+        guard let first = keyframes.first else { return Animatable(value) }
+        if keyframes.allSatisfy({ $0.1 == first.1 }) { return Animatable(first.1) }
+        var animatable = Animatable(value)
+        for (time, value) in keyframes { animatable.setKeyframe(Keyframe(time: time, value: value)) }
+        return animatable
+    }
+
+    /// A keyframe's interpolation type: written as `{type, controlPointIn,
+    /// controlPointOut}`, or as a bare number. 0, linear, is the only one
+    /// seen; nil and 0 are both read as linear.
+    private static func interpolationType(_ value: Any?) -> Int {
+        if let object = value as? Object { return int(object["type"]) ?? 0 }
+        return int(value) ?? 0
     }
 
     private mutating func addEffect(_ effect: Object, isVideo: Bool, to clip: inout Clip, clipName: String) {
@@ -289,23 +408,25 @@ struct LumaFusionTimelineReader {
 
     // MARK: - Media
 
-    private mutating func mediaItem(for clip: Object, isPhoto: Bool, picture: Object?, sound: Object?) -> MediaItem {
+    private mutating func mediaItem(for clip: Object, assetType: Int, picture: Object?, sound: Object?) -> MediaItem {
         let attributes = clip["attributes"] as? Object ?? [:]
         let assetID = attributes["assetID"] as? String
         let original = attributes["originalFilename"] as? String ?? ""
         let fromURL = (clip["assetURL"] as? String).flatMap { URL(string: $0)?.lastPathComponent } ?? ""
         // The name the package stores the file under, then the names the
         // clip gives it; one without an extension is a placeholder.
-        let names = [assetID.flatMap { packageNames[$0] }, Self.lastComponent(original), attributes["title"] as? String, fromURL]
+        let packageName = assetID.flatMap { packageNames[$0] }.flatMap { $0.isEmpty ? nil : $0 }
+        let names = [packageName, Self.lastComponent(original), attributes["title"] as? String, fromURL]
             .compactMap { $0 }.filter { !$0.isEmpty }
         let name = names.first { !($0 as NSString).pathExtension.isEmpty } ?? names.first ?? "Media"
         // Where the file was, when that's a path rather than LumaFusion's
-        // own library.
+        // own library. The package's name for it stays its name, which is
+        // what it's found by in the package.
         let source = original.hasPrefix("/") ? URL(fileURLWithPath: original) : nil
 
         let type = UTType(filenameExtension: (name as NSString).pathExtension)
-        let kind: MediaItem.Kind = if isPhoto || type?.conforms(to: .image) == true { .image }
-            else if type?.conforms(to: .audio) == true || (picture == nil && sound != nil) { .audio }
+        let kind: MediaItem.Kind = if assetType == 2 || type?.conforms(to: .image) == true { .image }
+            else if assetType == 1 || type?.conforms(to: .audio) == true || (picture == nil && sound != nil) { .audio }
             else { .video }
 
         var metadata = MediaMetadata(duration: kind == .image ? .zero : Self.time(clip["assetMaxDuration"]) ?? .zero)
@@ -318,7 +439,20 @@ struct LumaFusionTimelineReader {
             metadata.audioChannelCount = 2
             metadata.audioSampleRate = Self.double(attributes["audioSamplerate"]) ?? 48000
         }
-        return media.item(key: assetID ?? name, url: source, name: name, kind: kind, metadata: metadata)
+        var item = media.item(key: assetID ?? name, url: source, name: name, keepsName: name == packageName, kind: kind, metadata: metadata)
+        // A video file first used for its sound alone, as detached sound on
+        // an audio track ahead of its picture is, was taken for a sound
+        // file: it's a video file once a clip shows its picture.
+        if item.kind == .audio, kind == .video {
+            if metadata.audioChannelCount == 0 {
+                metadata.audioChannelCount = item.metadata.audioChannelCount
+                metadata.audioSampleRate = item.metadata.audioSampleRate
+            }
+            item.kind = .video
+            item.metadata = metadata
+            media.update(item)
+        }
+        return item
     }
 
     // MARK: - Values

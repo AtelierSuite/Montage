@@ -65,17 +65,29 @@ public struct ImportReport: Equatable, Sendable {
         /// A clip that overlapped another on its track, moved to a track
         /// of its own.
         case movedToNewTrack
-        /// A picture scaled differently across and down, scaled evenly.
+        /// A picture scaled differently across and down, scaled evenly by
+        /// its across value.
         case uneven(name: String)
+        /// A picture scaled differently across and down, scaled evenly by
+        /// the average of the two.
+        case unevenAveraged(name: String)
         /// A compound or multicam clip's own settings, where its clips have
         /// settings of their own that they keep instead.
         case nestedSettings
+        /// An EDL's timecode, read at a frame rate it doesn't say, guessed.
+        case frameRateAssumed(String)
+        /// An EDL's timecode, read at the frame rate of its media.
+        case frameRateFromMedia(String)
+        /// A clip whose source starts before its media's timecode does,
+        /// played from the media's first frame instead.
+        case beforeMediaStart
 
         public var category: Category {
             switch self {
             case .unsupportedEffect: .unsupportedEffect
             case .missingMedia: .missingMedia
-            case .transition, .movedToNewTrack, .uneven, .nestedSettings, .speedChange, .titleTemplate: .changed
+            case .transition, .movedToNewTrack, .uneven, .unevenAveraged, .nestedSettings, .speedChange, .titleTemplate,
+                 .frameRateAssumed, .frameRateFromMedia, .beforeMediaStart: .changed
             default: .notImported
             }
         }
@@ -114,8 +126,16 @@ public struct ImportReport: Equatable, Sendable {
                 String(localized: "Interchange.Issue.MovedToNewTrack", bundle: #bundle)
             case .uneven(let name):
                 String(format: String(localized: "Interchange.Issue.Uneven", bundle: #bundle), name)
+            case .unevenAveraged(let name):
+                String(format: String(localized: "Interchange.Issue.UnevenAveraged", bundle: #bundle), name)
             case .nestedSettings:
                 String(localized: "Interchange.Issue.NestedSettings", bundle: #bundle)
+            case .frameRateAssumed(let rate):
+                String(format: String(localized: "Interchange.Issue.FrameRateAssumed", bundle: #bundle), rate)
+            case .frameRateFromMedia(let rate):
+                String(format: String(localized: "Interchange.Issue.FrameRateFromMedia", bundle: #bundle), rate)
+            case .beforeMediaStart:
+                String(localized: "Interchange.Issue.BeforeMediaStart", bundle: #bundle)
             }
         }
     }
@@ -146,8 +166,17 @@ public enum InterchangeFormat: String, Sendable {
     case fcpxml
     /// Final Cut Pro 7's XML, also written by Premiere Pro and Resolve.
     case xmeml
+    /// The Advanced Authoring Format, from Avid Media Composer, Premiere Pro
+    /// and Resolve.
+    case aaf
+    /// Premiere Pro's own project file.
+    case prproj
+    /// A CMX 3600 edit decision list, which most editors write.
+    case edl
     /// LumaFusion's own project file, inside its project packages.
     case lumaFusion
+    /// OpenTimelineIO, written by Resolve, Premiere Pro and others.
+    case otio
     /// A DaVinci Resolve project exported as a `.drp`.
     case drp
 
@@ -156,7 +185,11 @@ public enum InterchangeFormat: String, Sendable {
         switch self {
         case .fcpxml: String(localized: "Interchange.Format.FCPXML", bundle: #bundle)
         case .xmeml: String(localized: "Interchange.Format.XMEML", bundle: #bundle)
+        case .aaf: String(localized: "Interchange.Format.AAF", bundle: #bundle)
+        case .prproj: String(localized: "Interchange.Format.PremierePro", bundle: #bundle)
+        case .edl: String(localized: "Interchange.Format.EDL", bundle: #bundle)
         case .lumaFusion: String(localized: "Interchange.Format.LumaFusion", bundle: #bundle)
+        case .otio: String(localized: "Interchange.Format.OTIO", bundle: #bundle)
         case .drp: String(localized: "Interchange.Format.DRP", bundle: #bundle)
         }
     }

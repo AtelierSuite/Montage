@@ -384,25 +384,83 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This file isn’t a project Montage can import. Montage imports FCPXML from Final Cut Pro or LumaFusion, and Final Cut Pro 7 XML from Premiere Pro."
+            "value" : "This file isn’t a project Montage can import. Exporting FCPXML or Final Cut Pro 7 XML from the other editor is the most dependable way to bring a project in."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このファイルはMontageで読み込めるプロジェクトではありません。Montageでは、Final Cut ProまたはLumaFusionのFCPXMLと、Premiere ProのFinal Cut Pro 7 XMLを読み込めます。"
+            "value" : "このファイルはMontageで読み込めるプロジェクトではありません。元の編集アプリからFCPXMLまたはFinal Cut Pro 7 XMLを書き出して読み込むのが、最も確実な方法です。"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此文件不是 Montage 可导入的项目。Montage 可导入来自 Final Cut Pro 或 LumaFusion 的 FCPXML，以及来自 Premiere Pro 的 Final Cut Pro 7 XML。"
+            "value" : "此文件不是 Montage 可导入的项目。从原来的剪辑应用导出 FCPXML 或 Final Cut Pro 7 XML 再导入，是最可靠的方式。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此檔案不是 Montage 可輸入的專案。Montage 可輸入來自 Final Cut Pro 或 LumaFusion 的 FCPXML，以及來自 Premiere Pro 的 Final Cut Pro 7 XML。"
+            "value" : "此檔案不是 Montage 可輸入的專案。從原本的剪輯 App 輸出 FCPXML 或 Final Cut Pro 7 XML 再輸入，是最可靠的方式。"
+          }
+        }
+      }
+    },
+    "Interchange.Format.EDL" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CMX 3600 EDL"
+          }
+        }
+      }
+    },
+    "Interchange.Format.AAF" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AAF"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AAF"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AAF"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AAF"
           }
         }
       }
@@ -494,6 +552,64 @@
         }
       }
     },
+    "Interchange.Format.OTIO" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO"
+          }
+        }
+      }
+    },
+    "Interchange.Format.PremierePro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Pro project"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Proプロジェクト"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Pro 项目"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Pro 專案"
+          }
+        }
+      }
+    },
     "Interchange.Format.XMEML" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -552,6 +668,35 @@
         }
       }
     },
+    "Interchange.Issue.BeforeMediaStart" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starts before its media’s timecode does, so it plays from the first frame of the media."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メディアのタイムコードより前から始まるため、メディアの最初のフレームから再生されます。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始时间早于媒体的时间码，因此从媒体的第一帧开始播放。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始時間早於媒體的時間碼，因此從媒體的第一個影格開始播放。"
+          }
+        }
+      }
+    },
     "Interchange.Issue.Caption" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -606,6 +751,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "片段已關閉，因此被略去。"
+          }
+        }
+      }
+    },
+    "Interchange.Issue.FrameRateAssumed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLs don’t record a frame rate, so the timecode was read at %@ fps. If the project was at another rate, its cuts may be off."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLにはフレームレートが記録されていないため、タイムコードは%@ fpsとして読み込まれました。プロジェクトが別のフレームレートだった場合、カットの位置がずれることがあります。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDL 不记录帧速率，因此时间码按 %@ fps 读取。如果项目使用其他帧速率，剪切点可能会有偏差。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDL 不會記錄影格速率，因此時間碼以 %@ fps 讀取。如果專案使用其他影格速率，剪接點可能會有偏差。"
+          }
+        }
+      }
+    },
+    "Interchange.Issue.FrameRateFromMedia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLs don’t record a frame rate, so the timecode was read at %@ fps, the frame rate of the media."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDLにはフレームレートが記録されていないため、タイムコードはメディアのフレームレートである%@ fpsとして読み込まれました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDL 不记录帧速率，因此时间码按媒体的帧速率 %@ fps 读取。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDL 不會記錄影格速率，因此時間碼以媒體的影格速率 %@ fps 讀取。"
           }
         }
       }
@@ -987,6 +1190,35 @@
         }
       }
     },
+    "Interchange.Issue.UnevenAveraged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ was different across and down, so the average of the two was used for both."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」の横方向と縦方向の値が異なっていたため、2つの平均値が両方向に使用されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”的横向和纵向值不同，因此两个方向都使用了二者的平均值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」的橫向和縱向值不同，因此兩個方向都使用了二者的平均值。"
+          }
+        }
+      }
+    },
     "Interchange.Issue.UnsupportedEffect" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1132,6 +1364,64 @@
         }
       }
     },
+    "LumaFusion.Error.OlderVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This project was saved by an older version of LumaFusion, which Montage can’t import from yet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトは古いバージョンのLumaFusionで保存されています。Montageはこのバージョンからの読み込みにまだ対応していません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目由旧版 LumaFusion 存储，Montage 暂不支持从此版本导入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案由舊版 LumaFusion 儲存，Montage 尚不支援從此版本輸入。"
+          }
+        }
+      }
+    },
+    "LumaFusion.Error.SaveAgain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the project in a current version of LumaFusion and share it as a project package again, or export it as Final Cut Pro XML (FCPXML), then import that file."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最新バージョンのLumaFusionでプロジェクトを開いてプロジェクトパッケージとして共有し直すか、Final Cut Pro XML（FCPXML）として書き出してから、そのファイルを読み込んでください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在最新版 LumaFusion 中打开项目，重新共享为项目包，或导出为 Final Cut Pro XML (FCPXML)，然后导入该文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在最新版 LumaFusion 中打開專案，重新分享為專案套件，或輸出為 Final Cut Pro XML（FCPXML），然後輸入該檔案。"
+          }
+        }
+      }
+    },
     "LumaFusion.Error.UnsupportedVersion" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1186,6 +1476,151 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此專案由 Montage 尚不支援輸入的 LumaFusion 版本儲存。"
+          }
+        }
+      }
+    },
+    "PremiereProject.Error.Damaged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Premiere Pro project is damaged or incomplete, so it can’t be imported."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このPremiere Proプロジェクトは破損しているか不完全なため、読み込めません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Premiere Pro 项目已损坏或不完整，因此无法导入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Premiere Pro 專案已損毀或不完整，因此無法輸入。"
+          }
+        }
+      }
+    },
+    "PremiereProject.Error.UnsupportedVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This project was saved by a version of Premiere Pro that Montage can’t import yet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトは、Montageでまだ読み込めないバージョンのPremiere Proで保存されています。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目由 Montage 尚无法导入的 Premiere Pro 版本存储。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案由 Montage 尚無法輸入的 Premiere Pro 版本儲存。"
+          }
+        }
+      }
+    },
+    "PremiereProject.Error.UseFinalCutXML" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Premiere Pro, choose File > Export > Final Cut Pro XML, then import that file instead."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiere Proで「ファイル」>「書き出し」>「Final Cut Pro XML」を選択し、そのファイルを代わりに読み込んでください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在 Premiere Pro 中选择“文件”>“导出”>“Final Cut Pro XML”，然后改为导入该文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在 Premiere Pro 中選擇「檔案」>「轉存」>「Final Cut Pro XML」，然後改為輸入該檔案。"
+          }
+        }
+      }
+    },
+    "PremiereProject.UnnamedAudioEffect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio effect"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オーディオエフェクト"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频效果"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音訊效果"
+          }
+        }
+      }
+    },
+    "PremiereProject.UnnamedVideoEffect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video effect"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオエフェクト"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频效果"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影片效果"
           }
         }
       }

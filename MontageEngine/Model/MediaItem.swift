@@ -20,10 +20,16 @@ public struct MediaItem: Identifiable, Equatable, Sendable {
     public var metadata: MediaMetadata
     /// The library's bin the item is filed in, or nil for none.
     public var binID: MediaBin.ID?
+    /// How the source points of the item's clips were counted, when they
+    /// were given in the timecode of a file that hasn't been found yet, as
+    /// an edit decision list gives them. They're moved onto the file once
+    /// it's found and its start timecode known. Until then the item's
+    /// metadata is a stand-in, not read from the file.
+    public var sourceTimecode: SourceTimecode?
 
     public init(
         id: ID = UUID(), name: String, kind: Kind, location: MediaLocation, metadata: MediaMetadata,
-        binID: MediaBin.ID? = nil
+        binID: MediaBin.ID? = nil, sourceTimecode: SourceTimecode? = nil
     ) {
         self.id = id
         self.name = name
@@ -31,10 +37,41 @@ public struct MediaItem: Identifiable, Equatable, Sendable {
         self.location = location
         self.metadata = metadata
         self.binID = binID
+        self.sourceTimecode = sourceTimecode
+    }
+
+    /// How timecode was counted into times.
+    public struct SourceTimecode: Equatable, Sendable {
+        /// How long each frame lasts: 1001/30000 for 29.97.
+        public var frameDuration: CMTime
+        public var isDropFrame: Bool
+
+        public init(frameDuration: CMTime, isDropFrame: Bool) {
+            self.frameDuration = frameDuration
+            self.isDropFrame = isDropFrame
+        }
     }
 }
 
 extension MediaItem: Codable {}
+
+extension MediaItem.SourceTimecode: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case frameDuration, isDropFrame
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        frameDuration = try container.decode(CMTime.self, forKey: .frameDuration)
+        isDropFrame = try container.decode(Bool.self, forKey: .isDropFrame)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(frameDuration, forKey: .frameDuration)
+        try container.encode(isDropFrame, forKey: .isDropFrame)
+    }
+}
 
 extension MediaItem {
     /// What a clip of the item holds: a still for an image, else media.
@@ -94,11 +131,13 @@ public struct MediaMetadata: Equatable, Sendable {
     /// Audio channels in the main audio track. Zero without audio.
     public var audioChannelCount: Int
     public var audioSampleRate: Double
+    /// The timecode the file starts at, if it has one.
+    public var timecode: MediaTimecode?
 
     public init(
         duration: CMTime = .zero, naturalSize: CGSize = .zero, rotation: Int = 0,
         nominalFrameRate: Double = 0, isVariableFrameRate: Bool = false,
-        audioChannelCount: Int = 0, audioSampleRate: Double = 0
+        audioChannelCount: Int = 0, audioSampleRate: Double = 0, timecode: MediaTimecode? = nil
     ) {
         self.duration = duration
         self.naturalSize = naturalSize
@@ -107,6 +146,7 @@ public struct MediaMetadata: Equatable, Sendable {
         self.isVariableFrameRate = isVariableFrameRate
         self.audioChannelCount = audioChannelCount
         self.audioSampleRate = audioSampleRate
+        self.timecode = timecode
     }
 
     public var hasVideo: Bool { naturalSize != .zero }
@@ -120,7 +160,7 @@ public struct MediaMetadata: Equatable, Sendable {
 
 extension MediaMetadata: Codable {
     private enum CodingKeys: String, CodingKey {
-        case duration, naturalSize, rotation, nominalFrameRate, isVariableFrameRate, audioChannelCount, audioSampleRate
+        case duration, naturalSize, rotation, nominalFrameRate, isVariableFrameRate, audioChannelCount, audioSampleRate, timecode
     }
 
     public init(from decoder: Decoder) throws {
@@ -132,6 +172,7 @@ extension MediaMetadata: Codable {
         isVariableFrameRate = try container.decodeIfPresent(Bool.self, forKey: .isVariableFrameRate) ?? false
         audioChannelCount = try container.decodeIfPresent(Int.self, forKey: .audioChannelCount) ?? 0
         audioSampleRate = try container.decodeIfPresent(Double.self, forKey: .audioSampleRate) ?? 0
+        timecode = try container.decodeIfPresent(MediaTimecode.self, forKey: .timecode)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -143,5 +184,6 @@ extension MediaMetadata: Codable {
         try container.encode(isVariableFrameRate, forKey: .isVariableFrameRate)
         try container.encode(audioChannelCount, forKey: .audioChannelCount)
         try container.encode(audioSampleRate, forKey: .audioSampleRate)
+        try container.encodeIfPresent(timecode, forKey: .timecode)
     }
 }

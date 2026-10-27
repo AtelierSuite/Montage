@@ -1,5 +1,6 @@
 import Compression
 import Foundation
+import zlib
 
 /// Reads a ZIP archive through its central directory, a file at a time, so
 /// an archive of several gigabytes is never held in memory. Entries stored
@@ -118,15 +119,44 @@ final class ZipArchive {
         }
     }
 
-    /// Writes every file in the archive into `folder`, or those `include`
-    /// takes, keeping the folders they're in. Entries whose path would land
-    /// outside the folder, and the resource forks Finder adds, are passed
-    /// over. Returns the files written.
+    /// Writes every file in the archive into `folder`, keeping the folders
+    /// they're in. Entries whose path would land outside the folder, and the
+    /// resource forks Finder adds, are passed over. Returns the files written.
+    ///
+    /// An archive whose files wouldn't fit on the folder's volume is refused
+    /// before any is written, as an entry's contents are only checked once
+    /// they've all been. One with a file where another entry has a folder
+    /// is damaged.
     @discardableResult
-    func extractAll(into folder: URL, where include: (Entry) -> Bool = { _ in true }) throws -> [URL] {
+    func extractAll(into folder: URL) throws -> [URL] {
+        let files = entries.compactMap { entry -> (entry: Entry, components: [String])? in
+            guard !entry.isDirectory, let components = Self.safeComponents(of: entry.path),
+                  components.first != "__MACOSX", components.last?.hasPrefix("._") == false else { return nil }
+            return (entry, components)
+        }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let total = try files.reduce(UInt64(0)) { total, file in
+            let (sum, overflow) = total.addingReportingOverflow(file.entry.size)
+            guard !overflow else { throw Error.damaged }
+            return sum
+        }
+        if let free = try? folder.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            .volumeAvailableCapacityForImportantUsage, total > UInt64(max(free, 0)) {
+            throw CocoaError(.fileWriteOutOfSpace, userInfo: [NSFilePathErrorKey: folder.path])
+        }
+
         var written: [URL] = []
-        for entry in entries where include(entry) {
-            guard let components = Self.unpackedComponents(of: entry) else { continue }
+        // By lowercased path, as the volume may not tell case apart.
+        var filePaths: Set<String> = []
+        var folderPaths: Set<String> = []
+        for (entry, components) in files {
+            let lowercased = components.map { $0.lowercased() }
+            let parents = lowercased.indices.dropLast().map { lowercased[...$0].joined(separator: "/") }
+            let path = lowercased.joined(separator: "/")
+            guard !folderPaths.contains(path), !parents.contains(where: filePaths.contains) else { throw Error.damaged }
+            filePaths.insert(path)
+            folderPaths.formUnion(parents)
+
             let destination = components.reduce(folder) { $0.appending(path: $1) }
             try FileManager.default.createDirectory(
                 at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
@@ -135,14 +165,6 @@ final class ZipArchive {
             written.append(destination)
         }
         return written
-    }
-
-    /// The folder and file names a file entry is unpacked to by
-    /// `extractAll`, or nil for one it passes over.
-    static func unpackedComponents(of entry: Entry) -> [String]? {
-        guard !entry.isDirectory, let components = safeComponents(of: entry.path),
-              components.first != "__MACOSX", components.last?.hasPrefix("._") == false else { return nil }
-        return components
     }
 
     /// An entry's path as folder and file names that stay inside the folder
@@ -195,6 +217,9 @@ final class ZipArchive {
 
     /// Raw deflate, which is what the Compression framework's zlib is.
     private func inflate(from offset: UInt64, compressedSize: UInt64, consume: (UnsafeRawBufferPointer) throws -> Void) throws {
+        // Some tools write an empty file as deflated with no stream at all:
+        // nothing comes out, and its size says whether that's right.
+        guard compressedSize > 0 else { return }
         let stream = UnsafeMutablePointer<compression_stream>.allocate(capacity: 1)
         defer { stream.deallocate() }
         guard compression_stream_init(stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB) == COMPRESSION_STATUS_OK else {
@@ -359,22 +384,23 @@ final class ZipArchive {
     }
 }
 
-/// The CRC-32 that ZIP checks each entry's contents against.
+/// The CRC-32 that ZIP checks each entry's contents against, worked out by
+/// zlib's, which is far quicker than a byte at a time.
 struct CRC32 {
     private(set) var value: UInt32 = 0
 
-    private static let table: [UInt32] = (0..<256).map { index in
-        (0..<8).reduce(UInt32(index)) { crc, _ in crc & 1 == 1 ? 0xEDB8_8320 ^ (crc >> 1) : crc >> 1 }
-    }
-
     mutating func update(_ buffer: UnsafeRawBufferPointer) {
-        var crc = ~value
-        Self.table.withUnsafeBufferPointer { table in
-            for byte in buffer {
-                crc = table[Int((crc ^ UInt32(byte)) & 0xFF)] ^ (crc >> 8)
-            }
+        guard var bytes = buffer.baseAddress?.assumingMemoryBound(to: Bytef.self) else { return }
+        var remaining = buffer.count
+        var crc = uLong(value)
+        // zlib takes a 32-bit length.
+        while remaining > 0 {
+            let count = min(remaining, Int(UInt32.max))
+            crc = zlib.crc32(crc, bytes, uInt(count))
+            bytes += count
+            remaining -= count
         }
-        value = ~crc
+        value = UInt32(crc)
     }
 
     static func checksum(_ data: Data) -> UInt32 {
