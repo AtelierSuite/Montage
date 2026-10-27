@@ -13,8 +13,9 @@ import MontageEngine
 ///
 /// Each event's file is named in `* FROM CLIP NAME:` and `* SOURCE FILE:`
 /// comments, as Premiere Pro and Resolve write them, under the reel "AX".
-/// Record timecode starts at 01:00:00:00, and source timecode is the time
-/// into the media. Markers go out as `* LOC:` comments.
+/// Record timecode starts at 01:00:00:00, and source timecode is the
+/// media's own: the time into it, after the timecode it starts at, if it
+/// has one. Markers go out as `* LOC:` comments.
 struct EDLExporter {
     let project: Project
     let name: String
@@ -111,11 +112,19 @@ struct EDLExporter {
         let recordIn = rate.frames(clip.timelineStart)
         let recordOut = rate.frames(clip.timelineRange.end)
         guard recordOut > recordIn else { return nil }
-        let sourceIn = clip.content.hasSourceTime ? max(0, rate.frames(clip.sourceRange.start)) : 0
+        let sourceIn = clip.content.hasSourceTime ? max(0, rate.frames(clip.sourceRange.start)) + sourceStart(of: item) : 0
         return Event(
             recordIn: hour + recordIn, recordOut: hour + recordOut, sourceIn: sourceIn, track: track, isVideo: isVideo,
             clipName: Self.oneLine(item.name), sourceFile: Self.oneLine(sourceFile(for: item))
         )
+    }
+
+    /// The timecode the media starts at, in frames, as its source points
+    /// are counted from it.
+    private func sourceStart(of item: MediaItem) -> Int {
+        // Clips still in timecode, of a file not yet found, are counted from it already.
+        guard item.sourceTimecode == nil, let timecode = item.metadata.timecode else { return 0 }
+        return timecode.frameCount(at: rate, dropFrame: isDropFrame)
     }
 
     /// Where the media's file is, for the editor reading the list to find
