@@ -13,8 +13,9 @@ extension UTType {
 /// FCPXML, and Premiere Pro and Final Cut Pro 7 through Final Cut Pro 7 XML.
 public enum ProjectInterchange {
     /// The kinds of file a project can be imported from. Final Cut Pro 7 XML
-    /// has no type of its own, so any XML file is offered.
-    public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle, .xml]
+    /// has no type of its own, so any XML file is offered. LumaFusion
+    /// packages are imported with `importLumaFusionPackage`.
+    public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle, .xml, .lumaFusionPackage]
 
     // MARK: - Importing
 
@@ -46,10 +47,14 @@ public enum ProjectInterchange {
     /// project said it was, then by name in `searchFolders` (such as the
     /// folder the project was in). Media that isn't found stays as it is, its
     /// file missing, ready to be relinked, and is listed in the report.
+    ///
+    /// `staged` holds files already staged for items, at their paths in the
+    /// package, as those unpacked from the archive a project came in are:
+    /// they're taken ahead of looking anywhere else.
     @concurrent
     public static func gatherMedia(
         for imported: ImportedProject, into store: PackageMediaStore, takenPaths: Set<String> = [],
-        searchFolders: [URL] = []
+        searchFolders: [URL] = [], staged: [MediaItem.ID: String] = [:]
     ) async -> ImportedProject {
         var imported = imported
         var taken = takenPaths
@@ -63,19 +68,14 @@ public enum ProjectInterchange {
             }).filter(\.isFileURL)
 
             var found = false
-            for candidate in candidates where FileManager.default.isReadableFile(atPath: candidate.path) {
+            if let path = staged[item.id] {
+                found = await adopt(path, forItemAt: index, in: &imported, store: store)
+                if found { taken.insert(path) }
+            }
+            for candidate in candidates where !found && FileManager.default.isReadableFile(atPath: candidate.path) {
                 guard let path = try? stageCoordinated(candidate, store: store, takenPaths: taken) else { continue }
-                guard let staged = store.stagedURL(forPackagePath: path),
-                      let probed = try? await MediaProbe.probe(staged) else {
-                    store.discardStaged(path)
-                    continue
-                }
-                imported.project.media[index].location = .package(path: path)
-                imported.project.media[index].kind = probed.kind
-                imported.project.media[index].metadata = probed.metadata
-                taken.insert(path)
-                found = true
-                break
+                found = await adopt(path, forItemAt: index, in: &imported, store: store)
+                if found { taken.insert(path) }
             }
             if !found {
                 let file = source.map { $0.isFileURL ? $0.path : $0.absoluteString } ?? item.name
@@ -91,6 +91,21 @@ public enum ProjectInterchange {
             taken.insert(fresh)
         }
         return imported
+    }
+
+    /// Points an item at a file staged for it, at `path`, with what the file
+    /// turns out to be; throws the file away if it can't be read as media.
+    private static func adopt(
+        _ path: String, forItemAt index: Int, in imported: inout ImportedProject, store: PackageMediaStore
+    ) async -> Bool {
+        guard let staged = store.stagedURL(forPackagePath: path), let probed = try? await MediaProbe.probe(staged) else {
+            store.discardStaged(path)
+            return false
+        }
+        imported.project.media[index].location = .package(path: path)
+        imported.project.media[index].kind = probed.kind
+        imported.project.media[index].metadata = probed.metadata
+        return true
     }
 
     /// Copies a file into staging, coordinated, so a file in cloud storage

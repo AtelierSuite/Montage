@@ -291,6 +291,35 @@
         }
       }
     },
+    "Interchange.Format.LumaFusion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusion"
+          }
+        }
+      }
+    },
     "Interchange.Format.XMEML" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -784,6 +813,35 @@
         }
       }
     },
+    "Interchange.Issue.UnevenAveraged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ was different across and down, so the average of the two was used for both."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」の横方向と縦方向の値が異なっていたため、2つの平均値が両方向に使用されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”的横向和纵向值不同，因此两个方向都使用了二者的平均值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」的橫向和縱向值不同，因此兩個方向都使用了二者的平均值。"
+          }
+        }
+      }
+    },
     "Interchange.Issue.UnsupportedEffect" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -809,6 +867,238 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Montage 中沒有與「%@」對應的效果。它會以關閉狀態保留在片段上。"
+          }
+        }
+      }
+    },
+    "LumaFusion.Error.Damaged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This LumaFusion project package is damaged or incomplete, and can’t be read."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このLumaFusionプロジェクトパッケージは破損しているか不完全なため、読み込めません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 LumaFusion 项目包已损坏或不完整，无法读取。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 LumaFusion 專案套件已損毀或不完整，無法讀取。"
+          }
+        }
+      }
+    },
+    "LumaFusion.Error.ExportFCPXML" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In LumaFusion, export the project as Final Cut Pro XML (FCPXML), then import that file instead."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LumaFusionでプロジェクトをFinal Cut Pro XML（FCPXML）として書き出し、そのファイルを読み込んでください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在 LumaFusion 中将项目导出为 Final Cut Pro XML (FCPXML)，然后导入该文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在 LumaFusion 中將專案輸出為 Final Cut Pro XML（FCPXML），然後輸入該檔案。"
+          }
+        }
+      }
+    },
+    "LumaFusion.Error.NoProject" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There’s no LumaFusion project in this archive."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このアーカイブにはLumaFusionのプロジェクトが含まれていません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此归档中没有 LumaFusion 项目。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此封存中沒有 LumaFusion 專案。"
+          }
+        }
+      }
+    },
+    "LumaFusion.Error.NotAPackage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file isn’t a LumaFusion project package."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このファイルはLumaFusionのプロジェクトパッケージではありません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此文件不是 LumaFusion 项目包。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此檔案不是 LumaFusion 專案套件。"
+          }
+        }
+      }
+    },
+    "LumaFusion.Error.OlderVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This project was saved by an older version of LumaFusion, which Montage can’t import from yet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトは古いバージョンのLumaFusionで保存されています。Montageはこのバージョンからの読み込みにまだ対応していません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目由旧版 LumaFusion 存储，Montage 暂不支持从此版本导入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案由舊版 LumaFusion 儲存，Montage 尚不支援從此版本輸入。"
+          }
+        }
+      }
+    },
+    "LumaFusion.Error.SaveAgain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the project in a current version of LumaFusion and share it as a project package again, or export it as Final Cut Pro XML (FCPXML), then import that file."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最新バージョンのLumaFusionでプロジェクトを開いてプロジェクトパッケージとして共有し直すか、Final Cut Pro XML（FCPXML）として書き出してから、そのファイルを読み込んでください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在最新版 LumaFusion 中打开项目，重新共享为项目包，或导出为 Final Cut Pro XML (FCPXML)，然后导入该文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在最新版 LumaFusion 中打開專案，重新分享為專案套件，或輸出為 Final Cut Pro XML（FCPXML），然後輸入該檔案。"
+          }
+        }
+      }
+    },
+    "LumaFusion.Error.UnsupportedVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This project was saved by LumaFusion %@, which Montage can’t import from yet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトはLumaFusion %@で保存されています。Montageはこのバージョンからの読み込みにまだ対応していません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目由 LumaFusion %@ 存储，Montage 暂不支持从此版本导入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案由 LumaFusion %@ 儲存，Montage 尚不支援從此版本輸入。"
+          }
+        }
+      }
+    },
+    "LumaFusion.Error.UnsupportedVersionUnknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This project was saved by a version of LumaFusion that Montage can’t import from yet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロジェクトは、Montageがまだ読み込みに対応していないバージョンのLumaFusionで保存されています。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目由 Montage 暂不支持导入的 LumaFusion 版本存储。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案由 Montage 尚不支援輸入的 LumaFusion 版本儲存。"
           }
         }
       }

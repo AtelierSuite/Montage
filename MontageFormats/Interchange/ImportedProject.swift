@@ -28,13 +28,15 @@ struct ImportedMedia {
     private var takenPaths: Set<String> = []
 
     /// The item for a file, made the first time the file is seen. `key`
-    /// tells files apart where there's no URL to.
+    /// tells files apart where there's no URL to. The item is named after
+    /// the URL's file, or with `keepsName`, as when a package stores the
+    /// file under a name of its own, `name` all the same.
     mutating func item(
-        key: String, url: URL?, name: String, kind: MediaItem.Kind, metadata: MediaMetadata
+        key: String, url: URL?, name: String, keepsName: Bool = false, kind: MediaItem.Kind, metadata: MediaMetadata
     ) -> MediaItem {
         let key = url?.absoluteString ?? key
         if let id = idsByKey[key], let item = items.first(where: { $0.id == id }) { return item }
-        let fileName = url.map { $0.lastPathComponent } ?? name
+        let fileName = keepsName ? name : url.map { $0.lastPathComponent } ?? name
         let path = ProjectPackage.uniqueMediaPath(for: fileName.isEmpty ? name : fileName, avoiding: takenPaths)
         takenPaths.insert(path)
         let item = MediaItem(name: fileName.isEmpty ? name : fileName, kind: kind, location: .package(path: path), metadata: metadata)
@@ -42,6 +44,13 @@ struct ImportedMedia {
         idsByKey[key] = item.id
         if let url { sources[item.id] = url }
         return item
+    }
+
+    /// Puts back an item made earlier, changed: one first taken for a sound
+    /// file that turns out to have a picture.
+    mutating func update(_ item: MediaItem) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[index] = item
     }
 
     /// A file reference as a URL: a URL as written, or a path, which is
