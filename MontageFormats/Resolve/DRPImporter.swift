@@ -359,6 +359,9 @@ struct DRPImporter {
         if let angle {
             sequenceTracks = sequenceTracks.filter { $0.kind == angle.kind && Self.angleID(of: $0.element) == angle.id }
         }
+        // Pictures first, so the sound linked to one is merged into it before
+        // its own track would import it, whatever order the tracks came in.
+        sequenceTracks = sequenceTracks.filter { $0.kind == .video } + sequenceTracks.filter { $0.kind != .video }
         // An angle's picture plays without its sound, which is an angle of its own.
         let audioItems = angle != nil ? [] : sequenceTracks.filter { $0.kind == .audio }.flatMap { Self.items(of: $0.element) }
         var videoIndex = 0, audioIndex = 0

@@ -158,6 +158,28 @@ struct DRPImportTests {
         #expect(!issues.contains(.transition(name: "Dip To Color Dissolve")))
         #expect(project.report.items.filter { $0.issue == .caption }.map(\.time) == [.zero])
     }
+
+    /// Picture and sound linked in step are one clip, whichever kind of
+    /// track the container lists first.
+    @Test func mergesLinkedSoundListedBeforeItsPicture() throws {
+        var builder = DRPTestBuilder()
+        let video = DRPTestBuilder.track(0, sequence: "seq-edit", items: [
+            DRPTestBuilder.item("Sm2TiVideoClip", id: "item-a001", start: 86400, duration: 48, inPoint: "24",
+                                media: "media-a001", name: "A001.mov"),
+        ])
+        let audio = DRPTestBuilder.track(1, sequence: "seq-edit", items: [
+            DRPTestBuilder.item("Sm2TiAudioClip", id: "item-a001-sound", start: 86400, duration: 48, inPoint: "24",
+                                media: "media-a001", name: "A001.mov"),
+        ])
+        builder.overrides["SeqContainer/0b6f0e2c-edit.xml"] = #"<?xml version="1.0" encoding="UTF-8"?>"# + """
+            <Sm2SequenceContainer DbId="container-edit"><FieldsBlob/><AudioTrackVec>\(audio)</AudioTrackVec>\
+            <VideoTrackVec>\(video)</VideoTrackVec><SubtitleTrackVec></SubtitleTrackVec></Sm2SequenceContainer>
+            """
+        let project = try DRPImporter.read(builder.archive(), baseURL: nil)
+        let picture = try #require(project.project.tracks.first { $0.kind == .video }?.clips.first)
+        #expect(!picture.isAudioDetached)
+        #expect(project.project.tracks.filter { $0.kind == .audio }.flatMap(\.clips).isEmpty)
+    }
 }
 
 /// Projects that can't be read, and are refused with a reason.
