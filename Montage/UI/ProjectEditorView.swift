@@ -38,6 +38,7 @@ struct ProjectEditorView: View {
     @State private var isImportingProject = false
     @State private var isExportingFCPXML = false
     @State private var isExportingEDL = false
+    @State private var isExportingOTIO = false
     /// The document's location while it's being read from, for media in it.
     @State private var accessedURL: URL?
 
@@ -184,7 +185,8 @@ struct ProjectEditorView: View {
         }
         .projectInterchange(
             editor: editor, importer: importer, title: projectTitle,
-            isImporting: $isImportingProject, isExporting: $isExportingFCPXML, isExportingEDL: $isExportingEDL
+            isImporting: $isImportingProject, isExporting: $isExportingFCPXML, isExportingEDL: $isExportingEDL,
+            isExportingOTIO: $isExportingOTIO
         )
     }
 
@@ -289,6 +291,8 @@ struct ProjectEditorView: View {
                 Button("Toolbar.ExportFCPXML", systemImage: "film.stack") { isExportingFCPXML = true }
                     .disabled(!editor.canExport)
                 Button("Toolbar.ExportEDL", systemImage: "list.bullet.rectangle") { isExportingEDL = true }
+                    .disabled(!editor.canExport)
+                Button("Toolbar.ExportOTIO", systemImage: "square.stack.3d.up") { isExportingOTIO = true }
                     .disabled(!editor.canExport)
             }
         }

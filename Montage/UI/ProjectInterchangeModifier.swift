@@ -5,15 +5,16 @@ import UniformTypeIdentifiers
 
 extension View {
     /// Importing another editor's project, and exporting this one as FCPXML
-    /// or an EDL, from the "…" menu: the file pickers, the question before a project
+    /// or OpenTimelineIO, or as an EDL, from the "…" menu: the file pickers, the question before a project
     /// with something in it is replaced, and the report afterwards.
     func projectInterchange(
         editor: ProjectEditor, importer: MediaImporter, title: String,
-        isImporting: Binding<Bool>, isExporting: Binding<Bool>, isExportingEDL: Binding<Bool>
+        isImporting: Binding<Bool>, isExporting: Binding<Bool>, isExportingEDL: Binding<Bool>,
+        isExportingOTIO: Binding<Bool>
     ) -> some View {
         modifier(ProjectInterchangeModifier(
             editor: editor, importer: importer, title: title, isImporting: isImporting, isExporting: isExporting,
-            isExportingEDL: isExportingEDL
+            isExportingEDL: isExportingEDL, isExportingOTIO: isExportingOTIO
         ))
     }
 }
@@ -25,6 +26,7 @@ private struct ProjectInterchangeModifier: ViewModifier {
     @Binding var isImporting: Bool
     @Binding var isExporting: Bool
     @Binding var isExportingEDL: Bool
+    @Binding var isExportingOTIO: Bool
 
     @State private var projectImport: ProjectImport?
     /// The file chosen to import, waiting on the question before replacing.
@@ -86,6 +88,12 @@ private struct ProjectInterchangeModifier: ViewModifier {
                 isShowingExporter = true
                 isExportingEDL = false
             }
+            .onChange(of: isExportingOTIO) { _, wantsExport in
+                guard wantsExport else { return }
+                exported = InterchangeFile(data: editor.otio(named: title), contentType: .otio, fileExtension: "otio", omission: nil)
+                isShowingExporter = true
+                isExportingOTIO = false
+            }
             .fileExporter(
                 isPresented: $isShowingExporter, document: exported, contentType: exported?.contentType ?? .fcpxml,
                 defaultFilename: "\(title).\(exported?.fileExtension ?? "fcpxml")"
@@ -133,10 +141,10 @@ private struct ProjectInterchangeModifier: ViewModifier {
     }
 }
 
-/// An exported FCPXML or EDL file, for the file exporter to save, with
-/// what it had to leave out.
+/// An exported FCPXML, EDL or OpenTimelineIO file, for the file exporter
+/// to save, with what it had to leave out.
 private struct InterchangeFile: FileDocument {
-    static let readableContentTypes: [UTType] = [.fcpxml, .edl]
+    static let readableContentTypes: [UTType] = [.fcpxml, .edl, .otio]
 
     let data: Data
     var contentType: UTType = .fcpxml

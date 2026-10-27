@@ -91,6 +91,49 @@ struct ZipArchiveTests {
         #expect(ZipArchive.safeComponents(of: "Media/../../Clip.mov") == nil)
         #expect(ZipArchive.safeComponents(of: "/etc/passwd") == nil)
         #expect(ZipArchive.safeComponents(of: "..\\Clip.mov") == nil)
+
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = try TestZip.write([
+            TestZip.File("../Escaped.txt", "out"),
+            TestZip.File("__MACOSX/._Clip.mov", "fork"),
+            TestZip.File("Inside.txt", "in"),
+        ], named: "Paths.zip", in: folder)
+        let unpacked = folder.appending(path: "Unpacked", directoryHint: .isDirectory)
+        let written = try ZipArchive(url: url).extractAll(into: unpacked)
+        #expect(written.map(\.lastPathComponent) == ["Inside.txt"])
+        #expect(!FileManager.default.fileExists(atPath: folder.appending(path: "Escaped.txt").path))
+    }
+
+    /// An archive whose entries say they hold more than the disk has room
+    /// for, as one made to fill it does, is refused before anything's written.
+    @Test func refusesAnArchiveTooLargeToUnpack() throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var data = try TestZip.archive([TestZip.File("Huge.bin", Self.text, deflated: true)], zip64: true)
+        // The ZIP64 field's size, past the central header and the name.
+        let central = try #require(data.firstRange(of: Data([0x50, 0x4B, 0x01, 0x02]))).lowerBound
+        let size = central + 46 + "Huge.bin".utf8.count + 4
+        withUnsafeBytes(of: (UInt64(1) << 60).littleEndian) { data.replaceSubrange(size..<(size + 8), with: $0) }
+        let url = folder.appending(path: "Huge.zip")
+        try data.write(to: url)
+
+        let unpacked = folder.appending(path: "Unpacked", directoryHint: .isDirectory)
+        #expect(throws: CocoaError(.fileWriteOutOfSpace, userInfo: [NSFilePathErrorKey: unpacked.path])) {
+            try ZipArchive(url: url).extractAll(into: unpacked)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: unpacked.path).isEmpty)
+    }
+
+    /// A file where another entry has a folder, whichever comes first.
+    @Test(arguments: [["Media", "Media/Clip.mov"], ["Media/Clip.mov", "media"]])
+    func refusesAFileWhereAFolderIs(paths: [String]) throws {
+        let folder = try TestZip.temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = try TestZip.write(paths.map { TestZip.File($0, "a") }, named: "Clash.zip", in: folder)
+        #expect(throws: ZipArchive.Error.damaged) {
+            try ZipArchive(url: url).extractAll(into: folder.appending(path: "Unpacked", directoryHint: .isDirectory))
+        }
     }
 
     @Test func checksumsMatchZlibs() {

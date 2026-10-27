@@ -22,6 +22,60 @@ public struct ImportedProject: Sendable {
     /// rate or the timecode its files start at. `ProjectInterchange.gatherMedia`
     /// calls it last.
     var conformToMedia: (@Sendable (ImportedProject) -> ImportedProject)?
+    /// Clips moved by fractions of their picture fitted into the frame, as
+    /// Resolve moves them, but placed as though their picture were of the
+    /// frame's shape, until its media is probed.
+    var picturePlacedClips: Set<Clip.ID> = []
+    /// Media whose clips' times may be by its timecode, as the file didn't
+    /// say where the media's own time starts.
+    var untimedMedia: Set<MediaItem.ID> = []
+}
+
+extension ImportedProject {
+    /// Moves the clips placed as though their picture were of the frame's
+    /// shape by fractions of their picture as probed: as far as it reaches
+    /// across and down once fitted into the frame. A picture whose media
+    /// wasn't found stays taken to be the frame's shape.
+    mutating func placeByProbedPictures() {
+        let frame = project.settings.renderSize
+        guard !picturePlacedClips.isEmpty, frame.width > 0, frame.height > 0 else { return }
+        for track in project.tracks.indices {
+            for clip in project.tracks[track].clips where picturePlacedClips.contains(clip.id) {
+                guard let picture = project.media.first(where: { $0.id == clip.mediaID })?.metadata.presentationSize,
+                      picture.width > 0, picture.height > 0 else { continue }
+                let fit = min(frame.width / picture.width, frame.height / picture.height)
+                let reach = CGSize(width: picture.width * fit / frame.width, height: picture.height * fit / frame.height)
+                func placed(_ point: CGPoint) -> CGPoint {
+                    CGPoint(x: 0.5 + (point.x - 0.5) * reach.width, y: 0.5 + (point.y - 0.5) * reach.height)
+                }
+                let position = clip.transform.position
+                project.tracks[track].update(clip.id) { clip in
+                    clip.transform.position = Animatable(placed(position.value), keyframes: position.keyframes.map {
+                        Keyframe(time: $0.time, value: placed($0.value), interpolation: $0.interpolation)
+                    })
+                }
+            }
+        }
+        picturePlacedClips = []
+    }
+
+    /// Takes the start of each media's timecode, from `starts`, off its
+    /// clips' times, where they run past the end of the media as they are
+    /// but fit it counted from its timecode: they were given by timecode.
+    mutating func startClipsAtTimecode(_ starts: [MediaItem.ID: CMTime]) {
+        for (id, start) in starts where start > .zero {
+            guard let duration = project.media.first(where: { $0.id == id })?.metadata.duration, duration > .zero else { continue }
+            let clips = project.tracks.flatMap(\.clips).filter { $0.mediaID == id }
+            guard clips.contains(where: { $0.sourceRange.end > duration }),
+                  clips.allSatisfy({ CMTimeRange(start: start, duration: duration).containsTimeRange($0.sourceRange) }) else { continue }
+            for track in project.tracks.indices {
+                for clip in project.tracks[track].clips where clip.mediaID == id {
+                    project.tracks[track].update(clip.id) { $0.sourceRange.start = $0.sourceRange.start - start }
+                }
+            }
+        }
+        untimedMedia = []
+    }
 }
 
 /// The media an importer comes across, one item for each file however many

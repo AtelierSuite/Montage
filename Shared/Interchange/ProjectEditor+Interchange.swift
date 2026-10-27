@@ -38,4 +38,9 @@ extension ProjectEditor {
     func edl(named name: String) -> Data {
         ProjectInterchange.edl(for: project, named: name, mediaResolver: mediaResolver)
     }
+
+    /// The project as OpenTimelineIO, for Resolve, Premiere Pro and others.
+    func otio(named name: String) -> Data {
+        ProjectInterchange.otio(for: project, named: name, mediaResolver: mediaResolver)
+    }
 }

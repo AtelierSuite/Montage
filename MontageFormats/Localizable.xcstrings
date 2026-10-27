@@ -349,6 +349,35 @@
         }
       }
     },
+    "Interchange.Format.OTIO" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenTimelineIO"
+          }
+        }
+      }
+    },
     "Interchange.Format.XMEML" : {
       "extractionState" : "manual",
       "localizations" : {

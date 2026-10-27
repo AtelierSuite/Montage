@@ -5,7 +5,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// File > Import Project, File > Export Final Cut Pro XML and File > Export
-/// EDL: projects to and from other editors.
+/// EDL and File > Export OpenTimelineIO: projects to and from other editors.
 extension ProjectWindowController {
     // MARK: - Importing
 
@@ -113,5 +113,11 @@ extension ProjectWindowController {
                 }
             }
         }
+    }
+
+    /// Writes the project as OpenTimelineIO, to open in Resolve, Premiere
+    /// Pro and other apps that read it.
+    @objc func exportOTIO(_ sender: Any?) {
+        export(as: .otio, fileExtension: "otio", contents: { $0.otio(named: $1) }, omission: { _ in nil })
     }
 }

@@ -1,3 +1,4 @@
+import CoreMedia
 import Foundation
 import MontageEngine
 import UniformTypeIdentifiers
@@ -9,6 +10,8 @@ extension UTType {
     public static let fcpxmlBundle = UTType(importedAs: "com.apple.finalcutpro.xmld", conformingTo: .package)
     /// A CMX 3600 edit decision list, which has no system type.
     public static let edl = UTType(importedAs: "com.cmx.edl", conformingTo: .plainText)
+    /// An OpenTimelineIO timeline, as JSON.
+    public static let otio = UTType(importedAs: "io.aswf.opentimelineio", conformingTo: .json)
 }
 
 /// Projects to and from other editors: Final Cut Pro and LumaFusion through
@@ -16,8 +19,11 @@ extension UTType {
 public enum ProjectInterchange {
     /// The kinds of file a project can be imported from. Final Cut Pro 7 XML
     /// has no type of its own, so any XML file is offered. LumaFusion
-    /// packages are imported with `importLumaFusionPackage`.
-    public static let importableTypes: [UTType] = [.fcpxml, .fcpxmlBundle, .xml, .edl, .lumaFusionPackage]
+    /// packages are imported with `importLumaFusionPackage`, and OTIO bundles
+    /// with `importOTIOBundle`.
+    public static let importableTypes: [UTType] = [
+        .fcpxml, .fcpxmlBundle, .xml, .edl, .lumaFusionPackage, .otio, .otioz, .otiod,
+    ]
 
     // MARK: - Importing
 
@@ -29,13 +35,19 @@ public enum ProjectInterchange {
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             file = url.appending(path: "Info.fcpxml", directoryHint: .notDirectory)
         }
-        return try read(try Data(contentsOf: file), baseURL: file.deletingLastPathComponent())
+        var imported = try read(try Data(contentsOf: file), baseURL: file.deletingLastPathComponent())
+        // A timeline with no name of its own takes the file's.
+        if imported.name?.trimmingCharacters(in: .whitespaces).isEmpty ?? true {
+            imported.name = url.deletingPathExtension().lastPathComponent
+        }
+        return imported
     }
 
     /// Reads another editor's project. Media referred to by relative paths
     /// is taken from `baseURL`, the folder the file was in.
     public static func read(_ data: Data, baseURL: URL? = nil) throws -> ImportedProject {
         if EDLImporter.canRead(data) { return try EDLImporter.read(data, baseURL: baseURL) }
+        if OTIOImporter.isJSON(data) { return try OTIOImporter.read(data, baseURL: baseURL) }
         let root = try MarkupElement.parse(data)
         switch root.name {
         case "fcpxml": return try FCPXMLImporter.read(root, baseURL: baseURL)
@@ -54,6 +66,9 @@ public enum ProjectInterchange {
     /// `staged` holds files already staged for items, at their paths in the
     /// package, as those unpacked from the archive a project came in are:
     /// they're taken ahead of looking anywhere else.
+    ///
+    /// Clips placed by their picture's shape are placed once it's probed,
+    /// and clips timed by their media's timecode are timed from its start.
     @concurrent
     public static func gatherMedia(
         for imported: ImportedProject, into store: PackageMediaStore, takenPaths: Set<String> = [],
@@ -93,6 +108,12 @@ public enum ProjectInterchange {
             imported.project.media[index].location = .package(path: fresh)
             taken.insert(fresh)
         }
+        imported.placeByProbedPictures()
+        imported.startClipsAtTimecode(imported.project.media.reduce(into: [:]) { starts, item in
+            guard imported.untimedMedia.contains(item.id), item.kind == .video, case .package(let path) = item.location,
+                  store.stagedURL(forPackagePath: path) != nil else { return }
+            starts[item.id] = item.metadata.timecode?.time
+        })
         if let conform = imported.conformToMedia { imported = conform(imported) }
         return imported
     }
@@ -130,6 +151,12 @@ public enum ProjectInterchange {
     /// finds the media's files, so Final Cut can find them too.
     public static func fcpxml(for project: Project, named name: String, mediaResolver: MediaResolver) -> Data {
         FCPXMLExporter(project: project, name: name, mediaResolver: mediaResolver).document()
+    }
+
+    /// The project as an OpenTimelineIO file, for DaVinci Resolve, Premiere
+    /// Pro and other apps that read OTIO.
+    public static func otio(for project: Project, named name: String, mediaResolver: MediaResolver) -> Data {
+        OTIOExporter(project: project, name: name, mediaResolver: mediaResolver).document()
     }
 
     /// The clips FCPXML can't carry, which are left out: shapes, which have
