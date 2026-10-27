@@ -69,8 +69,9 @@ final class ZipArchive {
     /// An archive held in memory.
     init(data: Data) throws {
         url = nil
-        // Indexed from zero, whatever slice it came from.
-        source = .memory(Data(data))
+        // Indexed from zero, whatever slice it came from, copied only when
+        // it's a slice that isn't.
+        source = .memory(data.startIndex == 0 ? data : Data(data))
         fileSize = UInt64(data.count)
         entries = try readCentralDirectory()
     }
