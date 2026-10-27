@@ -72,7 +72,10 @@ public enum MediaRelinker {
         guard probed.kind == item.kind else { return [.kind(expected: item.kind, found: probed.kind)] }
         var differences: [Difference] = []
         let expected = item.metadata, found = probed.metadata
-        if item.kind != .image, expected.duration.isNumeric, found.duration.isNumeric {
+        // Media from an edit decision list was never seen: its length and
+        // size are stand-ins, not to be held against the file.
+        let isStandIn = item.sourceTimecode != nil
+        if item.kind != .image, !isStandIn, expected.duration.isNumeric, found.duration.isNumeric {
             // Within a frame or so: containers round durations differently.
             let tolerance = expected.nominalFrameRate > 0 ? max(1.5 / expected.nominalFrameRate, 0.05) : 0.05
             if abs(expected.duration.seconds - found.duration.seconds) > tolerance {
@@ -82,7 +85,7 @@ public enum MediaRelinker {
         if expected.nominalFrameRate > 0, abs(expected.nominalFrameRate - found.nominalFrameRate) > expected.nominalFrameRate * 0.005 {
             differences.append(.frameRate(expected: expected.nominalFrameRate, found: found.nominalFrameRate))
         }
-        if expected.hasVideo, expected.presentationSize != found.presentationSize {
+        if expected.hasVideo, !isStandIn, expected.presentationSize != found.presentationSize {
             differences.append(.size(expected: expected.presentationSize, found: found.presentationSize))
         }
         return differences

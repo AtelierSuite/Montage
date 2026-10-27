@@ -1,5 +1,6 @@
 import Foundation
 import MontageEngine
+import MontageFormats
 
 /// Finding the media whose files have gone, and pointing it at files again.
 extension ProjectEditor {
@@ -55,6 +56,9 @@ extension ProjectEditor {
     /// confirmed. Each item keeps its name, bin and clips, and takes the new
     /// file's location and what it's like. Whatever was made from the old
     /// files, if anything, is thrown away first, as it isn't of the new ones.
+    /// Clips whose source points are in the file's timecode, as an edit
+    /// decision list gives them, are moved onto it by the timecode it
+    /// starts at.
     func relinkMedia(_ relinks: [MediaItem.ID: (location: MediaLocation, metadata: MediaMetadata)]) async {
         guard !relinks.isEmpty else { return }
         for id in relinks.keys {
@@ -69,6 +73,10 @@ extension ProjectEditor {
                 guard let relink = relinks[project.media[index].id] else { continue }
                 project.media[index].location = relink.location
                 project.media[index].metadata = relink.metadata
+                if let counting = project.media[index].sourceTimecode, let start = relink.metadata.timecode {
+                    project.moveSourceRanges(of: project.media[index].id, ontoFileStartingAt: counting.offset(toStartOf: start))
+                }
+                project.media[index].sourceTimecode = nil
             }
         }
         // Done once the relinked media is no longer missing.
