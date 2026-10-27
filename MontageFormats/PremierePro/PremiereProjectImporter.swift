@@ -141,7 +141,7 @@ struct PremiereProjectImporter {
         for (kind, kindTracks) in ordered where kinds.contains(kind) {
             for (index, track) in kindTracks.enumerated() {
                 importTrack(track, kind: kind, lane: kind == .video ? lane + index : lane - index, placement: placement,
-                            audioItems: kind == .video ? audioItems : [])
+                            audioItems: audioItems)
             }
         }
     }
@@ -327,7 +327,8 @@ struct PremiereProjectImporter {
             // which plays the file's sound whole.
             merged.insert(item.id)
             merged.formUnion(audioItems.filter {
-                $0.mediaUID == item.mediaUID && $0.start == item.start && $0.inPoint == item.inPoint
+                $0.mediaUID == item.mediaUID && $0.start == item.start && $0.end == item.end
+                    && $0.inPoint == item.inPoint && !$0.isDisabled
             }.map(\.id))
         }
 

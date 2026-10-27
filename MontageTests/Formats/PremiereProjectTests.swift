@@ -149,6 +149,16 @@ struct PremiereProjectImportTests {
         #expect(imported.clips(of: "Interview.mov").count == 1)
     }
 
+    @Test func makesOneClipOfAFilesChannelsOnSeveralTracks() throws {
+        // Music.wav's other channel, on A2 playing, all 12s of it.
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: "<IsMuted>true</IsMuted>", with: "<IsMuted>false</IsMuted>")
+            .replacingOccurrences(of: "<End>254016000000</End>\n\t\t\t</TrackItem>\n\t\t\t<SubClip ObjectRef=\"331\"/>",
+                                  with: "<End>3048192000000</End>\n\t\t\t</TrackItem>\n\t\t\t<SubClip ObjectRef=\"331\"/>")
+        let imported = try PremiereFixtures.read(xml)
+        #expect(imported.clips(of: "Music.wav").count == 1)
+    }
+
     @Test func flattensANestedSequenceWithinItsClip() throws {
         let nested = imported.project.tracks[1].clips
         #expect(nested.count == 1)
