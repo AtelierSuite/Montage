@@ -130,7 +130,10 @@ struct PremiereProjectImporter {
         let tracks = groups.map { group in
             (group.kind, (group.group.descendant("TrackGroup", "Tracks")?.children("Track") ?? []).compactMap(graph.resolve))
         }
-        let audioItems = tracks.filter { $0.0 == .audio }.flatMap { $0.1 }.flatMap { clipItems(of: $0) }
+        // The sound on the tracks that play, which joins a picture in step
+        // with it or the same file's other channels.
+        let audioItems = tracks.filter { $0.0 == .audio }.flatMap { $0.1 }.filter { !Self.isMuted($0) }
+            .flatMap { clipItems(of: $0) }
         // Pictures first, so the sound in step with them is taken into their
         // clips before the audio tracks are read, whichever order the
         // groups are in.
@@ -174,10 +177,14 @@ struct PremiereProjectImporter {
             .compactMap(graph.resolve).compactMap(trackItem)
     }
 
+    private static func isMuted(_ track: MarkupElement) -> Bool {
+        track.descendant("ClipTrack", "Track", "IsMuted")?.text == "true"
+    }
+
     private mutating func importTrack(
         _ track: MarkupElement, kind: Track.Kind, lane: Int, placement: Placement, audioItems: [TrackItem]
     ) {
-        let isMuted = track.descendant("ClipTrack", "Track", "IsMuted")?.text == "true"
+        let isMuted = Self.isMuted(track)
         for reference in track.descendant("ClipTrack", "TransitionItems", "TrackItems")?.children("TrackItem") ?? [] {
             guard let transition = graph.resolve(reference)?.child("TransitionTrackItem") else { continue }
             let start = PremiereProject.ticks(transition.descendant("TrackItem", "Start")?.text) ?? 0

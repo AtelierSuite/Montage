@@ -138,6 +138,17 @@ struct PremiereProjectImportTests {
         #expect(imported.clips(of: "Interview.mov").count == 1)
     }
 
+    @Test func leavesTheSoundOnAMutedTrackOutOfItsPicture() throws {
+        let xml = PremiereFixtures.xml.replacingOccurrences(
+            of: "<ID>1</ID>\n\t\t\t\t<IsMuted>false</IsMuted>", with: "<ID>1</ID>\n\t\t\t\t<IsMuted>true</IsMuted>"
+        )
+        let imported = try PremiereFixtures.read(xml)
+        let interview = try #require(imported.clip("Interview.mov", on: .video)).clip
+        #expect(interview.isAudioDetached)
+        #expect(interview.volume.keyframes.isEmpty)
+        #expect(imported.clips(of: "Interview.mov").count == 1)
+    }
+
     @Test func flattensANestedSequenceWithinItsClip() throws {
         let nested = imported.project.tracks[1].clips
         #expect(nested.count == 1)
