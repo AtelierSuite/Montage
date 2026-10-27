@@ -44,7 +44,7 @@ struct ImportReportView: View {
             .frame(minWidth: 480, minHeight: 360)
             #endif
             .navigationTitle(title)
-            .navigationSubtitle("ImportReport.Title")
+            .navigationSubtitle(String(localized: "ImportReport.Title"))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("ImportReport.Done", action: dismiss)
