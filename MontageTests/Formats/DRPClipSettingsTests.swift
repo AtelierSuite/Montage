@@ -192,6 +192,13 @@ struct DRPClipSettingsTests {
         #expect(keyed.blendMode == .normal)
         #expect(others == [.setting("Composite mode")])
         #expect(ResolveClipSettings.blendModes[4] == .multiply && ResolveClipSettings.blendModes[5] == .screen)
+
+        // A mode written as a double that isn't a whole number is reported.
+        for mode in [Double.nan, .infinity, 1e300, 4.5] {
+            var odd = self.clip()
+            #expect(try apply([Writer.filter(2, [Writer.parameter(0, .double(mode))])], to: &odd) == [.setting("Composite mode")])
+            #expect(odd.blendMode == .normal)
+        }
     }
 
     /// A second value in field 4: read, but not taken as the value. Alone,
