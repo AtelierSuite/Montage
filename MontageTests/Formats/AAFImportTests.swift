@@ -201,6 +201,46 @@ struct AAFImportTests {
         #expect(imported.project.markers.map(\.name) == ["Check focus", ""])
     }
 
+    @Test func placesMarkersOfNestedCompositionsWhereTheyreShown() throws {
+        let nestedID = F.mobID(10)
+        var file = F()
+        file.mobs = standardMedia() + [
+            timeline([
+                F.timelineSlot(1, F.sequence(picture, [
+                    F.sourceClip(picture, length: 50, start: 0, mob: alphaMaster),
+                    F.marker(at: 5, comment: "Before"),
+                    F.marker(at: 60, comment: "Inside"),
+                    F.sourceClip(picture, length: 100, start: 0, mob: bravoMaster),
+                ])),
+            ], name: "Nest", id: nestedID, topLevel: false),
+            timeline([
+                F.timelineSlot(1, F.sequence(picture, [
+                    F.filler(picture, length: 10),
+                    F.sourceClip(picture, length: 30, start: 40, mob: nestedID, slot: 1),
+                ])),
+            ], name: "Main"),
+        ]
+        let imported = try read(file)
+        // 60 in the nest, shown from 40, is 20 into the clip at 10.
+        #expect(imported.project.markers.map(\.name) == ["Inside"])
+        #expect(imported.project.markers.map(\.time) == [frames(30)])
+    }
+
+    @Test func placesMarkersOfMasterMobsOneAfterAnother() throws {
+        let alpha = F.media(master: alphaMaster, file: alphaFile, name: "Alpha", url: nil, length: 50)
+        let bravo = F.media(master: bravoMaster, file: bravoFile, name: "Bravo", url: nil, length: 30)
+        let slots = bravo[0].properties.first { $0.pid == AAFProperty.ID.slots }?.objects ?? []
+        bravo[0].vector(AAFProperty.ID.slots, slots + [
+            F.eventSlot(1000, F.sequence(AUID("01030201-1000-0000-060e-2b3404010101"), [
+                F.marker(at: 25, comment: "Bravo"),
+            ])),
+        ])
+        var file = F()
+        file.mobs = alpha + bravo
+        let imported = try read(file)
+        #expect(imported.project.markers.map(\.time) == [frames(75)])
+    }
+
     @Test func leavesMediaWithoutALocatorToBeRelinked() throws {
         var file = F()
         file.mobs = F.media(master: alphaMaster, file: alphaFile, name: "Interview", url: nil, length: 300) + [timeline([

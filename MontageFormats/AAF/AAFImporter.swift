@@ -258,7 +258,9 @@ struct AAFImporter {
             guard let segment = slot.strongReference(AAFProperty.ID.segment) else { continue }
             if slot.isKind(of: AAFClass.eventMobSlot) || slot.has(AAFProperty.ID.eventEditRate) {
                 if let rate = Self.validRate(slot.rational(AAFProperty.ID.eventEditRate)) {
-                    importMarkers(segment, rate: rate, depth: 0)
+                    let context = Context(kind: .video, lane: 0, rate: rate, base: start, origin: .zero, window: nil,
+                                          compositions: compositions)
+                    importMarkers(segment, context: context, depth: 0)
                 }
                 continue
             }
@@ -364,7 +366,7 @@ struct AAFImporter {
             // scope references to show what's under it.
             importLayers(segment.strongReferences(AAFProperty.ID.scopeSlots), at: position, context: context, depth: depth)
         } else if segment.isKind(of: AAFClass.event) {
-            importMarkers(segment, rate: context.rate, depth: depth)
+            importMarkers(segment, context: context, depth: depth)
         }
         // Fillers are gaps, and scope references show the layers under
         // them, which are already on the tracks below; timecode and the
@@ -849,18 +851,21 @@ struct AAFImporter {
 
     // MARK: - Markers
 
-    /// Comment and descriptive markers, alone or in a sequence.
-    private mutating func importMarkers(_ segment: AAFObject, rate: AAFRational, depth: Int) {
+    /// Comment and descriptive markers, alone or in a sequence, where their
+    /// positions in the slot fall on the timeline. A nested timeline's
+    /// markers are kept only where it's shown.
+    private mutating func importMarkers(_ segment: AAFObject, context: Context, depth: Int) {
         guard depth < Self.maximumDepth else { return }
         if segment.isKind(of: AAFClass.sequence) {
             for component in segment.strongReferences(AAFProperty.ID.components) {
-                importMarkers(component, rate: rate, depth: depth + 1)
+                importMarkers(component, context: context, depth: depth + 1)
             }
             return
         }
         guard segment.isKind(of: AAFClass.event) || segment.has(AAFProperty.ID.position),
               let position = segment.int64(AAFProperty.ID.position), position >= 0,
-              let time = Self.time(position, rate) else { return }
+              let time = context.timeline(position), time >= .zero,
+              context.window.map({ $0.containsTime(time) }) ?? true else { return }
         markers.append(Marker(time: time, name: segment.string(AAFProperty.ID.comment) ?? ""))
     }
 
