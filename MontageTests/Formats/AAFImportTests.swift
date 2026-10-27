@@ -580,6 +580,18 @@ struct AAFImportTests {
         _ = try read(file)
     }
 
+    @Test func survivesTransitionsLongerThanTheirSequence() throws {
+        var file = F()
+        file.mobs = standardMedia() + [timeline([
+            F.timelineSlot(1, F.sequence(picture, [
+                F.transition(picture, length: .max, cutPoint: 0),
+                F.transition(picture, length: .max, cutPoint: 0),
+                F.sourceClip(picture, length: 10, mob: alphaMaster),
+            ])),
+        ])]
+        _ = try read(file)
+    }
+
     @Test func refusesCompoundFilesThatArentAAF() {
         var writer = CompoundFileTestWriter()
         writer.root.add(.init(stream: "WordDocument", contents: Data(repeating: 1, count: 100)))

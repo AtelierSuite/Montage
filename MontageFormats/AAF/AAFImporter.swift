@@ -319,7 +319,8 @@ struct AAFImporter {
                 if component.isKind(of: AAFClass.transition) {
                     // A transition overlaps the end of the component before
                     // it and the start of the one after.
-                    let start = position - componentLength
+                    let (start, overflow) = position.subtractingReportingOverflow(componentLength)
+                    guard !overflow else { return }
                     if componentLength > 0, let from = context.timeline(start), let to = context.timeline(position) {
                         transitions.append((CMTimeRange(start: from, end: to), context.lane))
                         let operation = component.strongReference(AAFProperty.ID.transitionOperationGroup)
