@@ -695,6 +695,26 @@ struct GzipInputStreamTests {
         #expect(drain(GzipInputStream(gzipped: gzipped)) == Data("hello".utf8))
     }
 
+    @Test func readsMembersOneAfterAnother() throws {
+        let first = Data((0..<20_000).map { "first \($0)\n" }.joined().utf8)
+        let second = Data("and the second".utf8)
+        let gzipped = PremiereFixtures.gzip(first) + PremiereFixtures.gzip(Data()) + PremiereFixtures.gzip(second)
+        let stream = GzipInputStream(gzipped: gzipped)
+        #expect(drain(stream, bufferSize: 1000) == first + second)
+        #expect(stream.failure == nil)
+
+        let xml = Data(PremiereFixtures.xml.utf8)
+        let split = xml.count / 3
+        let project = try ProjectInterchange.read(PremiereFixtures.gzip(xml.prefix(split)) + PremiereFixtures.gzip(xml.dropFirst(split)))
+        #expect(project.name == "Main Edit")
+    }
+
+    @Test func passesOverPaddingAfterTheData() throws {
+        let gzipped = PremiereFixtures.gzip(Data(PremiereFixtures.xml.utf8)) + Data(count: 512)
+        #expect(drain(GzipInputStream(gzipped: gzipped)) == Data(PremiereFixtures.xml.utf8))
+        #expect(try ProjectInterchange.read(gzipped).name == "Main Edit")
+    }
+
     @Test func refusesTruncatedData() throws {
         let gzipped = PremiereFixtures.gzip(Data(PremiereFixtures.xml.utf8))
         for length in [5, 20, gzipped.count / 2, gzipped.count - 4] {
