@@ -48,10 +48,12 @@ enum EffectMapping {
     static func fcpxml(uid: String, name: String, parameters: ImportedParameters, frameWidth: Double) -> Effect.Kind? {
         let lowerName = name.lowercased()
         if uid.hasSuffix("/Gaussian.moef") || lowerName == "gaussian blur" || lowerName == "gaussian" {
-            return mosaic(.blur, amount: parameters.number("Amount"), frameWidth: frameWidth)
+            let amount = parameters.number("Amount") ?? Animatable(FCPGaussian.defaultAmount)
+            return mosaic(.blur, pixels: amount.mapped(FCPGaussian.radius(amount:)), frameWidth: frameWidth)
         }
         if uid.hasSuffix("/Pixellate.moef") || lowerName == "pixellate" || lowerName == "pixelate" {
-            return mosaic(.pixelate, amount: parameters.number("Amount"), frameWidth: frameWidth)
+            let amount = parameters.number("Amount") ?? Animatable(FCPPixellate.defaultAmount)
+            return mosaic(.pixelate, pixels: amount.mapped(FCPPixellate.size(amount:)), frameWidth: frameWidth)
         }
         if lowerName == "color adjustments" {
             return colorAdjustments(parameters)
@@ -65,6 +67,36 @@ enum EffectMapping {
         return nil
     }
 
+    /// The Amount Final Cut's Gaussian or Pixellate is written with for a
+    /// mosaic, the other way from `fcpxml`.
+    static func fcpAmount(for style: Mosaic.Style, scale: Double, frameWidth: Double) -> Double {
+        let pixels = scale * frameWidth
+        return style == .blur ? FCPGaussian.amount(radius: pixels) : FCPPixellate.amount(size: pixels)
+    }
+
+    /// Final Cut's Gaussian, as its template rigs it. The Amount slider shows
+    /// 0 to 100 but is written from 0 to 1, 0.5 when it's left alone. It
+    /// sets the amount of a hidden blur from 0 to 250 pixels, which the blur
+    /// that's seen is linked to, times a Blur Boost of 1 (the template's
+    /// clamp to 64 is off, as its link applies at all values).
+    enum FCPGaussian {
+        static let defaultAmount = 0.5
+        static let pixelsAtFull = 250.0
+
+        static func radius(amount: Double) -> Double { max(0, amount) * pixelsAtFull }
+        static func amount(radius: Double) -> Double { radius / pixelsAtFull }
+    }
+
+    /// Final Cut's Pixellate, as its template rigs it: the Amount slider,
+    /// written from 0 to 1 as the Gaussian's is, sets squares from 1 to 100
+    /// pixels across, about 8.6 when it's left alone.
+    enum FCPPixellate {
+        static let defaultAmount = 0.0767
+
+        static func size(amount: Double) -> Double { 1 + 99 * max(0, amount) }
+        static func amount(size: Double) -> Double { max(0, size - 1) / 99 }
+    }
+
     /// A Final Cut 7 XML effect, as Premiere and Final Cut 7 write them, as
     /// one of Montage's, if there's a match. The clip settings Final Cut 7
     /// writes as effects (motion, opacity, levels and pan) aren't effects in
@@ -72,7 +104,7 @@ enum EffectMapping {
     static func xmeml(id: String, name: String, parameters: ImportedParameters, frameWidth: Double) -> Effect.Kind? {
         switch (id.lowercased(), name.lowercased()) {
         case ("gaussianblur", _), (_, "gaussian blur"):
-            // Premiere's blurriness is in pixels, as Final Cut's amount is.
+            // Premiere's blurriness is in pixels.
             return mosaic(.blur, amount: parameters.number("blurriness", "radius", "Blurriness"), frameWidth: frameWidth)
         case ("mosaic", _), (_, "mosaic"):
             // Blocks across the frame, rather than a block's size.
@@ -97,10 +129,19 @@ enum EffectMapping {
     // MARK: - Mapped
 
     private static func mosaic(_ style: Mosaic.Style, amount: Animatable<Double>?, frameWidth: Double) -> Effect.Kind {
+        guard let amount else {
+            var mosaic = Mosaic()
+            mosaic.style = style
+            return .mosaic(mosaic)
+        }
+        return mosaic(style, pixels: amount, frameWidth: frameWidth)
+    }
+
+    private static func mosaic(_ style: Mosaic.Style, pixels: Animatable<Double>, frameWidth: Double) -> Effect.Kind {
         var mosaic = Mosaic()
         mosaic.style = style
-        if let amount, frameWidth > 0 {
-            mosaic.scale = amount.mapped { $0 / frameWidth }
+        if frameWidth > 0 {
+            mosaic.scale = pixels.mapped { $0 / frameWidth }
         }
         return .mosaic(mosaic)
     }
