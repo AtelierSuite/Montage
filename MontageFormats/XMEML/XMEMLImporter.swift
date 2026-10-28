@@ -26,6 +26,8 @@ struct XMEMLImporter {
     private var settings = ProjectSettings()
     /// The audio clip items made part of a picture's clip, by ID.
     private var mergedAudio: Set<String> = []
+    /// The sequences' and clips' markers, where they fall on the timeline.
+    private var markers: [Marker] = []
 
     static func read(_ root: MarkupElement, baseURL: URL?) throws -> ImportedProject {
         var importer = XMEMLImporter(root: root, baseURL: baseURL)
@@ -57,13 +59,13 @@ struct XMEMLImporter {
             settings.renderSize = CGSize(width: width, height: height)
         }
 
-        for marker in sequence.children("marker") {
-            report.add(.marker(name: marker.child("name")?.text ?? ""), time: frames(marker.child("in")?.text, rate))
-        }
         importTracks(of: sequence, base: .zero, origin: .zero, lane: 0, window: nil)
 
         var project = Project(settings: settings, media: media.items)
         project.tracks = assembler.tracks(report: &report)
+        for marker in markers.sorted(by: { $0.time < $1.time }) {
+            project.addMarker(at: marker.time, name: marker.name)
+        }
         return ImportedProject(
             project: project, report: report, name: sequence.child("name")?.text, mediaSources: media.sources,
             mediaSourcePaths: media.writtenPaths
@@ -80,6 +82,10 @@ struct XMEMLImporter {
         let audioItems = (sequence.descendant("media", "audio")?.children("track") ?? []).flatMap { $0.children("clipitem") }
         let placement = Placement(base: base, origin: origin, rate: rate, window: window)
 
+        for marker in sequence.children("marker") {
+            guard let time = frames(marker.child("in")?.text, rate).map(placement.timeline) else { continue }
+            addMarker(marker, at: time, within: window)
+        }
         for (index, track) in (sequence.descendant("media", "video")?.children("track") ?? []).enumerated() {
             importTrack(track, kind: .video, lane: lane + index, placement: placement, audioItems: audioItems)
         }
@@ -173,16 +179,18 @@ struct XMEMLImporter {
         guard let sequenceStart = start ?? end.map({ $0 - duration }) ?? inside, duration > .zero else { return }
         let timelineStart = placement.timeline(sequenceStart)
 
+        let clipRange = CMTimeRange(start: timelineStart, duration: duration)
+        let window = placement.window.map { $0.intersection(clipRange) } ?? clipRange
+        // A clip's markers are timed in its media; those on the part used
+        // are on the timeline.
         for marker in item.children("marker") {
-            let at = frames(marker.child("in")?.text, clipRate).map { timelineStart + ($0 - sourceIn) }
-            report.add(.marker(name: marker.child("name")?.text ?? ""), clipName: name, time: at)
+            guard let time = frames(marker.child("in")?.text, clipRate).map({ timelineStart + ($0 - sourceIn) }) else { continue }
+            addMarker(marker, at: time, within: window)
         }
         if item.child("enabled")?.text.uppercased() == "FALSE" {
             report.add(.disabledClip, clipName: name, time: timelineStart)
             return
         }
-        let clipRange = CMTimeRange(start: timelineStart, duration: duration)
-        let window = placement.window.map { $0.intersection(clipRange) } ?? clipRange
 
         // A nested sequence: its clips, played from the clip's in point.
         if let nested = item.child("sequence") {
@@ -416,6 +424,15 @@ struct XMEMLImporter {
 
     /// A count of frames as a time; nil for none, or for -1, which stands
     /// for a time inside a transition.
+    /// A marker at `time` on the timeline, named by its comment if it has
+    /// no name. A range marker is marked where it starts. Those outside
+    /// `window`, on media trimmed off, aren't seen in the other app either.
+    private mutating func addMarker(_ marker: MarkupElement, at time: CMTime, within window: CMTimeRange?) {
+        if let window, time < window.start || time >= window.end { return }
+        let name = marker.child("name")?.text ?? ""
+        markers.append(Marker(time: time, name: name.isEmpty ? marker.child("comment")?.text ?? "" : name))
+    }
+
     private func frames(_ text: String?, _ frameDuration: CMTime) -> CMTime? {
         guard let text, let count = Int64(text), count >= 0 else { return nil }
         return InterchangeTime.frames(count, frameDuration: frameDuration)

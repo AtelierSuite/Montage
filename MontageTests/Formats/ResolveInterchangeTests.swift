@@ -112,6 +112,11 @@ struct ResolveXMEMLImportTests {
         #expect(try #require(imported.clip("B-Roll.mov")).clip.isAudioDetached)
     }
 
+    @Test func importsTheMarker() {
+        #expect(imported.project.markers.map(\.time) == [frames(50)])
+        #expect(imported.project.markers.map(\.name) == ["Marker 1"])
+    }
+
     @Test func readsDefaultMotionAsNoChange() throws {
         let interview = try #require(imported.clip("Interview A.mov", on: .video)).clip
         #expect(interview.transform.scale.value == 1)
@@ -124,7 +129,7 @@ struct ResolveXMEMLImportTests {
     @Test func reportsWhatDidntComeAcross() {
         let issues = imported.report.items.map(\.issue)
         #expect(issues.contains(.transition(name: "Cross Dissolve")))
-        #expect(imported.report.items.first { $0.issue == .marker(name: "Marker 1") }?.time == frames(50))
+        #expect(!issues.contains { if case .marker = $0 { true } else { false } })
         #expect(!issues.contains { if case .setting = $0 { true } else { false } })
         #expect(imported.issues(.unsupportedEffect).isEmpty)
         #expect(!issues.contains(.movedToNewTrack))

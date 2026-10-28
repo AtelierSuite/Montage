@@ -320,6 +320,11 @@ struct XMEMLImportTests {
         #expect(issues.contains(.unsupportedEffect(name: "Lumetri Color")))
         #expect(issues.contains(.transition(name: "Cross Dissolve")))
         #expect(issues.contains(.generator(name: "Color")))
-        #expect(issues.contains(.marker(name: "Chapter")))
+        #expect(!issues.contains(.marker(name: "Chapter")))
+    }
+
+    @Test func importsTheSequenceMarker() {
+        #expect(imported.project.markers.map(\.time) == [frames(45)])
+        #expect(imported.project.markers.map(\.name) == ["Chapter"])
     }
 }
