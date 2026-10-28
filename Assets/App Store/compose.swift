@@ -155,11 +155,17 @@ let macScreenshots = [
 
 /// SF Pro Rounded. It has no Japanese, so that falls back to Tsukushi A Round
 /// Gothic, which unlike Hiragino Maru Gothic comes in a bold to match the header.
+/// Its kana are set proportionally: full-width, they look spaced out.
 func roundedFont(ofSize size: CGFloat, weight: NSFont.Weight) -> NSFont {
     let system = NSFont.systemFont(ofSize: size, weight: weight).fontDescriptor
-    let japanese = weight >= .semibold ? "TsukuARdGothic-Bold" : "TsukuARdGothic-Regular"
+    let japanese = NSFontDescriptor(
+        name: weight >= .semibold ? "TsukuARdGothic-Bold" : "TsukuARdGothic-Regular", size: size
+    ).addingAttributes([.featureSettings: [[
+        NSFontDescriptor.FeatureKey.typeIdentifier: kTextSpacingType,
+        .selectorIdentifier: kAltProportionalTextSelector,
+    ]]])
     let rounded = (system.withDesign(.rounded) ?? system).addingAttributes([
-        .cascadeList: [NSFontDescriptor(name: japanese, size: size)],
+        .cascadeList: [japanese],
     ])
     return NSFont(descriptor: rounded, size: size) ?? NSFont.systemFont(ofSize: size, weight: weight)
 }
