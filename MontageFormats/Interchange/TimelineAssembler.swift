@@ -29,7 +29,7 @@ struct TimelineAssembler {
     private struct Join {
         var range: CMTimeRange
         /// What it becomes, if it becomes one of Montage's.
-        var kind: Transition.Kind?
+        var kind: ClipTransition.Kind?
         /// What the report calls it, if it can't be made.
         var name: String
     }
@@ -52,7 +52,7 @@ struct TimelineAssembler {
 
     /// Notes a transition joining two clips on a lane that becomes one of
     /// `kind`, or is cut and reported by its name if it can't.
-    mutating func addTransition(_ range: CMTimeRange, lane: Int, as kind: Transition.Kind, name: String) {
+    mutating func addTransition(_ range: CMTimeRange, lane: Int, as kind: ClipTransition.Kind, name: String) {
         transitions[lane, default: []].append(Join(range: range, kind: kind, name: name))
     }
 
@@ -63,14 +63,14 @@ struct TimelineAssembler {
 
     /// The tracks, video first, and the transitions at cuts between their
     /// clips, with what had to change to fit them.
-    func timeline(report: inout ImportReport) -> (tracks: [Track], transitions: [Transition]) {
+    func timeline(report: inout ImportReport) -> (tracks: [Track], transitions: [ClipTransition]) {
         let order = clips.keys.sorted { a, b in
             if a.kind != b.kind { return a.kind == .video }
             // Audio reads down from the lane nearest the picture.
             return a.kind == .video ? a.number < b.number : Self.audioOrder(a.number) < Self.audioOrder(b.number)
         }
         var tracks: [Track] = []
-        var made: [Transition] = []
+        var made: [ClipTransition] = []
         // The transitions made, by lane and their place in it.
         var used: Set<[Int]> = []
         for lane in order {
@@ -103,7 +103,7 @@ struct TimelineAssembler {
     /// joined to that clip by one Montage plays.
     private func place(
         _ clip: Clip, in rows: inout [[Clip]], joins: [Join], makesTransitions: Bool, report: inout ImportReport
-    ) -> (Transition, Int)? {
+    ) -> (ClipTransition, Int)? {
         if let previous = rows[0].last {
             let overlap = previous.timelineRange.intersection(clip.timelineRange)
             // Overlapping the last clip of the lane's own track under a
@@ -117,7 +117,7 @@ struct TimelineAssembler {
                 if let after { rows[0].append(after) }
                 guard makesTransitions, let kind = joins[index].kind, let before, let after else { return nil }
                 let range = joins[index].range.intersection(overlap)
-                let transition = Transition(kind: kind, from: before.id, to: after.id, beforeCut: max(.zero, cut - range.start),
+                let transition = ClipTransition(kind: kind, from: before.id, to: after.id, beforeCut: max(.zero, cut - range.start),
                                             afterCut: max(.zero, range.end - cut))
                 return (transition, index)
             }
@@ -128,7 +128,7 @@ struct TimelineAssembler {
             }), let kind = joins[index].kind {
                 rows[0].append(clip)
                 let range = joins[index].range
-                return (Transition(kind: kind, from: previous.id, to: clip.id, beforeCut: cut - range.start, afterCut: range.end - cut), index)
+                return (ClipTransition(kind: kind, from: previous.id, to: clip.id, beforeCut: cut - range.start, afterCut: range.end - cut), index)
             }
         }
         for index in rows.indices where rows[index].last.map({ $0.timelineRange.end <= clip.timelineStart }) ?? true {

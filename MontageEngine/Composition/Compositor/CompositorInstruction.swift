@@ -87,8 +87,8 @@ struct CompositorLayer: Sendable {
 /// A transition as the compositor draws it: the two clips' layers mixed into
 /// one, from the outgoing clip's picture to the incoming one's.
 struct CompositorTransition: Equatable, Sendable {
-    let id: Transition.ID
-    let kind: Transition.Kind
+    let id: ClipTransition.ID
+    let kind: ClipTransition.Kind
     /// The clip it goes to; the other layer is the clip it comes from.
     let incomingClipID: Clip.ID
     /// Where it plays on the timeline.

@@ -192,7 +192,7 @@ struct FCPXMLImporter {
 
     /// What a transition becomes in Montage: a dissolve, if it's a cross
     /// dissolve, or nil to cut.
-    private func transitionKind(_ transition: MarkupElement) -> Transition.Kind? {
+    private func transitionKind(_ transition: MarkupElement) -> ClipTransition.Kind? {
         let video = transition.child("filter-video")
         let effect = video?["ref"].flatMap { resources[$0] }
         if effect?["uid"] == Self.crossDissolveUID { return .crossDissolve }

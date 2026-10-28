@@ -20,7 +20,7 @@ import Foundation
 /// in and out offsets, AAF's length and cut point, Final Cut Pro 7's
 /// alignment), so importers make one wherever a file has a transition
 /// Montage can play.
-public struct Transition: Identifiable, Equatable, Sendable {
+public struct ClipTransition: Identifiable, Equatable, Sendable {
     public enum Kind: String, Codable, Sendable, CaseIterable {
         /// The outgoing picture fades out as the incoming one fades in.
         case crossDissolve
@@ -58,7 +58,7 @@ public struct Transition: Identifiable, Equatable, Sendable {
     public var duration: CMTime { beforeCut + afterCut }
 }
 
-extension Transition: Codable {
+extension ClipTransition: Codable {
     private enum CodingKeys: String, CodingKey {
         case id, kind, outgoingClipID, incomingClipID, beforeCut, afterCut
     }
@@ -88,7 +88,7 @@ extension Transition: Codable {
 /// A transition where it plays: at the cut between its clips, kept to what
 /// they leave room for.
 public struct PlacedTransition: Equatable, Sendable {
-    public var transition: Transition
+    public var transition: ClipTransition
     public var outgoing: Clip
     public var incoming: Clip
     /// How much plays before the cut: no more than the outgoing clip has
@@ -97,8 +97,8 @@ public struct PlacedTransition: Equatable, Sendable {
     /// How much plays after it: no more than the incoming clip is long.
     public var afterCut: CMTime
 
-    public var id: Transition.ID { transition.id }
-    public var kind: Transition.Kind { transition.kind }
+    public var id: ClipTransition.ID { transition.id }
+    public var kind: ClipTransition.Kind { transition.kind }
 
     /// Where the outgoing clip ends and the incoming one starts.
     public var cut: CMTime { incoming.timelineStart }
@@ -118,7 +118,7 @@ public struct PlacedTransition: Equatable, Sendable {
 
 extension Project {
     /// The transition with an ID, if the project has it.
-    public func transition(id: Transition.ID) -> Transition? {
+    public func transition(id: ClipTransition.ID) -> ClipTransition? {
         transitions.first { $0.id == id }
     }
 
@@ -135,7 +135,7 @@ extension Project {
         }
         for clip in track.clips { byID[clip.id] = clip }
 
-        var atCut: [Clip.ID: Transition] = [:]
+        var atCut: [Clip.ID: ClipTransition] = [:]
         for transition in transitions where atCut[transition.outgoingClipID] == nil {
             guard next[transition.outgoingClipID]?.id == transition.incomingClipID else { continue }
             atCut[transition.outgoingClipID] = transition
@@ -161,7 +161,7 @@ extension Project {
     }
 
     /// The transition at the cut between two clips, if there's one.
-    public func transition(from outgoing: Clip.ID, to incoming: Clip.ID) -> Transition? {
+    public func transition(from outgoing: Clip.ID, to incoming: Clip.ID) -> ClipTransition? {
         transitions.first { $0.outgoingClipID == outgoing && $0.incomingClipID == incoming }
     }
 
@@ -180,23 +180,23 @@ extension Project {
     /// a track.
     @discardableResult
     public mutating func addTransition(
-        _ kind: Transition.Kind = .crossDissolve, from outgoing: Clip.ID, to incoming: Clip.ID, duration: CMTime
-    ) -> Transition.ID? {
+        _ kind: ClipTransition.Kind = .crossDissolve, from outgoing: Clip.ID, to incoming: Clip.ID, duration: CMTime
+    ) -> ClipTransition.ID? {
         guard duration > .zero, let (trackIndex, clip) = location(of: outgoing),
               let after = tracks[trackIndex].clip(id: incoming), clip.timelineRange.end == after.timelineStart else { return nil }
         transitions.removeAll { $0.outgoingClipID == outgoing || $0.incomingClipID == incoming }
-        let transition = Transition(kind: kind, from: outgoing, to: incoming, duration: duration)
+        let transition = ClipTransition(kind: kind, from: outgoing, to: incoming, duration: duration)
         transitions.append(transition)
         return transition.id
     }
 
-    public mutating func removeTransitions(_ ids: Set<Transition.ID>) {
+    public mutating func removeTransitions(_ ids: Set<ClipTransition.ID>) {
         transitions.removeAll { ids.contains($0.id) }
     }
 
     /// Makes a transition longer or shorter, keeping the cut where it was
     /// in it, in proportion.
-    public mutating func setDuration(ofTransition id: Transition.ID, to duration: CMTime) {
+    public mutating func setDuration(ofTransition id: ClipTransition.ID, to duration: CMTime) {
         guard duration > .zero, let index = transitions.firstIndex(where: { $0.id == id }) else { return }
         let old = transitions[index]
         var before: CMTime

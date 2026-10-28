@@ -27,11 +27,11 @@ public struct Project: Equatable, Sendable {
     public var markers: [Marker]
     /// The transitions at cuts between clips, in no particular order (see
     /// `placedTransitions(on:)` for where they play).
-    public var transitions: [Transition]
+    public var transitions: [ClipTransition]
 
     public init(
         settings: ProjectSettings = ProjectSettings(), media: [MediaItem] = [], bins: [MediaBin] = [], tracks: [Track] = [],
-        markers: [Marker] = [], transitions: [Transition] = []
+        markers: [Marker] = [], transitions: [ClipTransition] = []
     ) {
         formatVersion = Self.currentFormatVersion
         self.settings = settings
@@ -84,7 +84,7 @@ extension Project: Codable {
         bins = try container.decodeIfPresent([MediaBin].self, forKey: .bins) ?? []
         tracks = try container.decodeIfPresent([Track].self, forKey: .tracks) ?? []
         markers = try container.decodeIfPresent([Marker].self, forKey: .markers) ?? []
-        transitions = try container.decodeIfPresent([Transition].self, forKey: .transitions) ?? []
+        transitions = try container.decodeIfPresent([ClipTransition].self, forKey: .transitions) ?? []
         markStillImageClips()
     }
 

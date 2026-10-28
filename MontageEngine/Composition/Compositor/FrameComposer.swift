@@ -87,7 +87,7 @@ enum FrameComposer {
 
     /// Two pictures of the same extent, part way through a transition from
     /// one to the other.
-    static func mix(from outgoing: CIImage, to incoming: CIImage, kind: Transition.Kind, progress: Double) -> CIImage {
+    static func mix(from outgoing: CIImage, to incoming: CIImage, kind: ClipTransition.Kind, progress: Double) -> CIImage {
         switch kind {
         case .crossDissolve:
             outgoing.applyingFilter("CIDissolveTransition", parameters: [
