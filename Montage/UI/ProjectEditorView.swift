@@ -252,17 +252,17 @@ struct ProjectEditorView: View {
         // Pinned to the trailing edge: as primary actions the bar would fold
         // Redo into its own overflow menu once it ran short of room.
         ToolbarItemGroup(placement: .topBarTrailing) {
-            // Typing in the preview stops first, so it's undone or redone
-            // as the one step it is.
+            // Typing, in the preview or the inspector, stops first, so it's
+            // undone or redone as the one step it is.
             Button("Toolbar.Undo", systemImage: "arrow.uturn.backward") {
-                editor.endEditingText()
+                editor.endTyping()
                 history.undo()
             }
                 .disabled(!history.canUndo && editor.timeline.editedTextClipID == nil)
                 .keyboardShortcut("z", modifiers: .command)
                 .accessibilityIdentifier("undo")
             Button("Toolbar.Redo", systemImage: "arrow.uturn.forward") {
-                editor.endEditingText()
+                editor.endTyping()
                 history.redo()
             }
                 .disabled(!history.canRedo)
