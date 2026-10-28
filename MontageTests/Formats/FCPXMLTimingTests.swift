@@ -74,4 +74,82 @@ struct FCPXMLTimingTests {
         #expect(imported.project.markers.map(\.name) == ["Shown"])
         #expect(imported.project.markers.map(\.time) == [Self.seconds(1)])
     }
+
+    // MARK: - Transitions
+
+    private static let dissolve = """
+        <filter-video ref="e1" name="Cross Dissolve">
+            <param name="Look" key="1" value="11 (Video)"/>
+            <param name="Amount" key="2" value="50"/>
+        </filter-video>
+        <filter-audio name="Audio Crossfade"/>
+        """
+
+    @Test func dissolvesBetweenClipsThatMeet() throws {
+        // As Final Cut writes it: the clips meet, and the transition is
+        // centred on the cut.
+        let imported = try read(spine: """
+            <asset-clip ref="a1" offset="0s" name="One" start="1s" duration="4s"/>
+            <transition name="Cross Dissolve" offset="7/2s" duration="1s">\(Self.dissolve)</transition>
+            <asset-clip ref="a2" offset="4s" name="Two" start="2s" duration="3s"/>
+            """)
+        let clips = try #require(imported.project.tracks.first).clips
+        #expect(clips.map(\.timelineRange) == [
+            CMTimeRange(start: .zero, duration: Self.seconds(4)), CMTimeRange(start: Self.seconds(4), duration: Self.seconds(3)),
+        ])
+        let transition = try #require(imported.project.transitions.first)
+        #expect(transition.kind == .crossDissolve)
+        #expect(transition.outgoingClipID == clips[0].id && transition.incomingClipID == clips[1].id)
+        #expect(transition.beforeCut == Self.seconds(1, 2) && transition.afterCut == Self.seconds(1, 2))
+        #expect(!imported.report.items.contains { if case .transition = $0.issue { true } else { false } })
+    }
+
+    @Test func dissolvesOffCentre() throws {
+        let imported = try read(spine: """
+            <asset-clip ref="a1" offset="0s" name="One" start="1s" duration="4s"/>
+            <transition name="Cross Dissolve" offset="4s" duration="1s">\(Self.dissolve)</transition>
+            <asset-clip ref="a2" offset="4s" name="Two" start="2s" duration="3s"/>
+            """)
+        let transition = try #require(imported.project.transitions.first)
+        #expect(transition.beforeCut == .zero && transition.afterCut == Self.seconds(1))
+    }
+
+    @Test func reportsADissolveWithNoClipOnOneSide() throws {
+        let imported = try read(spine: """
+            <transition name="Cross Dissolve" offset="0s" duration="1s">\(Self.dissolve)</transition>
+            <asset-clip ref="a1" offset="0s" name="One" start="1s" duration="4s"/>
+            <transition name="Cross Dissolve" offset="7/2s" duration="1s">\(Self.dissolve)</transition>
+            <gap name="Gap" offset="4s" start="0s" duration="2s"/>
+            <asset-clip ref="a2" offset="6s" name="Two" start="2s" duration="3s"/>
+            """)
+        #expect(imported.project.transitions.isEmpty)
+        let reported = imported.report.items.filter { $0.issue == .transition(name: "Cross Dissolve") }
+        #expect(reported.map(\.time) == [.zero, Self.seconds(7, 2)])
+    }
+
+    @Test func cutsOtherTransitions() throws {
+        let imported = try read(spine: """
+            <asset-clip ref="a1" offset="0s" name="One" start="1s" duration="4s"/>
+            <transition name="Wipe" offset="7/2s" duration="1s"><filter-video name="Wipe"/></transition>
+            <asset-clip ref="a2" offset="4s" name="Two" start="2s" duration="3s"/>
+            """)
+        #expect(imported.project.transitions.isEmpty)
+        #expect(imported.report.items.map(\.issue).contains(.transition(name: "Wipe")))
+    }
+
+    @Test func dissolvesInAStorylineAndKeepsSoundCut() throws {
+        let imported = try read(spine: """
+            <gap name="Gap" offset="0s" start="0s" duration="10s">
+                <spine lane="1" offset="0s">
+                    <asset-clip ref="a1" offset="0s" name="One" start="1s" duration="4s"/>
+                    <transition name="Cross Dissolve" offset="7/2s" duration="1s">\(Self.dissolve)</transition>
+                    <asset-clip ref="a2" offset="4s" name="Two" start="2s" duration="3s" srcEnable="audio"/>
+                    <asset-clip ref="a2" offset="7s" name="Two" start="2s" duration="3s"/>
+                </spine>
+            </gap>
+            """)
+        // Only the picture dissolves; the sound into a clip of sound alone just cuts.
+        #expect(imported.project.transitions.isEmpty)
+        #expect(imported.report.items.map(\.issue).contains(.transition(name: "Cross Dissolve")))
+    }
 }

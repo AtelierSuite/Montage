@@ -67,7 +67,7 @@ struct FCPXMLImporter {
         importSequence(spine.children, in: Context(base: .zero, origin: origin))
 
         var montage = Project(settings: settings, media: media.items)
-        montage.tracks = assembler.tracks(report: &report)
+        (montage.tracks, montage.transitions) = assembler.timeline(report: &report)
         for marker in markers.sorted(by: { $0.time < $1.time }) {
             montage.addMarker(at: marker.time, name: marker.name)
         }
@@ -155,8 +155,9 @@ struct FCPXMLImporter {
 
     /// Elements one after another, as in a spine or an angle: each starts at
     /// its offset, or where the one before it ended if it has none. A
-    /// transition overlaps the end of the element before it and the start of
-    /// the one after.
+    /// transition is centred on the cut between the element before it and
+    /// the one after, or, as some apps write it, overlaps both. A cross
+    /// dissolve becomes one of Montage's, and any other is cut.
     private mutating func importSequence(_ elements: [MarkupElement], in context: Context) {
         var cursor = elements.lazy.compactMap { InterchangeTime.parse($0["offset"]) }.first ?? context.origin
         for element in elements {
@@ -164,8 +165,14 @@ struct FCPXMLImporter {
                 let duration = time(element["duration"]) ?? .zero
                 let offset = time(element["offset"]) ?? cursor - duration
                 let start = context.timeline(offset)
-                assembler.addTransition(CMTimeRange(start: start, duration: duration), lane: context.lane)
-                report.add(.transition(name: element["name"] ?? "Transition"), time: start)
+                let range = CMTimeRange(start: start, duration: duration)
+                let name = element["name"] ?? "Transition"
+                if let kind = transitionKind(element) {
+                    assembler.addTransition(range, lane: context.lane, as: kind, name: name)
+                } else {
+                    assembler.addTransition(range, lane: context.lane)
+                    report.add(.transition(name: name), time: start)
+                }
                 cursor = offset
                 continue
             }
@@ -177,6 +184,20 @@ struct FCPXMLImporter {
                 cursor = end
             }
         }
+    }
+
+    /// Final Cut's Cross Dissolve, by its effect's ID, or by name as other
+    /// apps write it.
+    private static let crossDissolveUID = "FxPlug:4731E73A-8DAC-4113-9A30-AE85B1761265"
+
+    /// What a transition becomes in Montage: a dissolve, if it's a cross
+    /// dissolve, or nil to cut.
+    private func transitionKind(_ transition: MarkupElement) -> Transition.Kind? {
+        let video = transition.child("filter-video")
+        let effect = video?["ref"].flatMap { resources[$0] }
+        if effect?["uid"] == Self.crossDissolveUID { return .crossDissolve }
+        let names = [transition["name"], video?["name"], effect?["name"]].compactMap { $0?.lowercased() }
+        return names.contains { $0 == "cross dissolve" || $0 == "dissolve" } ? .crossDissolve : nil
     }
 
     /// Reads one element and everything connected to it. Returns where it
