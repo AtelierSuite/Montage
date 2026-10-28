@@ -8,9 +8,6 @@ import XCTest
 /// out of the way of an ordinary test run. The simulator only takes up a
 /// change of appearance when it restarts, so it's started light for one run
 /// and dark for another, and `SCREENSHOT_APPEARANCE` says which shots to take.
-///
-/// The app's own labels are only in English so far; the document browser's
-/// follow the simulator's language.
 @MainActor
 final class AppStoreScreenshots: XCTestCase {
     private enum Stage {
@@ -134,15 +131,21 @@ final class AppStoreScreenshots: XCTestCase {
         case .editor:
             break
         case .library:
-            tap(app.buttons["Library"])
+            tap(app.buttons[localized("Library", "ライブラリ")])
         case .floatingPreview:
-            tap(app.buttons["Float Preview"])
+            tap(app.buttons[localized("Float Preview", "プレビューをフローティング表示")])
         case .export:
             tap(app.buttons["more"])
-            tap(app.buttons["Export"])
+            tap(app.buttons[localized("Export", "書き出す")])
             // With the formats open: MP4 and AVI.
-            tap(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Format'")))
+            let format = localized("Format", "フォーマット")
+            tap(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", format)))
         }
+    }
+
+    /// A label as the app shows it in the language being captured.
+    private func localized(_ english: String, _ japanese: String) -> String {
+        language == "ja" ? japanese : english
     }
 
     private func tap(_ query: XCUIElementQuery) {
