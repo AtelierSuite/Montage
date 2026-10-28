@@ -84,6 +84,7 @@ enum MainMenu {
         menu.addItem(item(String(localized: "Mac.Menu.SelectAll"), #selector(NSText.selectAll(_:)), "a"))
         menu.addItem(.separator())
         menu.addItem(item(String(localized: "Edit.Split"), #selector(ProjectWindowController.splitClips(_:)), "b"))
+        menu.addItem(item(String(localized: "Edit.AddCrossDissolve"), #selector(ProjectWindowController.addCrossDissolve(_:)), "t"))
         menu.addItem(item(String(localized: "Edit.DetachAudio"), #selector(ProjectWindowController.detachAudio(_:)),
                           "s", [.command, .control, .shift]))
         menu.addItem(item(String(localized: "Edit.RippleDelete"), #selector(ProjectWindowController.rippleDelete(_:))))

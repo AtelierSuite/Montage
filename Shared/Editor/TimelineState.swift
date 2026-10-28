@@ -17,8 +17,15 @@ final class TimelineState {
     /// linger; `ProjectEditor.selectedClipIDs` leaves them out.
     var selectedClipIDs: Set<Clip.ID> = [] {
         // Another clip's handles, or none, take the place of a mask's.
-        didSet { if selectedClipIDs != oldValue { editedMaskEffectID = nil } }
+        didSet {
+            guard selectedClipIDs != oldValue else { return }
+            editedMaskEffectID = nil
+            if !selectedClipIDs.isEmpty { selectedTransitionID = nil }
+        }
     }
+    /// The transition selected on the timeline, for the inspector and
+    /// Delete to act on. Selecting clips lets go of it.
+    var selectedTransitionID: ClipTransition.ID?
     /// Whether tapping a clip adds it to the selection, or takes it out,
     /// rather than selecting it alone. A modifier key does the same on a Mac.
     var selectsMultiple = false

@@ -147,6 +147,8 @@ final class ProjectEditor {
         if gesture != nil { endGesture() }
         var project = self.project
         change(&project)
+        // Transitions go with their cut once the clips no longer meet.
+        project.removeStaleTransitions()
         guard project != self.project else { return }
         if let coalescingKey {
             let now = Date()
@@ -207,6 +209,7 @@ final class ProjectEditor {
         guard let gesture else { return }
         var project = gesture.baseline
         change(&project)
+        project.removeStaleTransitions()
         if project != self.project { self.project = project }
     }
 
