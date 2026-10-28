@@ -135,10 +135,11 @@ extension Project {
     @discardableResult
     public mutating func detachAudio(from id: Clip.ID) -> Clip.ID? {
         guard canDetachAudio(from: id), let (trackIndex, clip) = location(of: id) else { return nil }
-        let audio = Clip(
+        var audio = Clip(
             content: clip.content, sourceRange: clip.sourceRange, timelineStart: clip.timelineStart,
             volume: clip.volume, effects: clip.effects.filter { !$0.kind.isVideo }
         )
+        audio.speed = clip.speed
         tracks[trackIndex].update(id) { clip in
             clip.isAudioDetached = true
             clip.volume = Animatable(1)

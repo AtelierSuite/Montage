@@ -50,10 +50,10 @@ extension Clip {
     /// its media and at least a frame long.
     mutating func moveStart(to time: CMTime, isStill: Bool) {
         let delta = time - timelineStart
-        let duration = sourceRange.duration - delta
+        let end = timelineRange.end
         // A still has no time of its own to take from, so it only gets longer.
-        let sourceStart = isStill ? sourceRange.start : sourceRange.start + delta
-        sourceRange = CMTimeRange(start: sourceStart, duration: duration)
+        let sourceStart = isStill ? sourceRange.start : sourceRange.start + speed.mediaDuration(ofTimeline: delta)
+        sourceRange = CMTimeRange(start: sourceStart, duration: speed.mediaDuration(ofTimeline: end - time))
         timelineStart = time
         // A still's keyframes stay put too, or the part of it after a split
         // would start its animation over.
@@ -62,7 +62,7 @@ extension Clip {
 
     /// Moves the clip's end to a time on the timeline, keeping its start.
     mutating func moveEnd(to time: CMTime) {
-        sourceRange = CMTimeRange(start: sourceRange.start, duration: time - timelineStart)
+        sourceRange = CMTimeRange(start: sourceRange.start, duration: speed.mediaDuration(ofTimeline: time - timelineStart))
     }
 }
 
@@ -171,14 +171,14 @@ extension Project {
 
     /// The latest a clip's end can be moved to before it runs out of media.
     private func latestEnd(of clip: Clip) -> CMTime? {
-        mediaDuration(of: clip).map { clip.timelineStart + ($0 - clip.sourceRange.start) }
+        mediaDuration(of: clip).map { clip.timelineStart + clip.speed.timelineDuration(ofMedia: $0 - clip.sourceRange.start) }
     }
 
     /// The earliest a clip's start can be moved to before it runs out of
     /// media, or the timeline's start.
     private func earliestStart(of clip: Clip) -> CMTime {
         guard mediaDuration(of: clip) != nil else { return .zero }
-        return max(.zero, clip.timelineStart - clip.sourceRange.start)
+        return max(.zero, clip.timelineStart - clip.speed.timelineDuration(ofMedia: clip.sourceRange.start))
     }
 
     /// The clips either side of one on its track.
@@ -226,7 +226,7 @@ extension Project {
             // The clip stays where it starts; taking `delta` more or less of
             // its media off the front moves what follows it the other way.
             var delta = min(time - clip.timelineStart, clip.duration - minimum)
-            if !isStill { delta = max(delta, .zero - clip.sourceRange.start) }
+            if !isStill { delta = max(delta, .zero - clip.speed.timelineDuration(ofMedia: clip.sourceRange.start)) }
             let oldEnd = clip.timelineRange.end
             tracks[trackIndex].update(id) { clip in
                 clip.moveStart(to: clip.timelineStart + delta, isStill: isStill)

@@ -246,9 +246,10 @@ struct TimelineCanvas: View {
         // covers, so nothing is lost however far out the timeline is zoomed.
         let first = start.rounded(.down)
         let count = Int((end - first).rounded(.up))
+        let rate = clip.speed.rate
         let source = CMTimeRange(
-            start: clip.sourceRange.start + CMTime(seconds: layout.seconds(atX: first - rect.minX), preferredTimescale: 6000),
-            duration: CMTime(seconds: layout.seconds(atX: Double(count)), preferredTimescale: 6000)
+            start: clip.sourceRange.start + CMTime(seconds: layout.seconds(atX: first - rect.minX) * rate, preferredTimescale: 6000),
+            duration: CMTime(seconds: layout.seconds(atX: Double(count)) * rate, preferredTimescale: 6000)
         )
         var bars = Path()
         for (index, peak) in peaks.peaks(in: source, count: count).enumerated() {

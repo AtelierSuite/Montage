@@ -151,7 +151,8 @@ extension Clip {
         let cut = kept.start - timelineStart
         var clip = self
         clip.timelineStart = kept.start
-        clip.sourceRange = CMTimeRange(start: sourceRange.start + cut, duration: kept.duration)
+        clip.sourceRange = CMTimeRange(start: sourceRange.start + speed.mediaDuration(ofTimeline: cut),
+                                       duration: speed.mediaDuration(ofTimeline: kept.duration))
         if cut != .zero { clip.shiftKeyframes(by: .zero - cut) }
         return clip
     }
