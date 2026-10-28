@@ -382,20 +382,24 @@ private struct LayerWriter {
     }
 
     /// Puts as much of a clip as its media has at the clip's place on the
-    /// timeline, after empty time from the clip before. False when none of
-    /// the clip's source range is in the media.
+    /// timeline, after empty time from the clip before, played at the clip's
+    /// speed. False when none of the clip's source range is in the media.
     mutating func place(
         _ clip: Clip, from source: SourceTrack, in composition: AVMutableComposition, settings: ProjectSettings
     ) throws -> Bool {
+        let speed = clip.speed
         var sourceRange = clip.sourceRange.intersection(source.timeRange)
         guard sourceRange.duration > .zero else { return false }
-        var start = clip.timelineStart + (sourceRange.start - clip.sourceRange.start)
+        var start = clip.timelineStart + speed.timelineDuration(ofMedia: sourceRange.start - clip.sourceRange.start)
+        var duration = speed.timelineDuration(ofMedia: sourceRange.duration)
         // Clips on a track shouldn't overlap; if one does, the earlier clip
         // wins and the later one loses its front.
         if start < cursor {
             let overlap = cursor - start
-            guard overlap < sourceRange.duration else { return false }
-            sourceRange = CMTimeRange(start: sourceRange.start + overlap, duration: sourceRange.duration - overlap)
+            guard overlap < duration else { return false }
+            let skipped = speed.mediaDuration(ofTimeline: overlap)
+            sourceRange = CMTimeRange(start: sourceRange.start + skipped, duration: sourceRange.duration - skipped)
+            duration = duration - overlap
             start = cursor
         }
 
@@ -404,7 +408,10 @@ private struct LayerWriter {
             compositionTrack.insertEmptyTimeRange(CMTimeRange(start: cursor, end: start))
         }
         try compositionTrack.insertTimeRange(sourceRange, of: source.track, at: start)
-        let timelineRange = CMTimeRange(start: start, duration: sourceRange.duration)
+        if !speed.isNormal {
+            compositionTrack.scaleTimeRange(CMTimeRange(start: start, duration: sourceRange.duration), toDuration: duration)
+        }
+        let timelineRange = CMTimeRange(start: start, duration: duration)
         cursor = timelineRange.end
         let tail = CompositionBuilder.audioTail(for: clip)
         ringsUntil = kind == .audio && tail > .zero ? cursor + tail : .negativeInfinity
@@ -477,16 +484,18 @@ private struct LayerWriter {
         if range.start > cursor {
             compositionTrack.insertEmptyTimeRange(CMTimeRange(start: cursor, end: range.start))
         }
+        // The media under the stretch, at the clip's speed.
+        let length = clip.speed.mediaDuration(ofTimeline: range.duration)
         let wanted = isIncoming
-            ? CMTimeRange(start: clip.sourceRange.start - range.duration, duration: range.duration)
-            : CMTimeRange(start: clip.sourceRange.end, duration: range.duration)
+            ? CMTimeRange(start: clip.sourceRange.start - length, duration: length)
+            : CMTimeRange(start: clip.sourceRange.end, duration: length)
         let placement: CompositorLayer
         switch source {
         case .video(let video):
             let media = video.timeRange
             var available = wanted.intersection(media)
             if !available.isValid || available.duration < .zero { available = CMTimeRange(start: wanted.start, duration: .zero) }
-            let held = range.duration - available.duration
+            let held = length - available.duration
             /// A frame of the media, held for a while at a time on the timeline.
             func hold(_ time: CMTime, for duration: CMTime, at start: CMTime) throws {
                 guard duration > .zero else { return }
@@ -512,6 +521,9 @@ private struct LayerWriter {
                 }
                 let last = (available.duration > .zero ? available.end : clip.sourceRange.end) - frameDuration
                 try hold(last, for: held, at: range.start + available.duration)
+            }
+            if length != range.duration {
+                compositionTrack.scaleTimeRange(CMTimeRange(start: range.start, duration: length), toDuration: range.duration)
             }
             placement = CompositorLayer(
                 source: .track(compositionTrack.trackID), clip: clip, naturalSize: video.naturalSize,

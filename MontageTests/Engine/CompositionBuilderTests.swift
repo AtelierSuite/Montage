@@ -150,6 +150,26 @@ struct CompositionBuilderTests {
         #expect(built.videoLayers.count == 1)
     }
 
+    @Test func aClipAtAnotherSpeedIsStretchedToItsLength() async throws {
+        var slow = Clip(mediaID: SampleMedia.landscape.id, sourceRange: range(1, 2))
+        slow.speed = try #require(ClipSpeed(media: 1, timeline: 2))
+        let after = Clip(mediaID: SampleMedia.portrait.id, sourceRange: range(0, 1), timelineStart: seconds(4))
+        let built = try await build(project([Track(kind: .video, clips: [slow, after])]))
+
+        #expect(built.skippedClips.isEmpty, "\(built.skippedClips)")
+        #expect(built.duration == seconds(5))
+        let video = try #require(try await built.composition.loadTracks(withMediaType: .video).first)
+        let pieces = video.segments.map { ($0.timeMapping.target, $0.timeMapping.source) }
+        #expect(pieces.first?.0 == range(0, 4))
+        #expect(pieces.first?.1 == range(1, 2))
+        #expect(pieces.last?.0 == range(4, 1))
+        #expect(built.videoLayers.first?.segments.first?.timelineRange == range(0, 4))
+        #expect(built.videoLayers.first?.segments.first?.sourceRange == range(1, 2))
+        // Its sound is stretched with it.
+        let audio = try #require(try await built.composition.loadTracks(withMediaType: .audio).first)
+        #expect(audio.segments.first?.timeMapping.target == range(0, 4))
+    }
+
     @Test func layersStackFromTheBottomTrack() async throws {
         let bottom = Track(kind: .video, clips: [Clip(mediaID: SampleMedia.landscape.id, sourceRange: range(0, 4))])
         let top = Track(kind: .video, clips: [Clip(mediaID: SampleMedia.portrait.id, sourceRange: range(0, 2), timelineStart: seconds(1))])
