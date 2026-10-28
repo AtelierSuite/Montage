@@ -266,7 +266,7 @@ struct FCPXMLExporter {
         return [MarkupElement("param", [("name", name)], children: [MarkupElement("keyframeAnimation", children: keyframes)])]
     }
 
-    private static func interp(_ interpolation: Interpolation) -> String? {
+    static func interp(_ interpolation: Interpolation) -> String? {
         switch interpolation {
         case .linear, .hold: nil
         case .easeIn: "easeIn"

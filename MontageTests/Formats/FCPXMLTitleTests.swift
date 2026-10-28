@@ -22,6 +22,10 @@ struct FCPXMLTitleTests {
         style.lineSpacing = Animatable(10)
         style.outline = LayerStroke(isEnabled: true, color: .black, width: 6)
         style.shadow = LayerShadow(isEnabled: true, color: RGBAColor(white: 0, alpha: 0.5), blur: 8, offset: CGSize(width: 3, height: 4))
+        style.fontSize = Animatable(120, keyframes: [
+            Keyframe(time: .zero, value: 120, interpolation: .easeOut), Keyframe(time: seconds(1), value: 150),
+        ])
+        style.outline.width = Animatable(6, keyframes: [Keyframe(time: .zero, value: 6), Keyframe(time: seconds(2), value: 2)])
         style.background = TextBackground(isEnabled: true, color: RGBAColor(white: 0, alpha: 0.5), padding: 30, cornerRadius: 8)
         let text = TextContent(runs: [
             TextRun("Big "), TextRun("bold", formatting: TextRun.Formatting(weight: .bold, isItalic: false)),
@@ -36,7 +40,10 @@ struct FCPXMLTitleTests {
 
         var correction = ColorCorrection()
         correction.exposure = Animatable(0.5)
-        var connected = Clip(content: .text(TextContent("Lower third")), sourceRange: CMTimeRange(start: .zero, duration: seconds(2)),
+        var lowerStyle = TextStyle()
+        lowerStyle.fill = LayerFill(style: .linearGradient, color: red, endColor: RGBAColor(red: 0, green: 0, blue: 1), angle: 90)
+        var connected = Clip(content: .text(TextContent("Lower third", style: lowerStyle)),
+                             sourceRange: CMTimeRange(start: .zero, duration: seconds(2)),
                              timelineStart: seconds(1))
         connected.effects = [Effect(.colorCorrection(correction))]
         let shape = Clip(content: .shape(ShapeContent()), sourceRange: CMTimeRange(start: .zero, duration: seconds(1)),
@@ -92,6 +99,45 @@ struct FCPXMLTitleTests {
         #expect(connected.child("filter-video") != nil)
     }
 
+    @Test func writesKeyframedFormattingAsTextStyleParams() throws {
+        let root = try MarkupElement.parse(export(Self.project()))
+        let first = try #require(root.allDescendants.first { $0.name == "title" })
+        let plain = try #require(first.children("text-style-def").first?.child("text-style"))
+        // The size, as the Motion text style's own Size.
+        let size = try #require(plain.children("param").first { $0["key"] == "3" })
+        #expect(size["name"] == "Size")
+        #expect(size["value"] == "120")
+        let sizes = size.child("keyframeAnimation")?.children("keyframe") ?? []
+        #expect(sizes.map { $0["time"] } == ["0s", "1s"])
+        #expect(sizes.map { $0["value"] } == ["120", "150"])
+        #expect(sizes.first?["interp"] == "easeOut")
+        // The outline's width, inside the Outline's settings.
+        let outline = try #require(plain.children("param").first { $0["key"] == "30" })
+        let width = try #require(outline.children("param").first { $0["key"] == "36" })
+        #expect(width.child("keyframeAnimation")?.children("keyframe").map { $0["value"] } == ["6", "2"])
+        #expect(outline.children("param").first { $0["key"] == "32" }?["value"] == "0 0 0")
+        // The shadow has no keyframes, so the attributes say all of it.
+        #expect(!plain.children("param").contains { $0["key"] == "21" })
+    }
+
+    @Test func writesGradientFills() throws {
+        let root = try MarkupElement.parse(export(Self.project()))
+        let lower = try #require(root.allDescendants.first { $0.name == "title" && $0["name"] == "Lower third" })
+        let id = try #require(lower.child("text")?.children("text-style").first?["ref"])
+        let style = try #require(root.allDescendants.first { $0.name == "text-style-def" && $0["id"] == id }?.child("text-style"))
+        // The first colour for anything that reads only the attributes.
+        #expect(style["fontColor"] == "1 0 0 1")
+        let face = try #require(style.children("param").first { $0["key"] == "14" })
+        #expect(face.children("param").first { $0["key"] == "15" }?["value"] == "1 (Gradient)")
+        let gradient = try #require(face.children("param").first { $0["key"] == "17" })
+        let ends = gradient.children("param").first { $0["key"] == "1" }?.children("param") ?? []
+        #expect(ends.map { $0["key"] } == ["999140132", "999140133"])
+        #expect(ends.map { $0.child("param")?["value"] } == ["1 0 0", "0 0 1"])
+        #expect(gradient.children("param").first { $0["key"] == "3" }?["value"] == "0 (Linear)")
+        // Top to bottom: pointing down, with y running up.
+        #expect(gradient.children("param").first { $0["key"] == "4" }?["value"] == "-1.570796")
+    }
+
     @Test func shapesAndEmptyTextAreLeftOut() throws {
         var project = Self.project()
         let shape = project.tracks[1].clips[1].id
@@ -124,6 +170,8 @@ struct FCPXMLTitleTests {
             let style = copy.text.style, expected = original.1.style
             #expect(style.fontFamily == expected.fontFamily)
             #expect(style.fontSize.value == expected.fontSize.value)
+            #expect(style.background.isEnabled == expected.background.isEnabled)
+            #expect(style.background.color.value == expected.background.color.value)
             #expect(style.weight == expected.weight)
             #expect(style.isItalic == expected.isItalic)
             #expect(style.fill.color.value == expected.fill.color.value)
@@ -132,8 +180,6 @@ struct FCPXMLTitleTests {
             #expect(style.lineSpacing.value == expected.lineSpacing.value)
             #expect(style.outline.isEnabled == expected.outline.isEnabled)
             #expect(style.shadow.isEnabled == expected.shadow.isEnabled)
-            #expect(style.background.isEnabled == expected.background.isEnabled)
-            #expect(style.background.color.value == expected.background.color.value)
             if expected.shadow.isEnabled {
                 #expect(abs(style.shadow.offset.value.width - expected.shadow.offset.value.width) < 0.0001)
                 #expect(abs(style.shadow.offset.value.height - expected.shadow.offset.value.height) < 0.0001)
@@ -153,7 +199,9 @@ struct FCPXMLTitleTests {
         let lower = try #require(imported.project.tracks.firstIndex { $0.clips.contains { $0.content.text?.string == "Lower third" } })
         let big = try #require(imported.project.tracks.firstIndex { $0.clips.contains { $0.content.text?.string.hasPrefix("Big") == true } })
         #expect(lower > big)
-        #expect(imported.report.isEmpty)
+        // Montage reads only the attributes back, not the keyframes.
+        #expect(imported.report.items.allSatisfy { $0.issue == .setting(name: "Text style animation") })
+        #expect(!imported.report.isEmpty)
     }
 
     // MARK: - Reading Final Cut's
