@@ -380,14 +380,50 @@ struct PremiereProjectImportTests {
         #expect(transitions.last?.time == seconds(3, 2))
     }
 
-    @Test func bringsInSequenceMarkersAndReportsClipMarkers() throws {
-        #expect(imported.project.markers.map(\.time) == [seconds(1), seconds(10)])
-        #expect(imported.project.markers.map(\.name) == ["Intro", "Outro"])
+    @Test func bringsInSequenceAndClipMarkers() throws {
         // A clip's marker inside the part used, timed on the timeline; the
         // one before the in point isn't there.
-        let clipMarkers = imported.report.items.filter { if case .marker = $0.issue { true } else { false } }
-        #expect(clipMarkers.map(\.issue) == [.marker(name: "Take 2")])
-        #expect(clipMarkers.first?.time == seconds(1))
+        #expect(imported.project.markers.map(\.time) == [seconds(1), seconds(2), seconds(10)])
+        #expect(imported.project.markers.map(\.name) == ["Intro", "Take 2", "Outro"])
+        #expect(!imported.report.items.contains { if case .marker = $0.issue { true } else { false } })
+    }
+
+    @Test func placesANestedSequencesMarkersWhereTheyreShown() throws {
+        // The nested sequence is shown from its 1s to its 3s, at 1s.
+        let xml = PremiereFixtures.xml
+            .replacingOccurrences(of: """
+            		<ID>2</ID>
+            		<Name>Nested</Name>
+            """, with: """
+            		<MarkerOwner Version="1">
+            			<Markers ObjectRef="930"/>
+            		</MarkerOwner>
+            		<ID>2</ID>
+            		<Name>Nested</Name>
+            """)
+            .replacingOccurrences(of: "</PremiereData>", with: """
+            	<Markers ObjectID="930" ClassID="bee50706-b524-416c-9f03-b596ce5f6866" Version="4">
+            		<Markers Version="1">
+            			<Marker Version="1" Index="0"><Second ObjectRef="931"/></Marker>
+            			<Marker Version="1" Index="1"><Second ObjectRef="932"/></Marker>
+            		</Markers>
+            	</Markers>
+            	<Marker ObjectID="931" ClassID="a45508e0-3ff7-4d04-90a7-2e0dfff4c910" Version="3">
+            		<DVAMarker>{"DVAMarker":{"mName":"Cut off","mStartTime":{"ticks":127008000000},"mType":"Comment"}}</DVAMarker>
+            	</Marker>
+            	<Marker ObjectID="932" ClassID="a45508e0-3ff7-4d04-90a7-2e0dfff4c910" Version="3">
+            		<DVAMarker>{"DVAMarker":{"mName":"Shown","mStartTime":{"ticks":635040000000},"mType":"Comment"}}</DVAMarker>
+            	</Marker>
+            </PremiereData>
+            """)
+        let markers = try PremiereFixtures.read(xml).project.markers
+        #expect(markers.map(\.name) == ["Intro", "Take 2", "Shown", "Outro"])
+        #expect(markers.first { $0.name == "Shown" }?.time == seconds(5, 2))
+    }
+
+    @Test func namesAMarkerByItsCommentIfItHasNoName() throws {
+        let xml = PremiereFixtures.xml.replacingOccurrences(of: #""mName":"Outro","#, with: #""mName":"","#)
+        #expect(try PremiereFixtures.read(xml).project.markers.map(\.name) == ["Intro", "Take 2", "Roll credits"])
     }
 
     @Test func timesAClipsMarkersAtItsSpeed() throws {
@@ -417,7 +453,7 @@ struct PremiereProjectImportTests {
             	</Marker>
             </PremiereData>
             """)
-        let marker = try #require(try PremiereFixtures.read(xml).report.items.first { $0.issue == .marker(name: "Fast") })
+        let marker = try #require(try PremiereFixtures.read(xml).project.markers.first { $0.name == "Fast" })
         #expect(marker.time == seconds(21, 2))
     }
 
@@ -624,7 +660,7 @@ struct PremiereObjectGraphTests {
                                   with: #""mStartTime":{"ticks":254016000000},"mType":"Comment"}}]]></DVAMarker>"#)
         let imported = try PremiereFixtures.read(xml)
         #expect(imported.name == "Main Edit")
-        #expect(imported.project.markers.map(\.name) == ["<Intro>", "Outro"])
+        #expect(imported.project.markers.map(\.name) == ["<Intro>", "Take 2", "Outro"])
     }
 
     @Test func stopsReadingAtARefusedVersion() {
