@@ -69,6 +69,52 @@ enum EffectMapping {
         return nil
     }
 
+    /// Final Cut's Equalization, from a clip's audio settings: a graphic EQ
+    /// of 10 bands an octave apart, or 31 a third of an octave apart, each
+    /// of which is a peaking band like Montage's. Its presets (Voice
+    /// Enhance, Hum Reduction and so on) aren't written out band by band,
+    /// so only the flat EQ, with the bands it changes, is brought in.
+    static func fcpxmlEqualizer(mode: String?, bands: [(name: String, gain: Animatable<Double>)]) -> Effect.Kind? {
+        guard (mode ?? "flat").lowercased() == "flat" else { return nil }
+        let changed = bands.compactMap { band -> (frequency: Double, gain: Animatable<Double>)? in
+            guard let frequency = frequency(named: band.name), band.gain.isAnimated || band.gain.value != 0 else { return nil }
+            return (frequency, band.gain)
+        }
+        guard !changed.isEmpty else { return nil }
+        // A band that isn't one of the 10 means the 31.
+        let isThirds = changed.contains { band in !graphicOctaveBands.contains { abs($0 - band.frequency) < 1 } }
+        var equalizer = Equalizer()
+        equalizer.bands = changed.sorted { $0.frequency < $1.frequency }.map { changed in
+            var band = Equalizer.Band(frequency: changed.frequency, bandwidth: isThirds ? 1.0 / 3 : 1)
+            band.gain = changed.gain
+            return band
+        }
+        return .equalizer(equalizer)
+    }
+
+    /// The 10-band graphic EQ's bands, in hertz.
+    static let graphicOctaveBands: [Double] = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+
+    /// A band's frequency from its name, such as "64 Hz" or "1.2 kHz".
+    static func frequency(named name: String) -> Double? {
+        let lower = name.lowercased().replacingOccurrences(of: " ", with: "")
+        guard lower.hasSuffix("hz") else { return nil }
+        var number = String(lower.dropLast(2))
+        var scale = 1.0
+        if number.hasSuffix("k") {
+            number.removeLast()
+            scale = 1000
+        }
+        guard let value = Double(number), value > 0 else { return nil }
+        return value * scale
+    }
+
+    /// A peaking band's width in octaves for its Q.
+    static func octaves(q: Double) -> Double {
+        guard q > 0 else { return Equalizer.Band(frequency: 1000).bandwidth.value }
+        return 2 / log(2) * asinh(1 / (2 * q))
+    }
+
     /// The Amount Final Cut's Gaussian or Pixellate is written with for a
     /// mosaic, the other way from `fcpxml`.
     static func fcpAmount(for style: Mosaic.Style, scale: Double, frameWidth: Double) -> Double {
@@ -123,6 +169,18 @@ enum EffectMapping {
             }
             guard correction.contrast.isAnimated || correction.contrast.value != 1 else { return nil }
             return .colorCorrection(correction)
+        case ("parametriceq", _), (_, "parametric equalizer"), (_, "parametric eq"), (_, "simple parametric eq"):
+            // Final Cut 7's Parametric Equalizer and Premiere's Simple
+            // Parametric EQ: one peaking band, as each of Montage's is.
+            guard let frequency = parameters.number("frequency", "center"),
+                  let gain = parameters.number("gain", "boost") else { return nil }
+            var band = Equalizer.Band(frequency: frequency.value)
+            band.frequency = frequency
+            band.gain = gain
+            if let q = parameters.number("q") { band.bandwidth = q.mapped(octaves(q:)) }
+            var equalizer = Equalizer()
+            equalizer.bands = [band]
+            return .equalizer(equalizer)
         default:
             return nil
         }

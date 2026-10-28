@@ -30,6 +30,11 @@ struct EffectMappingTests {
         return correction
     }
 
+    private func equalizer(_ kind: Effect.Kind?) throws -> Equalizer {
+        guard case .equalizer(let equalizer) = kind else { throw MappingError.wrongKind }
+        return equalizer
+    }
+
     private enum MappingError: Error { case wrongKind }
 
     // MARK: - Final Cut blur and pixellate
@@ -124,5 +129,60 @@ struct EffectMappingTests {
         #expect(abs(gain * lift - 0.3) < 0.0001)
         // White goes up by exposure, less the room the black point takes.
         #expect(abs(gain - (0.7 / 0.845 + 0.3)) < 0.0001)
+    }
+
+    // MARK: - EQ
+
+    @Test func bringsInTheFlatEQsChangedBands() throws {
+        let eq = try equalizer(EffectMapping.fcpxmlEqualizer(mode: "flat", bands: [
+            ("64 Hz", Animatable(-6)), ("1 kHz", Animatable(0)), ("4K Hz", Animatable(3)),
+        ]))
+        #expect(eq.bands.map(\.frequency.value) == [64, 4000])
+        #expect(eq.bands.map(\.gain.value) == [-6, 3])
+        #expect(eq.bands.map(\.bandwidth.value) == [1, 1])
+    }
+
+    @Test func narrowsTheBandsOfTheThirtyOneBandEQ() throws {
+        let eq = try equalizer(EffectMapping.fcpxmlEqualizer(mode: nil, bands: [("40 Hz", Animatable(4))]))
+        #expect(abs(eq.bands[0].bandwidth.value - 1.0 / 3) < 0.000001)
+    }
+
+    @Test func leavesTheEQsPresetsAndAFlatEQAlone() {
+        #expect(EffectMapping.fcpxmlEqualizer(mode: "hum_reduction", bands: [("64 Hz", Animatable(-6))]) == nil)
+        #expect(EffectMapping.fcpxmlEqualizer(mode: "flat", bands: [("64 Hz", Animatable(0))]) == nil)
+    }
+
+    @Test func readsAClipsEQFromFinalCut() throws {
+        let xml = """
+            <fcpxml version="1.11"><resources><format id="r1" frameDuration="1/30s" width="1920" height="1080"/>
+            <asset id="a1" name="A" start="0s" duration="10s" hasAudio="1" format="r1"><media-rep kind="original-media" src="a.wav"/></asset>
+            </resources><library><event><project name="P"><sequence format="r1" tcStart="0s"><spine>
+            <asset-clip ref="a1" offset="0s" start="0s" duration="5s">
+            <adjust-EQ mode="flat"><param name="64 Hz" key="2/1" value="-6"/><param name="8 kHz" key="2/8" value="2.5"/></adjust-EQ>
+            </asset-clip></spine></sequence></project></event></library></fcpxml>
+            """
+        let imported = try ProjectInterchange.read(Data(xml.utf8))
+        let clip = try #require(imported.project.tracks.flatMap(\.clips).first)
+        let eq = try equalizer(clip.effects.first { if case .equalizer = $0.kind { true } else { false } }?.kind)
+        #expect(eq.bands.map(\.frequency.value) == [64, 8000])
+        #expect(eq.bands.map(\.gain.value) == [-6, 2.5])
+        #expect(!imported.report.items.contains { $0.issue == .setting(name: "EQ") })
+    }
+
+    @Test func readsAParametricEQFromFinalCut7AndPremiere() throws {
+        let fcp7 = try equalizer(EffectMapping.xmeml(id: "", name: "Parametric Equalizer", parameters: parameters([
+            "frequency": Animatable(2500), "gain": Animatable(-4), "Q": Animatable(sqrt(2)),
+        ]), frameWidth: 1920))
+        #expect(fcp7.bands.count == 1)
+        #expect(fcp7.bands[0].frequency.value == 2500)
+        #expect(fcp7.bands[0].gain.value == -4)
+        // A Q of √2 is an octave wide.
+        #expect(abs(fcp7.bands[0].bandwidth.value - 1) < 0.0001)
+
+        let premiere = try equalizer(EffectMapping.xmeml(id: "", name: "Simple Parametric EQ", parameters: parameters([
+            "Center": Animatable(400), "Boost": Animatable(6),
+        ]), frameWidth: 1920))
+        #expect(premiere.bands[0].frequency.value == 400)
+        #expect(premiere.bands[0].gain.value == 6)
     }
 }
