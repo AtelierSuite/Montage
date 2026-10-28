@@ -27,12 +27,8 @@ struct TextInspector: View {
     var body: some View {
         let style = editing.clip.textContent.style
         Section {
-            TextEditor(text: words, selection: $selection)
+            wordsEditor
                 .frame(minHeight: 72)
-                .focused($isTyping)
-                .onChange(of: isTyping) { _, isTyping in
-                    if !isTyping { editing.editor.endTypingWords() }
-                }
                 .onDisappear { editing.editor.endTypingWords() }
                 .accessibilityLabel(Text("Inspector.Text.Words"))
             formattingBar
@@ -109,6 +105,20 @@ struct TextInspector: View {
     }
 
     // MARK: - Words
+
+    /// The box the words are typed in, which ends the typing as one undo
+    /// step when it's left.
+    @ViewBuilder private var wordsEditor: some View {
+        #if os(macOS)
+        InspectorTextView(text: words, selection: $selection) { editing.editor.endTypingWords() }
+        #else
+        TextEditor(text: words, selection: $selection)
+            .focused($isTyping)
+            .onChange(of: isTyping) { _, isTyping in
+                if !isTyping { editing.editor.endTypingWords() }
+            }
+        #endif
+    }
 
     /// The words, changed keeping each piece's formatting. Typing is one
     /// continuous change, from the words as they were when it began.
