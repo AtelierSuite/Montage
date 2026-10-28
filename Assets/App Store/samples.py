@@ -227,8 +227,10 @@ def aquarium():
 
 
 def farm():
-    """A wet morning on a goat farm: three clips with a warmer grade, one
-    with its sound split off onto a track of its own."""
+    """A wet morning on a goat farm: three clips with a warmer grade, the
+    first with its sound split off onto a track of its own and a goat inset
+    over it. All of that lies in the first ten seconds, which is as much as
+    the iPad's timeline shows."""
     p = Package(t("Farm Visit", "牧場さんぽ"))
     shed = p.add_media("IMG_1805.MOV", "Goat Shed", "ヤギ小屋")
     barn = p.add_media("IMG_1813.MOV", "Barn", "納屋")
@@ -236,16 +238,16 @@ def farm():
 
     warm = dict(temperature=5600, saturation=1.1)
     p.track("video", [
+        dict(media=barn, source=3, duration=10, detached=True, effects=[color("barn", contrast=1.08, **warm)]),
         dict(media=yard, source=4, duration=12, effects=[color("yard", **warm)]),
         dict(media=shed, source=2, duration=8, effects=[color("shed", exposure=0.15, **warm)]),
-        dict(media=barn, source=3, duration=10, detached=True, effects=[color("barn", contrast=1.08, **warm)]),
     ])
     p.track("video", [dict(
-        start=14, media=shed, source=11, duration=5, detached=True,
+        start=4, media=shed, source=11, duration=5, detached=True,
         opacity=animatable(0.9), scale=animatable(0.3), position=animatable([0.2, 0.25]),
     )])
     p.track("audio", [
-        dict(start=20, media=barn, source=3, duration=10, effects=[gain("barn-gain", 3)],
+        dict(media=barn, source=3, duration=10, effects=[gain("barn-gain", 3)],
              volume=animatable(1.0, [(8, 1.0), (10, 0.0)])),
     ])
     p.write()

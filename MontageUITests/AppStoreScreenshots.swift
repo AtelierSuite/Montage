@@ -47,7 +47,7 @@ final class AppStoreScreenshots: XCTestCase {
 
     private static let iPadShots = [
         Shot(name: "01-timeline", project: aquarium, time: 3),
-        Shot(name: "02-farm", project: farm, time: 15),
+        Shot(name: "02-farm", project: farm, time: 6),
         Shot(name: "03-float", project: aquarium, stage: .floatingPreview),
         Shot(name: "04-export", project: farm, stage: .export),
         Shot(name: "05-portrait", project: reel, time: 2),
