@@ -27,6 +27,8 @@ struct FCPXMLImporter {
     private var assembler = TimelineAssembler()
     private var report = ImportReport(format: .fcpxml)
     private var settings = ProjectSettings()
+    /// Markers on the primary storyline, which are the timeline's own.
+    private var markers: [Marker] = []
 
     static func read(_ root: MarkupElement, baseURL: URL?) throws -> ImportedProject {
         var importer = FCPXMLImporter(root: root, baseURL: baseURL)
@@ -66,6 +68,7 @@ struct FCPXMLImporter {
 
         var montage = Project(settings: settings, media: media.items)
         montage.tracks = assembler.tracks(report: &report)
+        for marker in markers { montage.addMarker(at: marker.time, name: marker.name) }
         return ImportedProject(project: montage, report: report, name: project["name"], mediaSources: media.sources,
                                mediaSourcePaths: media.writtenPaths)
     }
@@ -193,9 +196,14 @@ struct FCPXMLImporter {
         inside.lane = timing.lane
         let connected = inside
 
+        let isPrimary = timing.lane == 0 && context.expanding.isEmpty && context.inherited.isEmpty
         for marker in element.children where marker.name == "marker" || marker.name == "chapter-marker" {
-            report.add(.marker(name: marker["value"] ?? ""), clipName: name,
-                       time: inside.timeline(time(marker["start"]) ?? start))
+            let at = inside.timeline(time(marker["start"]) ?? start)
+            if isPrimary {
+                markers.append(Marker(time: at, name: marker["value"] ?? ""))
+            } else {
+                report.add(.marker(name: marker["value"] ?? ""), clipName: name, time: at)
+            }
         }
         if element.children.contains(where: { $0.name == "timeMap" }) {
             report.add(.speedChange, clipName: name, time: timing.timelineStart)
