@@ -328,8 +328,11 @@ struct XMEMLImporter {
     }
 
     /// Basic Motion: scale in percent of the media's own size, rotation
-    /// clockwise in degrees, and the centre as a fraction of the frame from
-    /// its middle.
+    /// clockwise in degrees, and the centre's offset from the frame's middle
+    /// as a fraction of the media's own size, unscaled. Premiere writes
+    /// a 3840 by 1080 picture moved 960 pixels right in an HD frame as 0.25
+    /// across, and a 4096 by 2048 one at 140.7% moved 1440 pixels down as
+    /// 0.703125 down.
     private mutating func applyMotion(
         _ effect: MarkupElement, to clip: inout Clip, item: MediaItem, clipRate: CMTime, toClip: @escaping (CMTime) -> CMTime
     ) {
@@ -348,7 +351,10 @@ struct XMEMLImporter {
             clip.transform.rotation = rotation
         }
         if let center = parameter("center").flatMap({ animatable($0, clipRate: clipRate, toClip: toClip, Self.point) }) {
-            clip.transform.position = center
+            let size = media.width > 0 && media.height > 0 ? media : frame
+            let across = frame.width > 0 ? size.width / frame.width : 1
+            let down = frame.height > 0 ? size.height / frame.height : 1
+            clip.transform.position = center.mapped { CGPoint(x: 0.5 + ($0.x - 0.5) * across, y: 0.5 + ($0.y - 0.5) * down) }
         }
         if let offset = parameter("centeroffset").flatMap({ animatable($0, clipRate: clipRate, toClip: toClip, Self.point) }),
            offset.isAnimated || offset.value != CGPoint(x: 0.5, y: 0.5) {

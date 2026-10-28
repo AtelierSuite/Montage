@@ -117,9 +117,9 @@ enum EffectMapping {
     }
 }
 
-extension Animatable where Value == Double {
+extension Animatable {
     /// The same parameter with every value, and every keyframe's, changed.
-    func mapped(_ transform: (Double) -> Double) -> Animatable<Double> {
+    func mapped(_ transform: (Value) -> Value) -> Animatable<Value> {
         Animatable(transform(value), keyframes: keyframes.map {
             Keyframe(time: $0.time, value: transform($0.value), interpolation: $0.interpolation)
         })
