@@ -76,6 +76,10 @@ enum FCPXMLTitles {
                 ("shadowBlurRadius", decimal(shadow.blur)),
             ]
         }
+        // Final Cut draws a background only behind captions' words.
+        if let background = style.background.resolved(at: .zero) {
+            attributes.append(("backgroundColor", color(background.color)))
+        }
         let spacing = style.letterSpacing.value(at: .zero)
         let lineSpacing = style.lineSpacing.value(at: .zero)
         attributes += [
@@ -156,7 +160,7 @@ enum FCPXMLTitles {
         for piece in pieces {
             let attributes = piece.attributes
             if piece.isAnimated { note("Text style animation") }
-            for name in ["baseline", "baselineOffset", "tabStops", "underline", "backgroundColor"] where attributes[name] != nil {
+            for name in ["baseline", "baselineOffset", "tabStops", "underline"] where attributes[name] != nil {
                 if name == "underline", attributes[name] == "0" { continue }
                 note(settingName(name))
             }
@@ -169,7 +173,7 @@ enum FCPXMLTitles {
             if color != style.fill.color.value { formatting.color = color }
             // What can't.
             for name in ["font", "fontSize", "strokeColor", "strokeWidth", "shadowColor", "shadowOffset",
-                         "shadowBlurRadius", "kerning", "lineSpacing", "alignment"] where attributes[name] != base[name] {
+                         "shadowBlurRadius", "kerning", "lineSpacing", "alignment", "backgroundColor"] where attributes[name] != base[name] {
                 note("Text style per word")
                 break
             }
@@ -200,6 +204,10 @@ enum FCPXMLTitles {
                 isEnabled: true, color: color, blur: attributes["shadowBlurRadius"].flatMap(Double.init) ?? 0,
                 offset: CGSize(width: distance * cos(angle), height: -distance * sin(angle))
             )
+        }
+        if let color = attributes["backgroundColor"].flatMap(color) {
+            style.background.isEnabled = true
+            style.background.color = Animatable(color)
         }
         if let kerning = attributes["kerning"].flatMap(Double.init) { style.letterSpacing = Animatable(kerning) }
         if let spacing = attributes["lineSpacing"].flatMap(Double.init) { style.lineSpacing = Animatable(spacing) }
@@ -235,7 +243,6 @@ enum FCPXMLTitles {
     /// "tabStops" as "Tab stops".
     private static func settingName(_ attribute: String) -> String {
         switch attribute {
-        case "backgroundColor": return "Text background"
         case "baselineOffset": return "Baseline offset"
         case "tabStops": return "Tab stops"
         default: return attribute.prefix(1).uppercased() + attribute.dropFirst()

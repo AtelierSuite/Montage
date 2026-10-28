@@ -22,6 +22,7 @@ struct FCPXMLTitleTests {
         style.lineSpacing = Animatable(10)
         style.outline = LayerStroke(isEnabled: true, color: .black, width: 6)
         style.shadow = LayerShadow(isEnabled: true, color: RGBAColor(white: 0, alpha: 0.5), blur: 8, offset: CGSize(width: 3, height: 4))
+        style.background = TextBackground(isEnabled: true, color: RGBAColor(white: 0, alpha: 0.5), padding: 30, cornerRadius: 8)
         let text = TextContent(runs: [
             TextRun("Big "), TextRun("bold", formatting: TextRun.Formatting(weight: .bold, isItalic: false)),
             TextRun(" and\nred", formatting: TextRun.Formatting(color: red)),
@@ -81,6 +82,7 @@ struct FCPXMLTitleTests {
         #expect(plain["alignment"] == "left")
         #expect(plain["strokeWidth"] == "6")
         #expect(plain["shadowOffset"] == "5 306.869898")
+        #expect(plain["backgroundColor"] == "0 0 0 0.5")
         #expect(first.child("adjust-transform") != nil)
         #expect(first.child("adjust-blend")?["amount"] == "0.8")
         // Connected to the first, above it, with its effect.
@@ -130,6 +132,8 @@ struct FCPXMLTitleTests {
             #expect(style.lineSpacing.value == expected.lineSpacing.value)
             #expect(style.outline.isEnabled == expected.outline.isEnabled)
             #expect(style.shadow.isEnabled == expected.shadow.isEnabled)
+            #expect(style.background.isEnabled == expected.background.isEnabled)
+            #expect(style.background.color.value == expected.background.color.value)
             if expected.shadow.isEnabled {
                 #expect(abs(style.shadow.offset.value.width - expected.shadow.offset.value.width) < 0.0001)
                 #expect(abs(style.shadow.offset.value.height - expected.shadow.offset.value.height) < 0.0001)
