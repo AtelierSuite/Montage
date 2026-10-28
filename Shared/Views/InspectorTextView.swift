@@ -37,6 +37,7 @@ struct InspectorTextView: NSViewRepresentable {
         editing.font = .preferredFont(forTextStyle: .body)
         editing.textContainerInset = NSSize(width: 0, height: 4)
         editing.string = text
+        editing.setAccessibilityLabel(String(localized: "Inspector.Text.Words"))
         editing.delegate = context.coordinator
         scrollView.documentView = editing
         return scrollView
