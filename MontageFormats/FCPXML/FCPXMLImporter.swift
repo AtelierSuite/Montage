@@ -27,6 +27,8 @@ struct FCPXMLImporter {
     private var assembler = TimelineAssembler()
     private var report = ImportReport(format: .fcpxml)
     private var settings = ProjectSettings()
+    /// Markers and chapter markers on the clips that show them, on the timeline.
+    private var markers: [(time: CMTime, name: String)] = []
 
     static func read(_ root: MarkupElement, baseURL: URL?) throws -> ImportedProject {
         var importer = FCPXMLImporter(root: root, baseURL: baseURL)
@@ -66,6 +68,9 @@ struct FCPXMLImporter {
 
         var montage = Project(settings: settings, media: media.items)
         montage.tracks = assembler.tracks(report: &report)
+        for marker in markers.sorted(by: { $0.time < $1.time }) {
+            montage.addMarker(at: marker.time, name: marker.name)
+        }
         return ImportedProject(project: montage, report: report, name: project["name"], mediaSources: media.sources,
                                mediaSourcePaths: media.writtenPaths)
     }
@@ -193,9 +198,13 @@ struct FCPXMLImporter {
         inside.lane = timing.lane
         let connected = inside
 
+        // Markers on a part of the clip that's trimmed off, or hidden by
+        // the clips it's inside, don't show in Final Cut either.
+        let shown = context.within(timing.timelineRange)
         for marker in element.children where marker.name == "marker" || marker.name == "chapter-marker" {
-            report.add(.marker(name: marker["value"] ?? ""), clipName: name,
-                       time: inside.timeline(time(marker["start"]) ?? start))
+            let time = inside.timeline(time(marker["start"]) ?? start)
+            guard shown.duration > .zero, time >= shown.start, time < shown.end else { continue }
+            markers.append((time, marker["value"] ?? ""))
         }
         if element.children.contains(where: { $0.name == "timeMap" }) {
             report.add(.speedChange, clipName: name, time: timing.timelineStart)

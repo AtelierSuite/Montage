@@ -211,15 +211,13 @@ struct FCPXMLImportTests {
         let issues = imported.report.items.map(\.issue)
         #expect(issues.contains(.unsupportedEffect(name: "Glow")))
         #expect(issues.contains(.transition(name: "Cross Dissolve")))
-        #expect(issues.contains(.marker(name: "Look here")))
+        #expect(!issues.contains(.marker(name: "Look here")))
         // The title comes in as text, so it isn't in the report.
         #expect(!issues.contains { $0 == .title })
         #expect(imported.project.tracks.flatMap(\.clips).contains { $0.content.text?.string == "Hello" })
         #expect(issues.contains(.auditionAlternatives(count: 1)))
         #expect(issues.contains(.speedChange))
         #expect(issues.contains(.disabledClip))
-        // The marker is placed on the timeline: 2s into a clip starting at 1s.
-        #expect(imported.report.items.first { $0.issue == .marker(name: "Look here") }?.time == seconds(1))
         #expect(imported.report.items.first { $0.issue == .unsupportedEffect(name: "Glow") }?.clipName == "Opening")
         #expect(imported.issues(.missingMedia).isEmpty)
     }
