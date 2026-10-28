@@ -283,7 +283,8 @@ extension Project {
 
     /// Cuts a clip in two at a time on the timeline. The part after the cut
     /// becomes a new clip, with the same media, settings and effects, and
-    /// its keyframes moved so they stay where they were. Returns the new
+    /// its keyframes moved so they stay where they were, and takes over the
+    /// transition out of the clip, if it has one. Returns the new
     /// clip's ID, or nil if the time isn't inside the clip, at least a frame
     /// from either end.
     @discardableResult
@@ -296,6 +297,8 @@ extension Project {
         after.moveStart(to: time, isStill: isStill(clip))
         tracks[trackIndex].update(id) { $0.moveEnd(to: time) }
         tracks[trackIndex].insert(after)
+        // The part that ends where the clip did leads into what follows.
+        moveOutgoingTransition(from: id, to: after.id)
         return after.id
     }
 

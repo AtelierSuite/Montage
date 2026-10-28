@@ -82,6 +82,7 @@ extension Project {
                 after.moveStart(to: range.end, isStill: isStill)
                 tracks[index].update(clip.id) { $0.moveEnd(to: range.start) }
                 tracks[index].insert(after)
+                moveOutgoingTransition(from: clip.id, to: after.id)
             } else if clipRange.start < range.start {
                 tracks[index].update(clip.id) { $0.moveEnd(to: range.start) }
             } else {
