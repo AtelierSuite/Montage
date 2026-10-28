@@ -152,4 +152,87 @@ struct FCPXMLTimingTests {
         #expect(imported.project.transitions.isEmpty)
         #expect(imported.report.items.map(\.issue).contains(.transition(name: "Cross Dissolve")))
     }
+
+    // MARK: - Speed
+
+    /// Half speed as Final Cut writes it: a clip whose time map runs its
+    /// 20.07s on the timeline over 10.03s of what it holds, give or take a
+    /// nanosecond, from 2s into its own time.
+    private static let halfSpeed = """
+        <timeMap>
+            <timept time="0s" value="0s" interp="smooth"/>
+            <timept time="60200/3000s" value="10033333333/1000000000s" interp="smooth"/>
+        </timeMap>
+        """
+
+    @Test func playsAClipAtItsConstantSpeed() throws {
+        let imported = try read(spine: """
+            <asset-clip ref="a1" offset="0s" name="One" start="0s" duration="3s"/>
+            <clip offset="3s" name="Slow" start="2s" duration="4s">
+                \(Self.halfSpeed)
+                <video ref="a2" offset="0s" start="0s" duration="10s"/>
+            </clip>
+            <asset-clip ref="a1" offset="7s" name="One" start="5s" duration="1s"/>
+            """)
+        let clips = try #require(imported.project.tracks.first).clips
+        #expect(clips.count == 3)
+        let slow = clips[1]
+        #expect(slow.speed == ClipSpeed(media: 1, timeline: 2))
+        // 2s into the clip's own time is 1s into the picture.
+        #expect(slow.sourceRange == CMTimeRange(start: Self.seconds(1), duration: Self.seconds(2)))
+        #expect(slow.timelineRange == CMTimeRange(start: Self.seconds(3), duration: Self.seconds(4)))
+        // Still meeting the clips either side exactly.
+        #expect(clips[0].timelineRange.end == slow.timelineStart)
+        #expect(slow.timelineRange.end == clips[2].timelineStart)
+        #expect(!imported.report.items.map(\.issue).contains(.speedChange))
+    }
+
+    @Test func playsAnAssetClipsSpeedChange() throws {
+        let imported = try read(spine: """
+            <asset-clip ref="a1" offset="0s" name="Fast" start="1s" duration="2s">
+                <timeMap>
+                    <timept time="0s" value="0s" interp="linear"/>
+                    <timept time="1s" value="3s" interp="linear"/>
+                </timeMap>
+            </asset-clip>
+            """)
+        let clip = try #require(imported.project.tracks.first?.clips.first)
+        #expect(clip.speed == ClipSpeed(media: 3, timeline: 1))
+        #expect(clip.sourceRange == CMTimeRange(start: Self.seconds(3), duration: Self.seconds(6)))
+        #expect(clip.duration == Self.seconds(2))
+    }
+
+    @Test func dissolvesBetweenClipsAtOtherSpeeds() throws {
+        let imported = try read(spine: """
+            <clip offset="0s" name="Slow" start="0s" duration="4s">
+                \(Self.halfSpeed)
+                <video ref="a2" offset="0s" start="0s" duration="10s"/>
+            </clip>
+            <transition name="Cross Dissolve" offset="7/2s" duration="1s">\(Self.dissolve)</transition>
+            <asset-clip ref="a1" offset="4s" name="One" start="5s" duration="1s"/>
+            """)
+        #expect(imported.project.transitions.count == 1)
+        #expect(imported.project.placedTransitions().first?.transition.afterCut == Self.seconds(1, 2))
+    }
+
+    @Test func reportsSpeedRampsAndPlaysThemAtNormalSpeed() throws {
+        let imported = try read(spine: """
+            <asset-clip ref="a1" offset="0s" name="Ramp" start="0s" duration="4s">
+                <timeMap>
+                    <timept time="0s" value="0s" interp="smooth"/>
+                    <timept time="2s" value="1s" interp="smooth"/>
+                    <timept time="4s" value="5s" interp="smooth"/>
+                </timeMap>
+            </asset-clip>
+            <asset-clip ref="a2" offset="4s" name="Reverse" start="0s" duration="2s">
+                <timeMap>
+                    <timept time="0s" value="2s" interp="linear"/>
+                    <timept time="2s" value="0s" interp="linear"/>
+                </timeMap>
+            </asset-clip>
+            """)
+        let clips = try #require(imported.project.tracks.first).clips
+        #expect(clips.allSatisfy { $0.speed == .normal })
+        #expect(imported.report.items.filter { $0.issue == .speedChange }.count == 2)
+    }
 }

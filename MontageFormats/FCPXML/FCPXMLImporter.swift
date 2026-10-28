@@ -105,7 +105,14 @@ struct FCPXMLImporter {
             return true
         }
 
-        func timeline(_ local: CMTime) -> CMTime { base + (local - origin) }
+        /// How fast the parent's local time runs against the timeline's: not
+        /// normal inside a clip whose speed is changed.
+        var speed = ClipSpeed.normal
+
+        func timeline(_ local: CMTime) -> CMTime { base + speed.timelineDuration(ofMedia: local - origin) }
+
+        /// A length of the parent's local time, on the timeline.
+        func duration(_ local: CMTime) -> CMTime { speed.timelineDuration(ofMedia: local) }
 
         func within(_ range: CMTimeRange) -> CMTimeRange {
             window.map { $0.intersection(range) } ?? range
@@ -117,6 +124,12 @@ struct FCPXMLImporter {
         var element: MarkupElement
         var base: CMTime
         var origin: CMTime
+        var speed = ClipSpeed.normal
+
+        /// A time in the element's local time, as a time from a clip's start.
+        func clipTime(_ local: CMTime, clipStart: CMTime) -> CMTime {
+            base + speed.timelineDuration(ofMedia: local - origin) - clipStart
+        }
     }
 
     private enum Component {
@@ -141,9 +154,18 @@ struct FCPXMLImporter {
         var start: CMTime
         var duration: CMTime
         var timelineStart: CMTime
+        /// How long it lasts on the timeline, at the speed it plays.
+        var timelineDuration: CMTime
         var lane: Int
+        /// Where what it holds starts, in that's own time: `start`, mapped
+        /// through its speed change if it has one.
+        var contentStart: CMTime
+        /// How fast what it holds plays against the timeline.
+        var speed: ClipSpeed
 
-        var timelineRange: CMTimeRange { CMTimeRange(start: timelineStart, duration: duration) }
+        var timelineRange: CMTimeRange { CMTimeRange(start: timelineStart, duration: timelineDuration) }
+        /// How much of what it holds plays.
+        var contentDuration: CMTime { speed.mediaDuration(ofTimeline: timelineDuration) }
     }
 
     private static let storyElements: Set<String> = [
@@ -165,7 +187,7 @@ struct FCPXMLImporter {
                 let duration = time(element["duration"]) ?? .zero
                 let offset = time(element["offset"]) ?? cursor - duration
                 let start = context.timeline(offset)
-                let range = CMTimeRange(start: start, duration: duration)
+                let range = CMTimeRange(start: start, duration: context.duration(duration))
                 let name = element["name"] ?? "Transition"
                 if let kind = transitionKind(element) {
                     assembler.addTransition(range, lane: context.lane, as: kind, name: name)
@@ -184,6 +206,22 @@ struct FCPXMLImporter {
                 cursor = end
             }
         }
+    }
+
+    /// A speed change that holds all through an element: a time map of two
+    /// points, going forwards, as Final Cut writes a constant speed. Its
+    /// speed, and the time in what the element holds at a time in its own.
+    /// Nil for none, or for a ramp, a freeze or a reverse, which play at
+    /// normal speed.
+    private func speedChange(of element: MarkupElement) -> (speed: ClipSpeed, time: CMTime, value: CMTime)? {
+        let points = element.child("timeMap")?.children("timept") ?? []
+        guard points.count == 2, let start = time(points[0]["time"]), let value = time(points[0]["value"]),
+              let end = time(points[1]["time"]), let endValue = time(points[1]["value"]),
+              end > start, endValue > value else { return nil }
+        // Final Cut writes the media's end to the nanosecond, so the speed
+        // is taken to the nearest millionth.
+        guard let speed = ClipSpeed(rate: (endValue - value).seconds / (end - start).seconds) else { return nil }
+        return (speed, start, value)
     }
 
     /// Final Cut's Cross Dissolve, by its effect's ID, or by name as other
@@ -207,17 +245,30 @@ struct FCPXMLImporter {
         let offset = time(element["offset"]) ?? fallback
         let start = time(element["start"]) ?? .zero
         let duration = time(element["duration"]) ?? assetDuration(of: element, from: start) ?? .zero
-        let timing = Timing(
-            offset: offset, start: start, duration: duration, timelineStart: context.timeline(offset),
-            lane: context.lane + Self.lane(element["lane"])
-        )
         let name = element["name"]
-        // Inside this element: its local time, from `start`.
-        var inside = context
-        inside.base = timing.timelineStart
-        inside.origin = start
-        inside.lane = timing.lane
-        let connected = inside
+        let retime = speedChange(of: element)
+        var timing = Timing(
+            offset: offset, start: start, duration: duration, timelineStart: context.timeline(offset),
+            timelineDuration: context.duration(duration), lane: context.lane + Self.lane(element["lane"]),
+            contentStart: start, speed: context.speed
+        )
+        if let retime {
+            timing.contentStart = retime.value + retime.speed.mediaDuration(ofTimeline: start - retime.time)
+            timing.speed = context.speed.combined(with: retime.speed)
+        } else if element.children.contains(where: { $0.name == "timeMap" }) {
+            report.add(.speedChange, clipName: name, time: timing.timelineStart)
+        }
+        // Connected to this element: its local time, from `start`.
+        var connected = context
+        connected.base = timing.timelineStart
+        connected.origin = start
+        connected.lane = timing.lane
+        // Inside it: the time of what it holds, which its speed change maps
+        // its local time to.
+        var inside = connected
+        inside.origin = timing.contentStart
+        inside.speed = timing.speed
+        let own = Inherited(element: element, base: timing.timelineStart, origin: start, speed: context.speed)
 
         // Markers on a part of the clip that's trimmed off, or hidden by
         // the clips it's inside, don't show in Final Cut either.
@@ -227,10 +278,6 @@ struct FCPXMLImporter {
             guard shown.duration > .zero, time >= shown.start, time < shown.end else { continue }
             markers.append((time, marker["value"] ?? ""))
         }
-        if element.children.contains(where: { $0.name == "timeMap" }) {
-            report.add(.speedChange, clipName: name, time: timing.timelineStart)
-        }
-
         let isEnabled = element["enabled"] != "0"
         if !isEnabled && element.name != "gap" && element.name != "spine" {
             report.add(.disabledClip, clipName: name, time: timing.timelineStart)
@@ -248,17 +295,17 @@ struct FCPXMLImporter {
             case "video", "audio":
                 merged = importComponent(element, timing: timing, context: context)
             case "clip", "sync-clip":
-                inside.inherited.append(Inherited(element: element, base: inside.base, origin: inside.origin))
+                inside.inherited.append(own)
                 importContents(of: element, in: inside)
             case "ref-clip":
                 inside.component = Component.combine(Component(sourceEnable: element["srcEnable"]), context.component)
-                inside.inherited.append(Inherited(element: element, base: inside.base, origin: inside.origin))
+                inside.inherited.append(own)
                 if let ref = element["ref"], inside.enter(ref), let spine = resources[ref]?.child("sequence")?.child("spine") {
                     importSequence(spine.children, in: inside)
                 }
             case "mc-clip":
                 inside.component = Component.combine(Component(sourceEnable: element["srcEnable"]), context.component)
-                inside.inherited.append(Inherited(element: element, base: inside.base, origin: inside.origin))
+                inside.inherited.append(own)
                 importMulticam(element, in: inside)
             case "audition":
                 importAudition(element, in: context, offset: offset)
@@ -319,7 +366,7 @@ struct FCPXMLImporter {
             // One angle for both: its clips keep their picture and sound together.
             inside.component = video?["angleID"] == audio?["angleID"] ? context.component : component
             if let source = sources.first(where: { $0["angleID"] == angle["angleID"] }) {
-                inside.inherited.append(Inherited(element: source, base: context.base, origin: context.origin))
+                inside.inherited.append(Inherited(element: source, base: context.base, origin: context.origin, speed: context.speed))
             }
             importSequence(angle.children, in: inside)
             if inside.component == context.component { break }
@@ -377,11 +424,15 @@ struct FCPXMLImporter {
     ) {
         let item = mediaItem(for: asset)
         let assetStart = time(asset["start"]) ?? .zero
-        let sourceStart = item.kind == .image ? .zero : timing.start - assetStart
-        var clip = Clip(
-            content: item.content, sourceRange: CMTimeRange(start: sourceStart, duration: timing.duration),
-            timelineStart: timing.timelineStart
-        )
+        var clip: Clip
+        if item.kind == .image {
+            clip = Clip(content: item.content, sourceRange: CMTimeRange(start: .zero, duration: timing.timelineDuration),
+                        timelineStart: timing.timelineStart)
+        } else {
+            clip = Clip(content: item.content, sourceRange: CMTimeRange(start: timing.contentStart - assetStart, duration: timing.contentDuration),
+                        timelineStart: timing.timelineStart)
+            clip.speed = timing.speed
+        }
         let isAudio = item.kind == .audio || component == .audio
         if !isAudio && component == .video && item.metadata.hasAudio { clip.isAudioDetached = true }
 
@@ -402,7 +453,7 @@ struct FCPXMLImporter {
             report.add(.title, clipName: name, time: timing.timelineStart)
             return
         }
-        var clip = Clip(content: .text(reading.text), sourceRange: CMTimeRange(start: .zero, duration: timing.duration),
+        var clip = Clip(content: .text(reading.text), sourceRange: CMTimeRange(start: .zero, duration: timing.timelineDuration),
                         timelineStart: timing.timelineStart)
         if FCPXMLTitles.isBasicTitle(effect) {
             for param in element.children("param") where !["Position", "Flatten", "Alignment"].contains(param["name"] ?? "") {
@@ -418,8 +469,8 @@ struct FCPXMLImporter {
         // The Basic Title's own position, in the frame's pixels from its
         // centre, upwards, moves the words within the title.
         if FCPXMLTitles.isBasicTitle(effect), let param = element.param("Position") {
-            let own = Inherited(element: element, base: timing.timelineStart, origin: timing.start)
-            let toClip: (CMTime) -> CMTime = { own.base + ($0 - own.origin) - timing.timelineStart }
+            let own = Inherited(element: element, base: timing.timelineStart, origin: timing.start, speed: context.speed)
+            let toClip: (CMTime) -> CMTime = { own.clipTime($0, clipStart: timing.timelineStart) }
             if let offset = animatable(param["value"], param, toClip, Self.pair) {
                 movePosition(of: &clip, by: offset, clipName: name)
             }
@@ -456,8 +507,10 @@ struct FCPXMLImporter {
         of element: MarkupElement, alsoApplying extra: [MarkupElement] = [], to clip: inout Clip, item: MediaItem?,
         isVideo: Bool, timing: Timing, context: Context, clipName name: String
     ) {
-        let own = Inherited(element: element, base: timing.timelineStart, origin: timing.start)
-        let layers = context.inherited + [own] + extra.map { Inherited(element: $0, base: timing.timelineStart, origin: timing.start) }
+        let own = Inherited(element: element, base: timing.timelineStart, origin: timing.start, speed: context.speed)
+        let layers = context.inherited + [own] + extra.map {
+            Inherited(element: $0, base: timing.timelineStart, origin: timing.start, speed: context.speed)
+        }
         var applied: Set<String> = []
         var reportedNesting = false
         for (index, layer) in layers.enumerated() {
@@ -491,7 +544,7 @@ struct FCPXMLImporter {
         let element = layer.element
         // An element's keyframes are timed in its own local time.
         let start = clip.timelineStart
-        let toClip: (CMTime) -> CMTime = { layer.base + ($0 - layer.origin) - start }
+        let toClip: (CMTime) -> CMTime = { layer.clipTime($0, clipStart: start) }
         var names: Set<String> = []
 
         for adjustment in element.children where adjustment.name.hasPrefix("adjust-") && adjustment["enabled"] != "0" {

@@ -227,7 +227,7 @@ struct FCPXMLImportTests {
         #expect(!issues.contains { $0 == .title })
         #expect(imported.project.tracks.flatMap(\.clips).contains { $0.content.text?.string == "Hello" })
         #expect(issues.contains(.auditionAlternatives(count: 1)))
-        #expect(issues.contains(.speedChange))
+        #expect(!issues.contains(.speedChange))
         #expect(issues.contains(.disabledClip))
         #expect(imported.report.items.first { $0.issue == .unsupportedEffect(name: "Glow") }?.clipName == "Opening")
         #expect(imported.issues(.missingMedia).isEmpty)
