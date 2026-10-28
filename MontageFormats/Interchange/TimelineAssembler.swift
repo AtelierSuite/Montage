@@ -8,19 +8,36 @@ import MontageEngine
 /// all, so clips are gathered by kind and lane first and made into tracks at
 /// the end: one track for each lane, video lanes stacked bottom lane first
 /// and audio lanes after them. Montage's tracks can't hold overlapping clips,
-/// so where two overlap under a transition the cut goes in the transition's
+/// so where two overlap under a transition the cut goes in the overlap's
 /// middle, and any other clip that overlaps is moved up onto a track of its
 /// own, beside its lane's.
+///
+/// A transition added with a kind Montage plays becomes one of Montage's at
+/// the cut it's over on a video lane: between clips that overlap under it,
+/// over as much of it as they overlap, the media under the overlap being
+/// the handles it shows, or between clips that meet under it, over the
+/// whole of it. One that joins no two clips that way, such as one from a
+/// clip into a gap, is cut and reported. A transition with no kind is cut,
+/// and the importer reports it.
 struct TimelineAssembler {
     private struct Lane: Hashable {
         var kind: Track.Kind
         var number: Int
     }
 
+    /// A transition in the file.
+    private struct Join {
+        var range: CMTimeRange
+        /// What it becomes, if it becomes one of Montage's.
+        var kind: Transition.Kind?
+        /// What the report calls it, if it can't be made.
+        var name: String
+    }
+
     private var clips: [Lane: [Clip]] = [:]
     private var names: [Clip.ID: String] = [:]
     /// Where transitions were, by the lane they joined clips on.
-    private var transitions: [Int: [CMTimeRange]] = [:]
+    private var transitions: [Int: [Join]] = [:]
 
     mutating func add(_ clip: Clip, kind: Track.Kind, lane: Int, name: String?) {
         guard clip.duration > .zero else { return }
@@ -28,57 +45,100 @@ struct TimelineAssembler {
         if let name { names[clip.id] = name }
     }
 
+    /// Notes a transition joining two clips on a lane, where they're cut.
     mutating func addTransition(_ range: CMTimeRange, lane: Int) {
-        transitions[lane, default: []].append(range)
+        transitions[lane, default: []].append(Join(range: range, kind: nil, name: ""))
+    }
+
+    /// Notes a transition joining two clips on a lane that becomes one of
+    /// `kind`, or is cut and reported by its name if it can't.
+    mutating func addTransition(_ range: CMTimeRange, lane: Int, as kind: Transition.Kind, name: String) {
+        transitions[lane, default: []].append(Join(range: range, kind: kind, name: name))
     }
 
     /// The tracks, video first, with what had to change to fit them.
     func tracks(report: inout ImportReport) -> [Track] {
+        timeline(report: &report).tracks
+    }
+
+    /// The tracks, video first, and the transitions at cuts between their
+    /// clips, with what had to change to fit them.
+    func timeline(report: inout ImportReport) -> (tracks: [Track], transitions: [Transition]) {
         let order = clips.keys.sorted { a, b in
             if a.kind != b.kind { return a.kind == .video }
             // Audio reads down from the lane nearest the picture.
             return a.kind == .video ? a.number < b.number : Self.audioOrder(a.number) < Self.audioOrder(b.number)
         }
         var tracks: [Track] = []
+        var made: [Transition] = []
+        // The transitions made, by lane and their place in it.
+        var used: Set<[Int]> = []
         for lane in order {
             let laneClips = clips[lane, default: []].sorted { $0.timelineStart < $1.timelineStart }
             var rows: [[Clip]] = [[]]
+            let joins = transitions[lane.number] ?? []
             for clip in laneClips {
-                place(clip, in: &rows, transitions: transitions[lane.number] ?? [], report: &report)
+                if let (transition, index) = place(clip, in: &rows, joins: joins, makesTransitions: lane.kind == .video,
+                                                   report: &report) {
+                    made.append(transition)
+                    used.insert([lane.number, index])
+                }
             }
             tracks += rows.filter { !$0.isEmpty }.map { Track(kind: lane.kind, clips: $0) }
         }
-        return tracks
+        for (lane, joins) in transitions.sorted(by: { $0.key < $1.key }) {
+            for (index, join) in joins.enumerated() where join.kind != nil && !used.contains([lane, index]) {
+                report.add(.transition(name: join.name), time: join.range.start)
+            }
+        }
+        return (tracks, made)
     }
 
     private static func audioOrder(_ lane: Int) -> Int {
         lane <= 0 ? -lane : 1000 + lane
     }
 
-    private func place(_ clip: Clip, in rows: inout [[Clip]], transitions: [CMTimeRange], report: inout ImportReport) {
-        // Overlapping the last clip of the lane's own track under a
-        // transition: cut halfway through the overlap.
+    /// Puts a clip on the first row it fits on. Returns the transition into
+    /// it from the clip before, and which of `joins` it's made from, if it's
+    /// joined to that clip by one Montage plays.
+    private func place(
+        _ clip: Clip, in rows: inout [[Clip]], joins: [Join], makesTransitions: Bool, report: inout ImportReport
+    ) -> (Transition, Int)? {
         if let previous = rows[0].last {
             let overlap = previous.timelineRange.intersection(clip.timelineRange)
-            if overlap.duration > .zero, transitions.contains(where: { $0.intersection(overlap).duration > .zero }) {
+            // Overlapping the last clip of the lane's own track under a
+            // transition: cut halfway through the overlap.
+            if overlap.duration > .zero, let index = joins.firstIndex(where: { $0.range.intersection(overlap).duration > .zero }) {
                 let cut = overlap.start + CMTimeMultiplyByRatio(overlap.duration, multiplier: 1, divisor: 2)
                 rows[0].removeLast()
-                if let before = previous.trimmed(to: CMTimeRange(start: previous.timelineStart, end: cut)) {
-                    rows[0].append(before)
-                }
-                if let after = clip.trimmed(to: CMTimeRange(start: cut, end: clip.timelineRange.end)) {
-                    rows[0].append(after)
-                }
-                return
+                let before = previous.trimmed(to: CMTimeRange(start: previous.timelineStart, end: cut))
+                if let before { rows[0].append(before) }
+                let after = clip.trimmed(to: CMTimeRange(start: cut, end: clip.timelineRange.end))
+                if let after { rows[0].append(after) }
+                guard makesTransitions, let kind = joins[index].kind, let before, let after else { return nil }
+                let range = joins[index].range.intersection(overlap)
+                let transition = Transition(kind: kind, from: before.id, to: after.id, beforeCut: max(.zero, cut - range.start),
+                                            afterCut: max(.zero, range.end - cut))
+                return (transition, index)
+            }
+            // Meeting it under one.
+            let cut = clip.timelineStart
+            if makesTransitions, previous.timelineRange.end == cut, let index = joins.firstIndex(where: {
+                $0.kind != nil && $0.range.duration > .zero && $0.range.start <= cut && cut <= $0.range.end
+            }), let kind = joins[index].kind {
+                rows[0].append(clip)
+                let range = joins[index].range
+                return (Transition(kind: kind, from: previous.id, to: clip.id, beforeCut: cut - range.start, afterCut: range.end - cut), index)
             }
         }
         for index in rows.indices where rows[index].last.map({ $0.timelineRange.end <= clip.timelineStart }) ?? true {
             if index > 0 { report.add(.movedToNewTrack, clipName: names[clip.id], time: clip.timelineStart) }
             rows[index].append(clip)
-            return
+            return nil
         }
         report.add(.movedToNewTrack, clipName: names[clip.id], time: clip.timelineStart)
         rows.append([clip])
+        return nil
     }
 }
 
