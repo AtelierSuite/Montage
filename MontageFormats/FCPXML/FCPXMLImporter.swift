@@ -37,8 +37,11 @@ struct FCPXMLImporter {
 
     private init(root: MarkupElement, baseURL: URL?) {
         self.baseURL = baseURL
-        for resource in root.child("resources")?.children ?? [] {
-            if let id = resource["id"] { resources[id] = resource }
+        // Inside the project in FCPXML 1.2 and earlier, at the top since.
+        for list in [root] + root.allDescendants where list.name == "resources" {
+            for resource in list.children {
+                if let id = resource["id"], resources[id] == nil { resources[id] = resource }
+            }
         }
         for definition in root.allDescendants where definition.name == "text-style-def" {
             if let id = definition["id"] { textStyles[id] = definition }

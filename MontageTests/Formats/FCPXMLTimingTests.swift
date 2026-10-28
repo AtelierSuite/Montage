@@ -235,4 +235,31 @@ struct FCPXMLTimingTests {
         #expect(clips.allSatisfy { $0.speed == .normal })
         #expect(imported.report.items.filter { $0.issue == .speedChange }.count == 2)
     }
+
+    @Test func readsResourcesInsideTheProjectAsOlderVersionsWriteThem() throws {
+        let xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <fcpxml version="1.2">
+            <project name="Old">
+                <resources>
+                    <format id="r1" frameDuration="100/3000s" width="1920" height="1080"/>
+                    <asset id="r3" name="Clip" src="file:///Volumes/Media/Clip.mov" start="0s" duration="30100/3000s" hasVideo="1"/>
+                </resources>
+                <sequence format="r1" tcStart="0s">
+                    <spine>
+                        <clip offset="0s" name="Clip" duration="60200/3000s">
+                            \(Self.halfSpeed)
+                            <video offset="0s" ref="r3" duration="30100/3000s"/>
+                        </clip>
+                    </spine>
+                </sequence>
+            </project>
+        </fcpxml>
+        """
+        let imported = try ProjectInterchange.read(Data(xml.utf8), baseURL: nil)
+        let clip = try #require(imported.project.tracks.first?.clips.first)
+        #expect(clip.speed == ClipSpeed(media: 1, timeline: 2))
+        #expect(clip.duration == CMTime(value: 60200, timescale: 3000))
+        #expect(clip.sourceRange.duration == CMTime(value: 30100, timescale: 3000))
+    }
 }
