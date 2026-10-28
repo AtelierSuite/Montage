@@ -82,6 +82,9 @@ public struct CompositionBuilder: Sendable {
             let wantsSound = !track.isMuted
             guard wantsPicture || wantsSound else { continue }
             var picture = wantsPicture ? LayerWriter(kind: .video, trackID: track.id) : nil
+            // Where each clip placed on the picture's frames come from, for
+            // the handles its transitions show.
+            var pictureSources: [Clip.ID: PictureSource] = [:]
             // The track's sound, on as many composition tracks as it takes
             // to keep clips out of the tails of the ones before them.
             var sound: [LayerWriter] = []
@@ -111,6 +114,8 @@ public struct CompositionBuilder: Sendable {
                             do {
                                 if try !picture!.place(clip, drawing: .drawn, naturalSize: .zero, filler: filler, in: composition) {
                                     skip(.outsideMedia)
+                                } else {
+                                    pictureSources[clip.id] = .drawn(.drawn, naturalSize: .zero, filler: filler)
                                 }
                             } catch {
                                 skip(.unreadable)
@@ -143,6 +148,8 @@ public struct CompositionBuilder: Sendable {
                         if try !picture!.place(clip, drawing: .still(still.image), naturalSize: still.image.size,
                                                filler: still.filler, in: composition) {
                             skip(.outsideMedia)
+                        } else {
+                            pictureSources[clip.id] = .drawn(.still(still.image), naturalSize: still.image.size, filler: still.filler)
                         }
                     } catch {
                         skip(.unreadable)
@@ -171,6 +178,8 @@ public struct CompositionBuilder: Sendable {
                             } else if try !picture!.place(clip, from: video, in: composition, settings: project.settings) {
                                 skip(.outsideMedia)
                                 continue
+                            } else {
+                                pictureSources[clip.id] = .video(video)
                             }
                         }
                         if !clip.isAudioDetached, let audio = source.audio {
@@ -189,7 +198,13 @@ public struct CompositionBuilder: Sendable {
                     skip(.unreadable)
                 }
             }
-            if let picture, picture.compositionTrack != nil { pictures.append(picture) }
+            if let picture, picture.compositionTrack != nil {
+                pictures.append(picture)
+                // The track's transitions, on a layer of their own just over it.
+                if let handles = try placeHandles(of: track, sources: pictureSources, in: composition) {
+                    pictures.append(handles)
+                }
+            }
             sounds += sound.filter { $0.compositionTrack != nil }
         }
 
@@ -239,8 +254,16 @@ public struct CompositionBuilder: Sendable {
         let times = cuts.filter { $0 <= duration }.sorted()
         let snapshot = self.snapshot ?? ProjectSnapshot(project)
         let instructions = zip(times, times.dropFirst()).map { start, end in
-            CompositorInstruction(
-                timeRange: CMTimeRange(start: start, end: end), layers: layers.compactMap { $0.placement(at: start) },
+            var showing = layers.compactMap { $0.placement(at: start) }
+            // A transition's handle shows with the clip it meets, the layer
+            // just under it, and the two are mixed.
+            for index in showing.indices.dropFirst() {
+                guard let transition = showing[index].transition, showing[index - 1].transition == nil,
+                      showing[index - 1].clip.id != showing[index].clip.id else { continue }
+                showing[index - 1].transition = transition
+            }
+            return CompositorInstruction(
+                timeRange: CMTimeRange(start: start, end: end), layers: showing,
                 snapshot: snapshot, renderSize: project.settings.renderSize, usesGPU: usesGPU
             )
         }
@@ -265,6 +288,41 @@ public struct CompositionBuilder: Sendable {
             return parameters.copy() as? AVAudioMixInputParameters
         }
         return mix.copy() as! AVAudioMix
+    }
+
+    /// The frames a track's transitions show from beyond the ends of their
+    /// clips, on a composition track of their own: over the stretch before
+    /// each cut, the incoming clip's media from before its start, and after
+    /// it, the outgoing clip's from after its end. Only transitions both of
+    /// whose clips' pictures were placed play. Nil if none do.
+    private func placeHandles(
+        of track: Track, sources: [Clip.ID: PictureSource], in composition: AVMutableComposition
+    ) throws -> LayerWriter? {
+        var handles = LayerWriter(kind: .video, trackID: track.id)
+        for placed in project.placedTransitions(on: track) {
+            guard let from = sources[placed.outgoing.id], let to = sources[placed.incoming.id] else { continue }
+            let transition = CompositorTransition(placed)
+            let cut = placed.cut
+            do {
+                if placed.beforeCut > .zero {
+                    try handles.placeHandle(
+                        of: placed.incoming, over: CMTimeRange(start: cut - placed.beforeCut, end: cut), isIncoming: true,
+                        from: to, frameDuration: project.settings.frameDuration, transition: transition, in: composition
+                    )
+                }
+                if placed.afterCut > .zero {
+                    try handles.placeHandle(
+                        of: placed.outgoing, over: CMTimeRange(start: cut, end: cut + placed.afterCut), isIncoming: false,
+                        from: from, frameDuration: project.settings.frameDuration, transition: transition, in: composition
+                    )
+                }
+            } catch {
+                // The transition cuts instead; what's placed of it so far shows
+                // as a dissolve with nothing.
+                continue
+            }
+        }
+        return handles.compositionTrack == nil ? nil : handles
     }
 
     // MARK: - Fitting pictures
@@ -406,6 +464,74 @@ private struct LayerWriter {
         return true
     }
 
+    /// Puts frames from beyond one end of a clip, its handle, over a
+    /// stretch of the timeline, for a transition: from before its start for
+    /// the clip the transition goes to, from after its end for the one it
+    /// comes from. Where the media runs out, the nearest frame it has is
+    /// held for the rest. A still, text or shape is drawn on.
+    mutating func placeHandle(
+        of clip: Clip, over range: CMTimeRange, isIncoming: Bool, from source: PictureSource, frameDuration: CMTime,
+        transition: CompositorTransition, in composition: AVMutableComposition
+    ) throws {
+        guard range.duration > .zero, range.start >= cursor, let compositionTrack = makeCompositionTrack(in: composition) else { return }
+        if range.start > cursor {
+            compositionTrack.insertEmptyTimeRange(CMTimeRange(start: cursor, end: range.start))
+        }
+        let wanted = isIncoming
+            ? CMTimeRange(start: clip.sourceRange.start - range.duration, duration: range.duration)
+            : CMTimeRange(start: clip.sourceRange.end, duration: range.duration)
+        let placement: CompositorLayer
+        switch source {
+        case .video(let video):
+            let media = video.timeRange
+            var available = wanted.intersection(media)
+            if !available.isValid || available.duration < .zero { available = CMTimeRange(start: wanted.start, duration: .zero) }
+            let held = range.duration - available.duration
+            /// A frame of the media, held for a while at a time on the timeline.
+            func hold(_ time: CMTime, for duration: CMTime, at start: CMTime) throws {
+                guard duration > .zero else { return }
+                let latest = media.end - frameDuration
+                let frameStart = max(media.start, min(time, latest))
+                let frame = CMTimeRange(start: frameStart, duration: frameDuration).intersection(media)
+                guard frame.isValid, frame.duration > .zero else {
+                    compositionTrack.insertEmptyTimeRange(CMTimeRange(start: start, duration: duration))
+                    return
+                }
+                try compositionTrack.insertTimeRange(frame, of: video.track, at: start)
+                compositionTrack.scaleTimeRange(CMTimeRange(start: start, duration: frame.duration), toDuration: duration)
+            }
+            if isIncoming {
+                let first = available.duration > .zero ? available.start : clip.sourceRange.start
+                try hold(first, for: held, at: range.start)
+                if available.duration > .zero {
+                    try compositionTrack.insertTimeRange(available, of: video.track, at: range.start + held)
+                }
+            } else {
+                if available.duration > .zero {
+                    try compositionTrack.insertTimeRange(available, of: video.track, at: range.start)
+                }
+                let last = (available.duration > .zero ? available.end : clip.sourceRange.end) - frameDuration
+                try hold(last, for: held, at: range.start + available.duration)
+            }
+            placement = CompositorLayer(
+                source: .track(compositionTrack.trackID), clip: clip, naturalSize: video.naturalSize,
+                preferredTransform: video.preferredTransform, transition: transition
+            )
+        case .drawn(let drawn, let naturalSize, let filler):
+            let piece = min(range.duration, filler.timeRange.duration)
+            try compositionTrack.insertTimeRange(CMTimeRange(start: filler.timeRange.start, duration: piece), of: filler.track, at: range.start)
+            if piece < range.duration {
+                compositionTrack.scaleTimeRange(CMTimeRange(start: range.start, duration: piece), toDuration: range.duration)
+            }
+            placement = CompositorLayer(
+                source: drawn, clip: clip, naturalSize: naturalSize, preferredTransform: .identity, transition: transition
+            )
+        }
+        cursor = range.end
+        segments.append(CompositionLayer.Segment(clipID: clip.id, mediaID: clip.mediaID, timelineRange: range, sourceRange: wanted))
+        placements.append(placement)
+    }
+
     /// The composition track, made when the first clip is placed.
     private mutating func makeCompositionTrack(in composition: AVMutableComposition) -> AVMutableCompositionTrack? {
         if compositionTrack == nil {
@@ -432,6 +558,14 @@ private struct LayerWriter {
         }
         cursor = cursor + fill
     }
+}
+
+/// Where a clip placed on a picture layer gets its frames.
+private enum PictureSource {
+    /// A video track's.
+    case video(SourceTrack)
+    /// The compositor draws them, over filler that holds the time.
+    case drawn(CompositorLayer.Source, naturalSize: CGSize, filler: SourceTrack)
 }
 
 // MARK: - Loading media

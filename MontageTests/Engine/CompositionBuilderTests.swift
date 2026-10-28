@@ -103,6 +103,53 @@ struct CompositionBuilderTests {
         #expect(built.videoSegments(at: seconds(5)).map(\.segment.sourceRange) == [range(3, 2)])
     }
 
+    @Test func aTransitionShowsBothClipsHandlesOnALayerOfItsOwn() async throws {
+        let first = Clip(mediaID: SampleMedia.landscape.id, sourceRange: range(1, 3))
+        // Starting at the media's start, it has no frames before it: its first is held.
+        let second = Clip(mediaID: SampleMedia.portrait.id, sourceRange: range(0, 3), timelineStart: seconds(3))
+        var project = project([Track(kind: .video, clips: [first, second])])
+        project.addTransition(from: first.id, to: second.id, duration: seconds(1))
+        let built = try await build(project)
+
+        #expect(built.skippedClips.isEmpty, "\(built.skippedClips)")
+        #expect(built.duration == seconds(6))
+        #expect(built.videoLayers.count == 2)
+        let handles = built.videoLayers[1]
+        #expect(handles.segments.map(\.clipID) == [second.id, first.id])
+        #expect(handles.segments.map(\.timelineRange) == [range(2.5, 0.5), range(3, 0.5)])
+        #expect(handles.segments.last?.sourceRange == range(4, 0.5))
+
+        let tracks = try await built.composition.loadTracks(withMediaType: .video)
+        let handleTrack = try #require(tracks.first { $0.trackID == handles.compositionTrackID })
+        let pieces = handleTrack.segments.filter { !$0.isEmpty }.map { ($0.timeMapping.target, $0.timeMapping.source) }
+        // The portrait's first frame held, then the landscape's media after its end.
+        #expect(pieces.count == 2)
+        #expect(pieces.first?.0 == range(2.5, 0.5))
+        #expect(pieces.first?.1.start == .zero)
+        #expect(pieces.last?.0 == range(3, 0.5))
+        #expect(pieces.last?.1 == range(4, 0.5))
+
+        let instructions = try #require(built.videoComposition).instructions.compactMap { $0 as? CompositorInstruction }
+        #expect(instructions.map(\.timeRange) == [range(0, 2.5), range(2.5, 0.5), range(3, 0.5), range(3.5, 2.5)])
+        #expect(instructions.map(\.layers.count) == [1, 2, 2, 1])
+        for instruction in instructions[1...2] {
+            #expect(instruction.layers.allSatisfy { $0.transition?.incomingClipID == second.id })
+        }
+        #expect(instructions[1].layers.map(\.clip.id) == [first.id, second.id])
+        #expect(instructions[2].layers.map(\.clip.id) == [second.id, first.id])
+        #expect(instructions[0].layers.first?.transition == nil)
+    }
+
+    @Test func aTransitionWithAClipLeftOutCuts() async throws {
+        let first = Clip(mediaID: SampleMedia.landscape.id, sourceRange: range(1, 3))
+        let missing = MediaItem(name: "missing.mp4", kind: .video, location: .package(path: "missing.mp4"), metadata: MediaMetadata())
+        let second = Clip(mediaID: missing.id, sourceRange: range(0, 3), timelineStart: seconds(3))
+        var project = project([Track(kind: .video, clips: [first, second])], media: SampleMedia.all + [missing])
+        project.addTransition(from: first.id, to: second.id, duration: seconds(1))
+        let built = try await build(project)
+        #expect(built.videoLayers.count == 1)
+    }
+
     @Test func layersStackFromTheBottomTrack() async throws {
         let bottom = Track(kind: .video, clips: [Clip(mediaID: SampleMedia.landscape.id, sourceRange: range(0, 4))])
         let top = Track(kind: .video, clips: [Clip(mediaID: SampleMedia.portrait.id, sourceRange: range(0, 2), timelineStart: seconds(1))])
