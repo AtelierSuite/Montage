@@ -10,7 +10,8 @@ import MontageEngine
 /// storyline, with gaps where it has none, running to the end of the
 /// project. Every other track's clips are connected to it: video tracks on
 /// lanes above, in order, and audio tracks on lanes below. Each connected
-/// clip hangs off the storyline element it starts over.
+/// clip hangs off the storyline element it starts over, as do the
+/// project's markers.
 ///
 /// Times go onto the project's frames, as Final Cut expects cuts to.
 struct FCPXMLExporter {
@@ -67,6 +68,18 @@ struct FCPXMLExporter {
                 child.attributes.insert(("offset", InterchangeTime.string(offset)), at: 0)
                 elements[index].insertAnchored(child)
             }
+        }
+        // Final Cut's markers belong to clips, so the timeline's go on the
+        // primary storyline's element under each, after what's connected
+        // to it. One at the very end goes on the last frame.
+        for marker in project.markers {
+            let time = min(max(conform(marker.time), .zero), max(.zero, cursor - frameDuration))
+            guard let index = spine.lastIndex(where: { $0.range.start <= time }) else { continue }
+            let start = localStart(of: spine[index]) + (time - spine[index].range.start)
+            elements[index].insertAnchored(MarkupElement("marker", [
+                ("start", InterchangeTime.string(start)), ("duration", InterchangeTime.string(frameDuration)),
+                ("value", marker.name),
+            ]))
         }
         for index in elements.indices { elements[index].removeAnchorMarkers() }
 

@@ -77,7 +77,8 @@ struct FCPXMLExportTests {
             tracks: [
                 Track(kind: .video, clips: [first, later]), Track(kind: .video, clips: [still]),
                 Track(kind: .audio, clips: [music]), Track(kind: .audio, clips: [echo]),
-            ]
+            ],
+            markers: [Marker(time: seconds(1), name: "Look here"), Marker(time: seconds(4), name: "In the gap")]
         )
     }
 
@@ -131,6 +132,8 @@ struct FCPXMLExportTests {
                 }
             }
         }
+        #expect(imported.project.markers.map(\.name) == project.markers.map(\.name))
+        #expect(imported.project.markers.map(\.time) == project.markers.map(\.time))
         // Nothing went missing on the way, other than the Glow it never had.
         #expect(imported.report.items.map(\.issue) == [.unsupportedEffect(name: "Glow")])
     }
@@ -160,6 +163,24 @@ struct FCPXMLExportTests {
         #expect(echo["offset"] == "1s")
         let source = try #require(root.allDescendants.first { $0.name == "media-rep" })
         #expect(source["src"] == "file:///Volumes/Media/IMG_1805.MOV")
+    }
+
+    @Test func putsMarkersOnThePrimaryStoryline() throws {
+        var project = sampleProject()
+        project.markers.append(Marker(time: seconds(7), name: "The end"))
+        let spine = try #require(try MarkupElement.parse(export(project)).allDescendants.first { $0.name == "spine" })
+        let markers = spine.children.map { $0.children("marker") }
+        // In each element's own time: the first clip's starts at 1s, the gap's at 0s.
+        #expect(markers[0].map { $0["start"] } == ["2s"])
+        #expect(markers[0].first?["value"] == "Look here")
+        #expect(markers[0].first?["duration"] == "1/30s")
+        #expect(markers[1].map { $0["start"] } == ["1s"])
+        // One at the very end goes on the last frame.
+        #expect(markers[2].map { $0["start"] } == ["59/30s"])
+        // After the connected clips, as Final Cut's DTD has it.
+        let first = spine.children[0].children.map(\.name)
+        #expect(first.firstIndex(of: "marker")! > first.lastIndex(of: "asset-clip")!)
+        #expect(first.firstIndex(of: "marker")! < first.firstIndex(of: "filter-video")!)
     }
 
     @Test func foldsGainIntoTheVolume() throws {
