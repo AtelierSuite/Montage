@@ -111,14 +111,6 @@ extension ProjectEditor {
         timeline.editedTextClipID = nil
     }
 
-    /// Ends typing under way, in the preview or in the inspector, so an
-    /// undo or redo takes back or puts back the whole of it, as the one step
-    /// it is.
-    func endTyping() {
-        endEditingText()
-        endTypingWords()
-    }
-
     private static var editTextActionName: String { String(localized: "Canvas.Action.EditText") }
 
     /// Whether what's been typed in the preview is the gesture under way,
