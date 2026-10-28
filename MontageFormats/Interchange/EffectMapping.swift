@@ -112,8 +112,8 @@ enum EffectMapping {
             // Blocks across the frame, rather than a block's size.
             var mosaic = Mosaic()
             mosaic.style = .pixelate
-            if let blocks = parameters.number("horizontalblocks", "Horizontal Blocks"), blocks.value > 0 {
-                mosaic.scale = Animatable(1 / blocks.value)
+            if let blocks = parameters.number("horizontalblocks", "Horizontal Blocks") {
+                mosaic.scale = blocks.mapped { 1 / max($0, 1) }
             }
             return .mosaic(mosaic)
         case ("brightness", _), (_, "brightness & contrast"):
