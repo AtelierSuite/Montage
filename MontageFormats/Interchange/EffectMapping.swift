@@ -42,6 +42,33 @@ enum EffectMapping {
     /// begin with an install path written as "…".
     static let fcpGaussianBlurUID = ".../Effects.localized/Blur.localized/Gaussian.localized/Gaussian.moef"
     static let fcpPixellateUID = ".../Effects.localized/Stylize.localized/Pixellate.localized/Pixellate.moef"
+    /// Final Cut's Color Adjustments, an FxPlug filter it has built in.
+    static let fcpColorAdjustmentsUID = "FxPlug:7E2022A5-202B-4EEB-A311-AC2B585D01B0"
+
+    /// The data key a filter of Final Cut's holds Montage's own copy of
+    /// the effect under, as Montage saves it, so it comes back exactly
+    /// with what Final Cut's filter has no setting for.
+    static let montageDataKey = "com.tsubuzaki.Montage.effect"
+
+    /// The settings Final Cut keeps in a Color Adjustments filter's
+    /// `effectConfig` data: the plug-in's version, archived.
+    static var fcpColorAdjustmentsConfig: String {
+        let config = NSMutableDictionary(dictionary: ["pluginVersion": 2])
+        let data = try? NSKeyedArchiver.archivedData(withRootObject: config, requiringSecureCoding: false)
+        return data?.base64EncodedString() ?? ""
+    }
+
+    /// The Color Adjustments sliders a correction lines up with: their
+    /// names, FxPlug parameter keys and values, as `colorAdjustments`
+    /// reads them back. Values past the sliders' ends are held at them.
+    static func fcpColorAdjustments(for correction: ColorCorrection) -> [(name: String, key: String, value: Animatable<Double>)] {
+        let slider: (Double) -> Double = { min(100, max(-100, $0)) }
+        return [
+            ("Exposure", "3", correction.exposure.mapped { slider($0 * 50) }),
+            ("Contrast", "17", correction.contrast.mapped { slider(($0 - 1) * 100) }),
+            ("Saturation", "16", correction.saturation.mapped { slider(($0 - 1) * 100) }),
+        ]
+    }
 
     /// A Final Cut effect as one of Montage's, if there's a match.
     /// `frameWidth` turns sizes in pixels into fractions of the frame.
@@ -53,7 +80,7 @@ enum EffectMapping {
         if uid.hasSuffix("/Pixellate.moef") || lowerName == "pixellate" || lowerName == "pixelate" {
             return mosaic(.pixelate, amount: parameters.number("Amount"), frameWidth: frameWidth)
         }
-        if lowerName == "color adjustments" {
+        if uid == fcpColorAdjustmentsUID || lowerName == "color adjustments" {
             return colorAdjustments(parameters)
         }
         if lowerName == "gain" {

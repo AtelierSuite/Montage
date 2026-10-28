@@ -288,8 +288,8 @@ struct FCPXMLExporter {
     // MARK: - Effects
 
     /// An effect as a Final Cut filter: its built-in blur and pixellate for a
-    /// mosaic, an effect brought from Final Cut as it was, and Montage's own
-    /// for the rest, which Final Cut lists as missing but which come back
+    /// mosaic, its Color Adjustments for colour correction, an effect
+    /// brought from Final Cut as it was, and Montage's own for the rest, which Final Cut lists as missing but which come back
     /// into Montage whole. Gain and pan are clip settings in Final Cut, and
     /// effects from other formats are left out.
     private func filterElement(for effect: Effect, local: @escaping (CMTime) -> CMTime, resources: inout Resources) -> MarkupElement? {
@@ -316,6 +316,20 @@ struct FCPXMLExporter {
                                            .first?.children ?? [])
             return MarkupElement("filter-video", [("ref", ref), ("name", isBlur ? "Gaussian Blur" : "Pixellate"), ("enabled", enabled)],
                                  children: [amount])
+        case .colorCorrection(let correction):
+            // Final Cut's Color Adjustments, with the sliders it shares with
+            // Montage, and Montage's own correction beside them for the rest.
+            let ref = resources.add(effect: "Color Adjustments", uid: EffectMapping.fcpColorAdjustmentsUID)
+            var children = [MarkupElement("data", [("key", "effectConfig")], text: EffectMapping.fcpColorAdjustmentsConfig)]
+            if let data = EffectMapping.montageData(for: effect.kind) {
+                children.append(MarkupElement("data", [("key", EffectMapping.montageDataKey)], text: data))
+            }
+            children += EffectMapping.fcpColorAdjustments(for: correction).map { slider in
+                MarkupElement("param", [("name", slider.name), ("key", slider.key), ("value", Self.decimal(slider.value.value))],
+                              children: param(slider.name, slider.value, local: local) { Self.decimal($0) }.first?.children ?? [])
+            }
+            return MarkupElement("filter-video", [("ref", ref), ("name", "Color Adjustments"), ("enabled", enabled)],
+                                 children: children)
         default:
             guard let data = EffectMapping.montageData(for: effect.kind) else { return nil }
             let type = Self.typeName(effect.kind)

@@ -183,6 +183,67 @@ struct FCPXMLExportTests {
         #expect(first.firstIndex(of: "marker")! < first.firstIndex(of: "filter-video")!)
     }
 
+    @Test func writesColorCorrectionAsColorAdjustments() throws {
+        let root = try MarkupElement.parse(export(sampleProject()))
+        let effect = try #require(root.allDescendants.first { $0.name == "effect" && $0["name"] == "Color Adjustments" })
+        #expect(effect["uid"] == "FxPlug:7E2022A5-202B-4EEB-A311-AC2B585D01B0")
+        let filter = try #require(root.allDescendants.first { $0.name == "filter-video" && $0["ref"] == effect["id"] })
+        #expect(filter["enabled"] == "0")
+        // Final Cut's own settings, as it writes them: its plug-in's version.
+        let config = try #require(filter.children("data").first { $0["key"] == "effectConfig" }?.text)
+        let archived = try #require(Data(base64Encoded: config))
+        let settings = try NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSDictionary.self, NSNumber.self, NSString.self], from: archived)
+        #expect((settings as? NSDictionary)?["pluginVersion"] as? Int == 2)
+        #expect(filter.children("data").contains { $0["key"] == "com.tsubuzaki.Montage.effect" })
+
+        let params = filter.children("param")
+        #expect(params.map { $0["key"] } == ["3", "17", "16"])
+        #expect(params.map { $0["value"] } == ["25", "0", "0"])
+        // Half a stop to a stop, in the clip's own time, which starts at 1s.
+        let keyframes = params[0].child("keyframeAnimation")?.children("keyframe") ?? []
+        #expect(keyframes.map { $0["time"] } == ["2s", "3s"])
+        #expect(keyframes.map { $0["value"] } == ["25", "50"])
+    }
+
+    @Test func readsFinalCutsColorAdjustments() throws {
+        let xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE fcpxml>
+        <fcpxml version="1.11">
+            <resources>
+                <format id="r1" frameDuration="1/30s" width="1920" height="1080"/>
+                <asset id="r2" name="Clip" start="0s" duration="10s" hasVideo="1" format="r1">
+                    <media-rep kind="original-media" src="file:///Volumes/Media/Clip.mov"/>
+                </asset>
+                <effect id="r3" name="Farbanpassungen" uid="FxPlug:7E2022A5-202B-4EEB-A311-AC2B585D01B0"/>
+            </resources>
+            <library><event name="Event"><project name="Colour">
+                <sequence format="r1" duration="2s" tcStart="0s">
+                    <spine>
+                        <asset-clip ref="r2" offset="0s" name="Clip" duration="2s">
+                            <filter-video ref="r3" name="Farbanpassungen">
+                                <param name="Control Range" key="19" value="0 (SDR)"/>
+                                <param name="Exposure" key="3" value="-19"/>
+                                <param name="Contrast" key="17" value="20"/>
+                                <param name="Saturation" key="16" value="-50"/>
+                            </filter-video>
+                        </asset-clip>
+                    </spine>
+                </sequence>
+            </project></event></library>
+        </fcpxml>
+        """
+        let imported = try ProjectInterchange.read(Data(xml.utf8))
+        let clip = try #require(imported.project.tracks.first?.clips.first)
+        guard case .colorCorrection(let correction) = clip.effects.first?.kind else {
+            Issue.record("No colour correction")
+            return
+        }
+        #expect(abs(correction.exposure.value + 0.38) < 0.00001)
+        #expect(abs(correction.contrast.value - 1.2) < 0.00001)
+        #expect(abs(correction.saturation.value - 0.5) < 0.00001)
+    }
+
     @Test func foldsGainIntoTheVolume() throws {
         var project = sampleProject()
         project.tracks[3].update(project.tracks[3].clips[0].id) { clip in
