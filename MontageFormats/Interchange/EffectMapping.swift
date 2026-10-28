@@ -42,6 +42,8 @@ enum EffectMapping {
     /// begin with an install path written as "…".
     static let fcpGaussianBlurUID = ".../Effects.localized/Blur.localized/Gaussian.localized/Gaussian.moef"
     static let fcpPixellateUID = ".../Effects.localized/Stylize.localized/Pixellate.localized/Pixellate.moef"
+    /// Final Cut's Color Adjustments, an FxPlug.
+    static let fcpColorAdjustmentsUID = "FxPlug:7E2022A5-202B-4EEB-A311-AC2B585D01B0"
 
     /// A Final Cut effect as one of Montage's, if there's a match.
     /// `frameWidth` turns sizes in pixels into fractions of the frame.
@@ -55,7 +57,7 @@ enum EffectMapping {
             let amount = parameters.number("Amount") ?? Animatable(FCPPixellate.defaultAmount)
             return mosaic(.pixelate, pixels: amount.mapped(FCPPixellate.size(amount:)), frameWidth: frameWidth)
         }
-        if lowerName == "color adjustments" {
+        if uid == fcpColorAdjustmentsUID || lowerName == "color adjustments" {
             return colorAdjustments(parameters)
         }
         if lowerName == "gain" {
@@ -146,15 +148,80 @@ enum EffectMapping {
         return .mosaic(mosaic)
     }
 
-    /// Final Cut's Color Adjustments, whose sliders run from -100 to 100
-    /// with 0 leaving the picture as it is. Exposure is taken as two stops
-    /// either way at the ends, and contrast and saturation as doubling.
+    /// Final Cut's Color Adjustments, as it works them out: each slider runs
+    /// from -100 to 100 (and to 200 typed in), and is taken as a hundredth
+    /// of that. Black Point and Exposure become a lift and gain on the values
+    /// as shown, as Montage's lift and gain are; Contrast is another lift and
+    /// gain, which Montage's contrast stands in for, pivoting on the middle
+    /// grey; and Saturation scales the colour, 1 being unchanged. Brightness,
+    /// Shadows, Highlights and the warmth and tint of each go through curves
+    /// of Final Cut's own and aren't brought in.
     private static func colorAdjustments(_ parameters: ImportedParameters) -> Effect.Kind {
         var correction = ColorCorrection()
-        if let exposure = parameters.number("Exposure") { correction.exposure = exposure.mapped { $0 / 50 } }
-        if let contrast = parameters.number("Contrast") { correction.contrast = contrast.mapped { 1 + $0 / 100 } }
-        if let saturation = parameters.number("Saturation") { correction.saturation = saturation.mapped { 1 + $0 / 100 } }
+        let blackPoint = parameters.number("Black Point") ?? Animatable(0)
+        let exposure = parameters.number("Exposure") ?? Animatable(0)
+        if blackPoint.isAnimated || exposure.isAnimated || blackPoint.value != 0 || exposure.value != 0 {
+            let levels = { (blackPoint: Double, exposure: Double) in
+                FCPColorAdjustments.liftAndGain(blackPoint: blackPoint, exposure: exposure)
+            }
+            correction.lift = combined(blackPoint, exposure) { levels($0, $1).lift }.mappedToRGB
+            correction.gain = combined(blackPoint, exposure) { levels($0, $1).gain }.mappedToRGB
+        }
+        if let contrast = parameters.number("Contrast") {
+            correction.contrast = contrast.mapped(FCPColorAdjustments.contrast)
+        }
+        if let saturation = parameters.number("Saturation") {
+            correction.saturation = saturation.mapped { max(0, 1 + $0 / 100) }
+        }
         return .colorCorrection(correction)
+    }
+
+    /// The sums Final Cut's Color Adjustments does with its sliders.
+    enum FCPColorAdjustments {
+        /// How far each slider's hundredth moves the black point, the top
+        /// of the range, and either end for contrast.
+        static let blackPointScale = 0.3
+        static let exposureScale = 0.31
+        static let contrastScale = 0.15
+
+        /// The lift and gain that put black and white where the black point
+        /// and exposure take them, with contrast moving both ends apart: a
+        /// value comes out as gain × (value + lift × (1 - value)).
+        static func liftAndGain(blackPoint: Double, exposure: Double, contrast: Double = 0) -> (lift: Double, gain: Double) {
+            let contrast = contrast / 100 * contrastScale
+            let low = blackPoint / 100 * blackPointScale - contrast
+            let high = 1 + exposure / 100 * exposureScale + contrast
+            let crushed = max(-low, 0), raised = max(low, 0)
+            let top = max(min(high, 1), raised + 0.0001)
+            let base = max(high < 1 ? 1 : 2 - high, crushed + 0.0001)
+            let slope = (top - raised) / (base - crushed)
+            let offset = raised - crushed * slope
+            let gain = slope + offset
+            guard gain > 0 else { return (0, 0) }
+            return (min(max(offset / gain + 1, 0), 2) - 1, min(gain, 200))
+        }
+
+        /// Contrast as how much steeper the middle of the range is made, about
+        /// 1.43 at 100 and 0.7 at -100.
+        static func contrast(_ value: Double) -> Double {
+            let (lift, gain) = liftAndGain(blackPoint: 0, exposure: 0, contrast: value)
+            return max(0, gain * (1 - lift))
+        }
+    }
+
+    /// Two parameters put together into one, at each of their keyframes.
+    private static func combined(
+        _ first: Animatable<Double>, _ second: Animatable<Double>, _ combine: (Double, Double) -> Double
+    ) -> Animatable<Double> {
+        guard first.isAnimated || second.isAnimated else { return Animatable(combine(first.value, second.value)) }
+        var keyframes: [Keyframe<Double>] = []
+        let times = (first.keyframes + second.keyframes).map(\.time).sorted()
+        for (index, time) in times.enumerated() where index == 0 || times[index - 1] != time {
+            let interpolation = (first.keyframes.first { $0.time == time } ?? second.keyframes.first { $0.time == time })!.interpolation
+            keyframes.append(Keyframe(time: time, value: combine(first.value(at: time), second.value(at: time)),
+                                      interpolation: interpolation))
+        }
+        return Animatable(keyframes[0].value, keyframes: keyframes)
     }
 }
 
@@ -163,6 +230,15 @@ extension Animatable where Value == Double {
     func mapped(_ transform: (Double) -> Double) -> Animatable<Double> {
         Animatable(transform(value), keyframes: keyframes.map {
             Keyframe(time: $0.time, value: transform($0.value), interpolation: $0.interpolation)
+        })
+    }
+}
+
+private extension Animatable where Value == Double {
+    /// The same amount for every channel.
+    var mappedToRGB: Animatable<RGBValues> {
+        Animatable<RGBValues>(RGBValues(value), keyframes: keyframes.map {
+            Keyframe(time: $0.time, value: RGBValues($0.value), interpolation: $0.interpolation)
         })
     }
 }

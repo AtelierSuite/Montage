@@ -25,6 +25,11 @@ struct EffectMappingTests {
         return mosaic
     }
 
+    private func correction(_ kind: Effect.Kind?) throws -> ColorCorrection {
+        guard case .colorCorrection(let correction) = kind else { throw MappingError.wrongKind }
+        return correction
+    }
+
     private enum MappingError: Error { case wrongKind }
 
     // MARK: - Final Cut blur and pixellate
@@ -67,5 +72,57 @@ struct EffectMappingTests {
             }
             #expect(abs(EffectMapping.fcpAmount(for: style, scale: mosaic.scale.value, frameWidth: 1920) - amount) < 0.000001)
         }
+    }
+
+    // MARK: - Final Cut Color Adjustments
+
+    @Test func findsColorAdjustmentsByItsUID() throws {
+        let adjusted = try correction(fcpxml("Farbanpassungen", uid: EffectMapping.fcpColorAdjustmentsUID,
+                                             ["Saturation": Animatable(50)]))
+        #expect(adjusted.saturation.value == 1.5)
+    }
+
+    @Test func turnsExposureIntoAGainOnTheValuesAsShown() throws {
+        let brighter = try correction(fcpxml("Color Adjustments", ["Exposure": Animatable(100)]))
+        #expect(abs(brighter.gain.value.red - 1 / 0.69) < 0.0001)
+        #expect(abs(brighter.lift.value.red) < 0.0001)
+        #expect(brighter.exposure.value == 0)
+        let darker = try correction(fcpxml("Color Adjustments", ["Exposure": Animatable(-100)]))
+        #expect(abs(darker.gain.value.green - 0.69) < 0.0001)
+    }
+
+    /// Values from a real export (OpenFCPXMLKit's 29.97 sample), the black
+    /// point typed past the slider's end.
+    @Test func putsBlackAndWhiteWhereBlackPointAndExposureTakeThem() throws {
+        let adjusted = try correction(fcpxml("Color Adjustments", [
+            "Black Point": Animatable(120), "Exposure": Animatable(-19), "Contrast": Animatable(-19),
+            "Saturation": Animatable(64.8),
+        ]))
+        let lift = adjusted.lift.value.blue, gain = adjusted.gain.value.blue
+        // Black comes out at 0.3 × 1.2, white at 1 - 0.31 × 0.19.
+        #expect(abs(gain * lift - 0.36) < 0.0001)
+        #expect(abs(gain - 0.9411) < 0.0001)
+        #expect(abs(adjusted.contrast.value - 0.943) < 0.0001)
+        #expect(abs(adjusted.saturation.value - 1.648) < 0.0001)
+    }
+
+    @Test func makesContrastSteeperAsFinalCutDoes() throws {
+        let more = try correction(fcpxml("Color Adjustments", ["Contrast": Animatable(100)]))
+        #expect(abs(more.contrast.value - 1 / 0.7) < 0.0001)
+        let less = try correction(fcpxml("Color Adjustments", ["Contrast": Animatable(-100)]))
+        #expect(abs(less.contrast.value - 0.7) < 0.0001)
+    }
+
+    @Test func keyframesBlackPointAndExposureTogether() throws {
+        let exposure = Animatable(0, keyframes: [Keyframe(time: .zero, value: 0), Keyframe(time: seconds(2), value: 100)])
+        let blackPoint = Animatable(0, keyframes: [Keyframe(time: seconds(1), value: 100, interpolation: .hold)])
+        let adjusted = try correction(fcpxml("Color Adjustments", ["Exposure": exposure, "Black Point": blackPoint]))
+        #expect(adjusted.gain.keyframes.map(\.time) == [.zero, seconds(1), seconds(2)])
+        #expect(adjusted.lift.keyframes.map(\.time) == [.zero, seconds(1), seconds(2)])
+        // At one second the black point is up, and exposure half way.
+        let lift = adjusted.lift.keyframes[1].value.red, gain = adjusted.gain.keyframes[1].value.red
+        #expect(abs(gain * lift - 0.3) < 0.0001)
+        // White goes up by exposure, less the room the black point takes.
+        #expect(abs(gain - (0.7 / 0.845 + 0.3)) < 0.0001)
     }
 }
