@@ -65,7 +65,10 @@ struct ResolveFCPXMLImportTests {
         let issues = imported.report.items.map(\.issue)
         #expect(issues.contains(.transition(name: "Cross Dissolve")))
         #expect(issues.contains(.disabledClip))
-        #expect(imported.report.items.first { $0.issue == .marker(name: "Check focus") }?.time == frames(48))
+        // A marker on the primary storyline is the timeline's own.
+        #expect(!issues.contains(.marker(name: "Check focus")))
+        #expect(imported.project.markers.map(\.name) == ["Check focus"])
+        #expect(imported.project.markers.first?.time == frames(48))
         // A rate conformed without scaling isn't a speed change.
         #expect(!issues.contains(.speedChange))
         #expect(!issues.contains(.movedToNewTrack))
