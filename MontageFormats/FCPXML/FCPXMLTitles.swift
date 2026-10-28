@@ -164,6 +164,33 @@ enum FCPXMLTitles {
         MarkupElement("param", [("name", name), ("key", key)], children: children)
     }
 
+    /// The metadata key a title keeps Montage's own text under, as Montage
+    /// saves it, so it comes back exactly with what Final Cut has no
+    /// setting for, such as the background's padding.
+    static let montageTextKey = "com.tsubuzaki.Montage.text"
+
+    static func metadata(for text: TextContent) -> MarkupElement? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode(text) else { return nil }
+        return MarkupElement("metadata", children: [
+            MarkupElement("md", [("key", montageTextKey), ("value", data.base64EncodedString())]),
+        ])
+    }
+
+    /// Montage's own text kept in a title, if what Final Cut wrote of it
+    /// still agrees: the same words, in the same font, size and alignment.
+    private static func montageText(in title: MarkupElement, matching text: TextContent) -> TextContent? {
+        guard let value = title.child("metadata")?.children("md").first(where: { $0["key"] == montageTextKey })?["value"],
+              let data = Data(base64Encoded: value),
+              let stored = try? JSONDecoder().decode(TextContent.self, from: data),
+              stored.string == text.string else { return nil }
+        let style = stored.style, read = text.style
+        guard style.fontFamily == read.fontFamily, style.alignment == read.alignment,
+              abs(style.fontSize.value(at: .zero) - read.fontSize.value(at: .zero)) < 0.001 else { return nil }
+        return stored
+    }
+
     /// The name of a font's face, as Final Cut gives it: "Bold Italic".
     static func fontFace(weight: FontWeight, isItalic: Bool) -> String {
         let name = switch weight {
@@ -261,7 +288,9 @@ enum FCPXMLTitles {
             }
             runs.append(TextRun(piece.text, formatting: formatting))
         }
-        return Reading(text: TextContent(runs: runs, style: style), unsupported: unsupported)
+        let text = TextContent(runs: runs, style: style)
+        if let stored = montageText(in: title, matching: text) { return Reading(text: stored) }
+        return Reading(text: text, unsupported: unsupported)
     }
 
     /// A text style's attributes as Montage's style for a whole clip.

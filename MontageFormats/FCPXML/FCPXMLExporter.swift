@@ -207,7 +207,8 @@ struct FCPXMLExporter {
     }
 
     /// A text clip as an instance of Final Cut's Basic Title, with its words,
-    /// their formatting, its transform, opacity and video effects.
+    /// their formatting, its transform, opacity and video effects, and
+    /// Montage's own text in its metadata.
     private func titleElement(_ clip: Clip, text: TextContent, range: CMTimeRange, lane: Int?, resources: inout Resources) -> MarkupElement {
         let effect = resources.add(effect: FCPXMLTitles.basicTitleName, uid: FCPXMLTitles.basicTitleUID)
         let words = FCPXMLTitles.textElements(for: text) { resources.nextTextStyleID() }
@@ -227,6 +228,7 @@ struct FCPXMLExporter {
         }
         children.append(MarkupElement(Self.anchorMarker))
         children += clip.effects.filter(\.kind.isVideo).compactMap { filterElement(for: $0, local: local, resources: &resources) }
+        if let metadata = FCPXMLTitles.metadata(for: text) { children.append(metadata) }
         return MarkupElement("title", attributes, children: children)
     }
 

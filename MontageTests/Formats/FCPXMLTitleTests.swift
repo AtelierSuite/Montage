@@ -165,13 +165,13 @@ struct FCPXMLTitleTests {
         let originals = project.tracks.flatMap(\.clips).compactMap { clip in clip.content.text.map { (clip, $0) } }
         #expect(back.count == originals.count)
         for (original, copy) in zip(originals, back) {
+            // Exactly, from Montage's own copy in the title's metadata.
+            #expect(copy.text == original.1)
             #expect(copy.text.runs == original.1.runs)
             #expect(copy.clip.timelineRange == original.0.timelineRange)
             let style = copy.text.style, expected = original.1.style
             #expect(style.fontFamily == expected.fontFamily)
             #expect(style.fontSize.value == expected.fontSize.value)
-            #expect(style.background.isEnabled == expected.background.isEnabled)
-            #expect(style.background.color.value == expected.background.color.value)
             #expect(style.weight == expected.weight)
             #expect(style.isItalic == expected.isItalic)
             #expect(style.fill.color.value == expected.fill.color.value)
@@ -199,9 +199,7 @@ struct FCPXMLTitleTests {
         let lower = try #require(imported.project.tracks.firstIndex { $0.clips.contains { $0.content.text?.string == "Lower third" } })
         let big = try #require(imported.project.tracks.firstIndex { $0.clips.contains { $0.content.text?.string.hasPrefix("Big") == true } })
         #expect(lower > big)
-        // Montage reads only the attributes back, not the keyframes.
-        #expect(imported.report.items.allSatisfy { $0.issue == .setting(name: "Text style animation") })
-        #expect(!imported.report.isEmpty)
+        #expect(imported.report.isEmpty)
     }
 
     // MARK: - Reading Final Cut's
@@ -314,6 +312,18 @@ struct FCPXMLTitleTests {
         #expect(!issues.contains(.setting(name: "Flatten")))
         #expect(!issues.contains { $0 == .title })
         #expect(issues.count == 3)
+    }
+
+    @Test func titlesChangedInFinalCutAreReadAsTheyAre() throws {
+        // Montage's copy no longer agrees with the size Final Cut wrote.
+        let xml = String(decoding: export(Self.project()), as: UTF8.self)
+            .replacingOccurrences(of: "fontSize=\"120\"", with: "fontSize=\"90\"")
+        let imported = try ProjectInterchange.read(Data(xml.utf8))
+        let big = try #require(texts(in: imported).first { $0.text.string.hasPrefix("Big") })
+        #expect(big.text.style.fontSize.value == 90)
+        #expect(big.text.style.background.isEnabled)
+        #expect(big.text.style.background.color.value == RGBAColor(white: 0, alpha: 0.5))
+        #expect(imported.report.items.contains { $0.issue == .setting(name: "Text style animation") })
     }
 
     @Test func aTitleWithNoWordsIsReported() throws {
