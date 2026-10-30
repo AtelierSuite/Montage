@@ -120,6 +120,13 @@ extension ProjectEditor {
         timeline.selectedClipIDs.formUnion(detached)
     }
 
+    // MARK: - Tracks
+
+    /// Names a track, or with a blank name, takes its name away.
+    func renameTrack(_ id: Track.ID, to name: String) {
+        perform(String(localized: "Action.RenameTrack")) { $0.renameTrack(id, to: name) }
+    }
+
     // MARK: - Marking
 
     /// Marks the playhead's time.

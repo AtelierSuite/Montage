@@ -77,6 +77,9 @@ struct TimelineView: View {
     @State private var waveformSources: [MediaItem.ID: MediaItem] = [:]
     /// Counts the long presses that picked clips up, for a tap of feedback.
     @State private var pickUps = 0
+    /// The track being named, and the name typed for it so far.
+    @State private var renamingTrack: Track?
+    @State private var trackName = ""
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -108,6 +111,11 @@ struct TimelineView: View {
         }
         .simultaneousGesture(pinching)
         .background(.background.secondary)
+        .alert("Timeline.Track.NameTitle", isPresented: isNamingTrack) {
+            TextField("Timeline.Track.Name", text: $trackName)
+            Button("Timeline.Track.Save", action: saveTrackName)
+            Button("Relink.Cancel", role: .cancel) {}
+        }
         #if os(macOS)
         .focusable()
         .focusEffectDisabled()
@@ -155,8 +163,8 @@ struct TimelineView: View {
     private func header(_ row: TimelineLayout.Row) -> some View {
         Group {
             switch row.kind {
-            case .video: Label("Timeline.Track.Video", systemImage: "film")
-            case .audio: Label("Timeline.Track.Audio", systemImage: "waveform")
+            case .video: Label { headerTitle(row, default: "Timeline.Track.Video") } icon: { Image(systemName: "film") }
+            case .audio: Label { headerTitle(row, default: "Timeline.Track.Audio") } icon: { Image(systemName: "waveform") }
             }
         }
         .font(.caption)
@@ -165,6 +173,36 @@ struct TimelineView: View {
         .lineLimit(1)
         .minimumScaleFactor(0.7)
         .padding(.leading, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .contentShape(.rect)
+        // The empty lanes of a project without tracks have none to name.
+        .onTapGesture(count: 2) { rename(row.track) }
+        .contextMenu {
+            if let track = row.track {
+                Button("Timeline.Track.Rename", systemImage: "pencil") { rename(track) }
+            }
+        }
+    }
+
+    /// The track's name, or what kind of track it is when it has none.
+    private func headerTitle(_ row: TimelineLayout.Row, default kind: LocalizedStringKey) -> Text {
+        if let name = row.track?.name { Text(verbatim: name) } else { Text(kind) }
+    }
+
+    private var isNamingTrack: Binding<Bool> {
+        Binding { renamingTrack != nil } set: { if !$0 { renamingTrack = nil } }
+    }
+
+    private func rename(_ track: Track?) {
+        guard let track else { return }
+        trackName = track.name ?? ""
+        renamingTrack = track
+    }
+
+    private func saveTrackName() {
+        defer { renamingTrack = nil }
+        guard let track = renamingTrack else { return }
+        editor.renameTrack(track.id, to: trackName)
     }
 
     // MARK: - Lanes
