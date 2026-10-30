@@ -567,6 +567,15 @@ struct FCPXMLImporter {
                 if let mode = adjustment["mode"], !mode.lowercased().contains("stereo") {
                     report.add(.setting(name: "Surround panning"), clipName: clipName, time: start)
                 }
+            case "adjust-EQ":
+                let bands = adjustment.children("param").compactMap { param in
+                    animatable(param["value"], param, toClip, Self.number).map { (name: param["name"] ?? "", gain: $0) }
+                }
+                if let kind = EffectMapping.fcpxmlEqualizer(mode: adjustment["mode"], bands: bands) {
+                    clip.effects.append(Effect(kind))
+                } else if (adjustment["mode"] ?? "flat").lowercased() != "flat" {
+                    report.add(.setting(name: "EQ"), clipName: clipName, time: start)
+                }
             case "adjust-blend" where isVideo:
                 if let amount = animatable(adjustment["amount"], adjustment.param("amount"), toClip, Self.number) {
                     clip.opacity = amount.mapped { max(0, min(1, $0)) }

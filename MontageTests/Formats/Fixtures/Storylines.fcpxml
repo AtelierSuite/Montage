@@ -86,7 +86,7 @@
                             </spine>
                             <marker start="2s" duration="1/30s" value="Look here"/>
                             <filter-video ref="e1" name="Gaussian Blur">
-                                <param name="Amount" key="9999/gaussianBlur/amount" value="19.2"/>
+                                <param name="Amount" key="9999/986883370/100/986883376/2/100" value="0.0768"/>
                             </filter-video>
                             <filter-video ref="e2" name="Glow">
                                 <param name="Radius" key="1" value="12">
