@@ -47,8 +47,12 @@ struct MP4Export {
 
             // Video and audio each go at their own pace: the writer holds one
             // back while it waits for the other to interleave them. So when
-            // either stops early, or the export is cancelled, the reader and
-            // writer are stopped too, or the other would wait for good.
+            // either stops early, it finishes its input, and the reader is
+            // stopped, so the other reads to the end instead of waiting for
+            // good; the export being cancelled stops the reader too. The
+            // writer is only cancelled once both have ended: an append
+            // waiting for the input to be ready never comes back if the
+            // writer is cancelled under it (on iOS; the Mac's returns).
             //
             // Each reads on a queue of its own: reading blocks its thread
             // until the reader has the next sample, and the reader can hold
@@ -58,7 +62,7 @@ struct MP4Export {
             try await withTaskCancellationHandler {
                 try await withThrowingTaskGroup { group in
                     if let videoProvider, let videoReceiver {
-                        group.addTask(executorPreference: DispatchQueue(label: "Montage.Export.Video")) { try await stopper.stoppingOnFailure {
+                        group.addTask(executorPreference: DispatchQueue(label: "Montage.Export.Video")) { try await stopper.stoppingOnFailure(finishing: videoReceiver.finish) {
                             let scaler = try FrameScaler(size: outputSize)
                             while let sample = try await videoProvider.next() {
                                 try Task.checkCancellation()
@@ -74,7 +78,7 @@ struct MP4Export {
                         } }
                     }
                     if let audioProvider, let audioReceiver {
-                        group.addTask(executorPreference: DispatchQueue(label: "Montage.Export.Audio")) { try await stopper.stoppingOnFailure {
+                        group.addTask(executorPreference: DispatchQueue(label: "Montage.Export.Audio")) { try await stopper.stoppingOnFailure(finishing: audioReceiver.finish) {
                             while let sample = try await audioProvider.next() {
                                 try Task.checkCancellation()
                                 let time = sample.presentationTimeStamp
@@ -87,7 +91,7 @@ struct MP4Export {
                     try await group.waitForAll()
                 }
             } onCancel: {
-                stopper.stop()
+                stopper.stopReading()
             }
             try Task.checkCancellation()
             try render.checkFinished()
@@ -95,7 +99,8 @@ struct MP4Export {
             await writer.finishWriting()
             guard writer.status == .completed else { throw ExportError.writeFailed(writer.error) }
         } catch {
-            stopper.stop()
+            stopper.stopReading()
+            if writer.status == .writing { writer.cancelWriting() }
             if error is CancellationError || Task.isCancelled { throw CancellationError() }
             if writer.status == .failed { throw ExportError.writeFailed(writer.error) }
             if render.reader.status == .failed { throw ExportError.readFailed(render.reader.error) }
@@ -103,11 +108,11 @@ struct MP4Export {
         }
     }
 
-    /// Stops reading and writing from whichever task notices first, once:
-    /// both tasks, cancellation and the export itself can all stop it, and
-    /// the reader crashes when it's cancelled twice at once.
+    /// Stops reading from whichever task notices first, once: both tasks,
+    /// cancellation and the export itself can all stop it, and the reader
+    /// crashes when it's cancelled twice at once.
     private final class Stopper: @unchecked Sendable {
-        // AVAssetReader and AVAssetWriter can be cancelled from any thread.
+        // AVAssetReader can be cancelled from any thread.
         private let reader: AVAssetReader
         private let writer: AVAssetWriter
         private let hasStopped = Mutex(false)
@@ -117,21 +122,23 @@ struct MP4Export {
             self.writer = writer
         }
 
-        func stop() {
+        func stopReading() {
             let isFirst = hasStopped.withLock { hasStopped in
                 defer { hasStopped = true }
                 return !hasStopped
             }
             guard isFirst else { return }
             reader.cancelReading()
-            if writer.status == .writing { writer.cancelWriting() }
         }
 
-        func stoppingOnFailure(_ body: () async throws -> Void) async throws {
+        /// Runs one input's loop. If it fails, its input is finished, so the
+        /// writer stops waiting for it, and reading stops.
+        func stoppingOnFailure(finishing finish: () -> Void, _ body: () async throws -> Void) async throws {
             do {
                 try await body()
             } catch {
-                stop()
+                if writer.status == .writing { finish() }
+                stopReading()
                 throw error
             }
         }
