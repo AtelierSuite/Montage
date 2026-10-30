@@ -36,6 +36,8 @@ struct PremiereProjectImporter {
     private var merged: Set<String> = []
     /// The sequences being read, by UID, so one nested in itself stops.
     private var nesting: Set<String> = []
+    /// The sequences' and clips' markers, where they fall on the timeline.
+    private var timelineMarkers: [Marker] = []
 
     /// Reads a project, gzipped as Premiere saves it or not.
     static func read(
@@ -85,8 +87,8 @@ struct PremiereProjectImporter {
 
         var project = Project(settings: settings, media: media.items)
         project.tracks = assembler.tracks(report: &report)
-        for marker in markers(sequence.descendant("MarkerOwner", "Markers")) {
-            project.addMarker(at: PremiereProject.time(marker.ticks), name: marker.name)
+        for marker in timelineMarkers.sorted(by: { $0.time < $1.time }) {
+            project.addMarker(at: marker.time, name: marker.name)
         }
         return ImportedProject(
             project: project, report: report, name: sequence.child("Name")?.text, mediaSources: media.sources
@@ -132,6 +134,13 @@ struct PremiereProjectImporter {
         guard !nesting.contains(uid) else { return }
         nesting.insert(uid)
         defer { nesting.remove(uid) }
+
+        // A nested sequence's markers are seen where it's shown.
+        for marker in markers(sequence.descendant("MarkerOwner", "Markers")) {
+            let time = placement.timeline(PremiereProject.time(marker.ticks))
+            if let window = placement.window, time < window.start || time >= window.end { continue }
+            timelineMarkers.append(Marker(time: time, name: marker.name))
+        }
 
         let groups = trackGroups(of: sequence)
         let tracks = groups.map { group in
@@ -286,11 +295,13 @@ struct PremiereProjectImporter {
         let toClip: (Int64) -> CMTime = { PremiereProject.time(item.atNormalSpeed($0)) - sourceIn }
 
         // A clip's markers are its media's, wherever they fall; only those
-        // within the part used are on the timeline.
+        // within the part used, and shown, are on the timeline.
         for marker in markers(item.clip?.descendant("MarkerOwner", "Markers")) {
             let ticks = item.atNormalSpeed(marker.ticks)
-            guard ticks >= item.inPoint, ticks < item.inPoint + length else { continue }
-            report.add(.marker(name: marker.name), clipName: item.name, time: timelineStart + toClip(marker.ticks))
+            let time = timelineStart + toClip(marker.ticks)
+            guard ticks >= item.inPoint, ticks < item.inPoint + length,
+                  placement.window.map({ time >= $0.start && time < $0.end }) ?? true else { continue }
+            timelineMarkers.append(Marker(time: time, name: marker.name))
         }
         if item.isDisabled {
             report.add(.disabledClip, clipName: item.name, time: timelineStart)
@@ -603,7 +614,9 @@ struct PremiereProjectImporter {
                   let marker = root["DVAMarker"] as? [String: Any] else { return nil }
             let start = (marker["mStartTime"] as? [String: Any])?["ticks"]
             let ticks = (start as? NSNumber)?.int64Value ?? (start as? String).flatMap { Int64($0) } ?? 0
-            return MarkerInfo(ticks: ticks, name: marker["mName"] as? String ?? "")
+            // One left unnamed is named by its comment, if it has one.
+            let name = marker["mName"] as? String ?? ""
+            return MarkerInfo(ticks: ticks, name: name.isEmpty ? marker["mComment"] as? String ?? "" : name)
         }
     }
 

@@ -26,6 +26,8 @@ struct XMEMLImporter {
     private var settings = ProjectSettings()
     /// The audio clip items made part of a picture's clip, by ID.
     private var mergedAudio: Set<String> = []
+    /// The sequences' and clips' markers, where they fall on the timeline.
+    private var markers: [Marker] = []
 
     static func read(_ root: MarkupElement, baseURL: URL?) throws -> ImportedProject {
         var importer = XMEMLImporter(root: root, baseURL: baseURL)
@@ -57,13 +59,13 @@ struct XMEMLImporter {
             settings.renderSize = CGSize(width: width, height: height)
         }
 
-        for marker in sequence.children("marker") {
-            report.add(.marker(name: marker.child("name")?.text ?? ""), time: frames(marker.child("in")?.text, rate))
-        }
         importTracks(of: sequence, base: .zero, origin: .zero, lane: 0, window: nil)
 
         var project = Project(settings: settings, media: media.items)
         project.tracks = assembler.tracks(report: &report)
+        for marker in markers.sorted(by: { $0.time < $1.time }) {
+            project.addMarker(at: marker.time, name: marker.name)
+        }
         return ImportedProject(
             project: project, report: report, name: sequence.child("name")?.text, mediaSources: media.sources,
             mediaSourcePaths: media.writtenPaths
@@ -80,6 +82,10 @@ struct XMEMLImporter {
         let audioItems = (sequence.descendant("media", "audio")?.children("track") ?? []).flatMap { $0.children("clipitem") }
         let placement = Placement(base: base, origin: origin, rate: rate, window: window)
 
+        for marker in sequence.children("marker") {
+            guard let time = frames(marker.child("in")?.text, rate).map(placement.timeline) else { continue }
+            addMarker(marker, at: time, within: window)
+        }
         for (index, track) in (sequence.descendant("media", "video")?.children("track") ?? []).enumerated() {
             importTrack(track, kind: .video, lane: lane + index, placement: placement, audioItems: audioItems)
         }
@@ -173,16 +179,18 @@ struct XMEMLImporter {
         guard let sequenceStart = start ?? end.map({ $0 - duration }) ?? inside, duration > .zero else { return }
         let timelineStart = placement.timeline(sequenceStart)
 
+        let clipRange = CMTimeRange(start: timelineStart, duration: duration)
+        let window = placement.window.map { $0.intersection(clipRange) } ?? clipRange
+        // A clip's markers are timed in its media; those on the part used
+        // are on the timeline.
         for marker in item.children("marker") {
-            let at = frames(marker.child("in")?.text, clipRate).map { timelineStart + ($0 - sourceIn) }
-            report.add(.marker(name: marker.child("name")?.text ?? ""), clipName: name, time: at)
+            guard let time = frames(marker.child("in")?.text, clipRate).map({ timelineStart + ($0 - sourceIn) }) else { continue }
+            addMarker(marker, at: time, within: window)
         }
         if item.child("enabled")?.text.uppercased() == "FALSE" {
             report.add(.disabledClip, clipName: name, time: timelineStart)
             return
         }
-        let clipRange = CMTimeRange(start: timelineStart, duration: duration)
-        let window = placement.window.map { $0.intersection(clipRange) } ?? clipRange
 
         // A nested sequence: its clips, played from the clip's in point.
         if let nested = item.child("sequence") {
@@ -320,8 +328,11 @@ struct XMEMLImporter {
     }
 
     /// Basic Motion: scale in percent of the media's own size, rotation
-    /// clockwise in degrees, and the centre as a fraction of the frame from
-    /// its middle.
+    /// clockwise in degrees, and the centre's offset from the frame's middle
+    /// as a fraction of the media's own size, unscaled. Premiere writes
+    /// a 3840 by 1080 picture moved 960 pixels right in an HD frame as 0.25
+    /// across, and a 4096 by 2048 one at 140.7% moved 1440 pixels down as
+    /// 0.703125 down.
     private mutating func applyMotion(
         _ effect: MarkupElement, to clip: inout Clip, item: MediaItem, clipRate: CMTime, toClip: @escaping (CMTime) -> CMTime
     ) {
@@ -340,7 +351,10 @@ struct XMEMLImporter {
             clip.transform.rotation = rotation
         }
         if let center = parameter("center").flatMap({ animatable($0, clipRate: clipRate, toClip: toClip, Self.point) }) {
-            clip.transform.position = center
+            let size = media.width > 0 && media.height > 0 ? media : frame
+            let across = frame.width > 0 ? size.width / frame.width : 1
+            let down = frame.height > 0 ? size.height / frame.height : 1
+            clip.transform.position = center.mapped { CGPoint(x: 0.5 + ($0.x - 0.5) * across, y: 0.5 + ($0.y - 0.5) * down) }
         }
         if let offset = parameter("centeroffset").flatMap({ animatable($0, clipRate: clipRate, toClip: toClip, Self.point) }),
            offset.isAnimated || offset.value != CGPoint(x: 0.5, y: 0.5) {
@@ -416,6 +430,15 @@ struct XMEMLImporter {
 
     /// A count of frames as a time; nil for none, or for -1, which stands
     /// for a time inside a transition.
+    /// A marker at `time` on the timeline, named by its comment if it has
+    /// no name. A range marker is marked where it starts. Those outside
+    /// `window`, on media trimmed off, aren't seen in the other app either.
+    private mutating func addMarker(_ marker: MarkupElement, at time: CMTime, within window: CMTimeRange?) {
+        if let window, time < window.start || time >= window.end { return }
+        let name = marker.child("name")?.text ?? ""
+        markers.append(Marker(time: time, name: name.isEmpty ? marker.child("comment")?.text ?? "" : name))
+    }
+
     private func frames(_ text: String?, _ frameDuration: CMTime) -> CMTime? {
         guard let text, let count = Int64(text), count >= 0 else { return nil }
         return InterchangeTime.frames(count, frameDuration: frameDuration)

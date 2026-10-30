@@ -730,7 +730,7 @@ Main Edit, at 29.97 fps and 1920x1080:
 	</Markers>
 	<!-- 3s into the file, 1s into the clip; and one before the in point, which isn't on the timeline. -->
 	<Marker ObjectID="911" ClassID="a45508e0-3ff7-4d04-90a7-2e0dfff4c910" Version="3">
-		<DVAMarker>{"DVAMarker":{"mName":"Take 2","mStartTime":{"ticks":762048000000},"mType":"Comment"}}</DVAMarker>
+		<DVAMarker>{"DVAMarker":{"mName":"Take 2","mStartTime":{"ticks":1016064000000},"mType":"Comment"}}</DVAMarker>
 	</Marker>
 	<Marker ObjectID="912" ClassID="a45508e0-3ff7-4d04-90a7-2e0dfff4c910" Version="3">
 		<DVAMarker>{"DVAMarker":{"mName":"Slate","mStartTime":{"ticks":0},"mType":"Comment"}}</DVAMarker>
