@@ -38,16 +38,16 @@ simulator() {
 # The document browser runs out of process and follows the system language, not
 # the app's, so the whole simulator is switched and restarted for each language.
 # The preferences are edited while it is shut down: a `defaults write` through
-# simctl spawn does not survive the restart. Light and dark are only taken up
-# on a restart too, so they are set before it.
-# Usage: boot <udid> <language> <light|dark>
+# simctl spawn does not survive the restart. The appearance is only taken up
+# on a restart too, so it's set light before it.
+# Usage: boot <udid> <language>
 boot() {
   local locale=$([[ $2 == ja ]] && echo ja_JP || echo en_US)
   local preferences=~/Library/Developer/CoreSimulator/Devices/$1/data/Library/Preferences/.GlobalPreferences.plist
   # The first boot is what creates the preferences.
   xcrun simctl boot $1 2>/dev/null || true
   xcrun simctl bootstatus $1 -b >/dev/null
-  xcrun simctl ui $1 appearance $3
+  xcrun simctl ui $1 appearance light
   xcrun simctl shutdown $1
   plutil -replace AppleLanguages -json "[\"$2\"]" "$preferences"
   plutil -replace AppleLocale -string $locale "$preferences"
@@ -67,7 +67,7 @@ XCTESTRUN=$(ls $DERIVED_DATA/Build/Products/*.xctestrun | head -1)
 
 # UI tests on a freshly booted simulator now and then miss a tap, so a failed run
 # is given one more go.
-# Usage: run_test <udid> <language> <directory> <light|dark>
+# Usage: run_test <udid> <language> <directory>
 run_test() {
   run_test_once "$@" || run_test_once "$@"
 }
@@ -75,7 +75,7 @@ run_test() {
 # Prints only the assertion that failed, if any; -quiet would hide it.
 run_test_once() {
   local log=$(mktemp) test_status=0
-  TEST_RUNNER_SCREENSHOT_DIR=$3 TEST_RUNNER_SCREENSHOT_LANGUAGE=$2 TEST_RUNNER_SCREENSHOT_APPEARANCE=$4 \
+  TEST_RUNNER_SCREENSHOT_DIR=$3 TEST_RUNNER_SCREENSHOT_LANGUAGE=$2 \
     xcodebuild test-without-building -xctestrun $XCTESTRUN -destination "id=$1" \
     -only-testing:MontageUITests/AppStoreScreenshots/testScreens \
     -test-timeouts-enabled YES -maximum-test-execution-time-allowance 900 >$log 2>&1 || test_status=$?
@@ -86,35 +86,31 @@ run_test_once() {
 
 # MARK: - Capture
 
-# One language and appearance at a time on one device; the iPhone and iPad run
-# side by side.
+# One language at a time on one device; the iPhone and iPad run side by side.
 capture() {
-  local device=$1 udid=$(simulator $1) language appearance
+  local device=$1 udid=$(simulator $1) language
   for language in $LANGUAGES; do
     raw_dir="$SCRIPT_DIR/Raw/$device/$language"
     mkdir -p "$raw_dir"
-    for appearance in light dark; do
-      boot $udid $language $appearance
+    boot $udid $language
 
-      # A fresh install, so the browser has no recents and no project to restore.
-      xcrun simctl terminate $udid $BUNDLE_ID 2>/dev/null || true
-      xcrun simctl uninstall $udid $BUNDLE_ID 2>/dev/null || true
-      xcrun simctl install $udid $APP
+    # A fresh install, so the browser has no recents and no project to restore.
+    xcrun simctl terminate $udid $BUNDLE_ID 2>/dev/null || true
+    xcrun simctl uninstall $udid $BUNDLE_ID 2>/dev/null || true
+    xcrun simctl install $udid $APP
 
-      samples="$(python3 "$SCRIPT_DIR/samples.py" $device $language)"
-      documents="$(xcrun simctl get_app_container $udid $BUNDLE_ID data)/Documents"
-      mkdir -p "$documents"
-      cp -R "$samples/"* "$documents/"
-      rm -r "$samples"
-      # Match the file times in the browser to the 9:41 status bar.
-      touch -t 202610240915 "$documents/"*
+    samples="$(python3 "$SCRIPT_DIR/samples.py" $device $language)"
+    documents="$(xcrun simctl get_app_container $udid $BUNDLE_ID data)/Documents"
+    mkdir -p "$documents"
+    cp -R "$samples/"* "$documents/"
+    rm -r "$samples"
+    # Match the file times in the browser to the 9:41 status bar.
+    touch -t 202610240915 "$documents/"*
 
-      run_test $udid $language "$raw_dir" $appearance
-    done
+    run_test $udid $language "$raw_dir"
     echo "captured $device/$language"
   done
-  # Leaves the simulator light and off.
-  xcrun simctl ui $udid appearance light
+  # Leaves the simulator off.
   xcrun simctl shutdown $udid 2>/dev/null || true
 }
 

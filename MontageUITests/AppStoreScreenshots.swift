@@ -5,9 +5,7 @@ import XCTest
 /// Driven by `Assets/App Store/capture.sh`, which seeds the projects these
 /// open and says where to write through `SCREENSHOT_DIR` and which language to
 /// use through `SCREENSHOT_LANGUAGE`. Without them the tests skip, so they stay
-/// out of the way of an ordinary test run. The simulator only takes up a
-/// change of appearance when it restarts, so it's started light for one run
-/// and dark for another, and `SCREENSHOT_APPEARANCE` says which shots to take.
+/// out of the way of an ordinary test run.
 @MainActor
 final class AppStoreScreenshots: XCTestCase {
     private enum Stage {
@@ -27,7 +25,6 @@ final class AppStoreScreenshots: XCTestCase {
         let project: [String: String]
         var stage = Stage.editor
         var isLandscape = false
-        var isDark = false
         /// Where the playhead is put, in seconds.
         var time = 0.0
     }
@@ -42,7 +39,6 @@ final class AppStoreScreenshots: XCTestCase {
         Shot(name: "03-landscape", project: aquarium, isLandscape: true, time: 3),
         Shot(name: "04-float", project: farm, stage: .floatingPreview, time: 3),
         Shot(name: "05-export", project: aquarium, stage: .export),
-        Shot(name: "06-dark", project: reel, isDark: true, time: 2),
     ]
 
     private static let iPadShots = [
@@ -51,12 +47,10 @@ final class AppStoreScreenshots: XCTestCase {
         Shot(name: "03-float", project: aquarium, stage: .floatingPreview),
         Shot(name: "04-export", project: farm, stage: .export),
         Shot(name: "05-portrait", project: reel, time: 2),
-        Shot(name: "06-dark", project: aquarium, isDark: true, time: 3),
     ]
 
     private var directory: URL!
     private var language = "en"
-    private var isDark = false
     private var app: XCUIApplication!
 
     override func setUp() async throws {
@@ -67,14 +61,13 @@ final class AppStoreScreenshots: XCTestCase {
         }
         directory = URL(fileURLWithPath: path)
         language = environment["SCREENSHOT_LANGUAGE"] ?? "en"
-        isDark = environment["SCREENSHOT_APPEARANCE"] == "dark"
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
     func testScreens() throws {
         defer { XCUIDevice.shared.orientation = .portrait }
         let shots = UIDevice.current.userInterfaceIdiom == .pad ? Self.iPadShots : Self.iPhoneShots
-        for shot in shots where shot.isDark == isDark {
+        for shot in shots {
             XCUIDevice.shared.orientation = shot.isLandscape ? .landscapeLeft : .portrait
             launch(at: shot.time)
             open(try XCTUnwrap(shot.project[language]))

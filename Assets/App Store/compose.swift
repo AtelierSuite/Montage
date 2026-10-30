@@ -95,10 +95,6 @@ let exportCopy = [
     "en": Copy(header: "Export to MP4 or AVI", caption: "Pick the codec, size, frame rate and quality"),
     "ja": Copy(header: "MP4にもAVIにも書き出し", caption: "コーデック・解像度・フレームレート・画質を選んで"),
 ]
-let darkCopy = [
-    "en": Copy(header: "Made for Dark Mode", caption: "An editor that stays easy on the eyes"),
-    "ja": Copy(header: "ダークモードに対応", caption: "暗い場所でも目にやさしい編集画面"),
-]
 
 let iPhoneScreenshots = [
     Screenshot(name: "01-timeline", copy: timelineCopy),
@@ -118,7 +114,6 @@ let iPhoneScreenshots = [
     ),
     Screenshot(name: "04-float", copy: floatCopy),
     Screenshot(name: "05-export", copy: exportCopy),
-    Screenshot(name: "06-dark", copy: darkCopy),
 ]
 
 let iPadScreenshots = [
@@ -145,7 +140,6 @@ let iPadScreenshots = [
             "ja": Copy(header: "横長も、縦長も", caption: "シェア用の縦長動画も、横長と同じように"),
         ]
     ),
-    Screenshot(name: "06-dark", copy: darkCopy),
 ]
 
 let macScreenshots = [
