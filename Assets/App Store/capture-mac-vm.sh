@@ -77,9 +77,20 @@ send() {
   rm -r $pieces
 }
 
-pid=""
+pid="" cleaned=0
 # On the way out, however it goes: the app this started, and everything sent.
-trap '[[ -n $pid ]] && vm "kill $pid" >/dev/null 2>&1; vm "rm -rf $REMOTE" >/dev/null 2>&1; rm -rf $WORK' EXIT
+# zsh skips an EXIT trap when set -e stops the script on a function's failure,
+# so a failure cleans up on its own, through ZERR.
+clean_up() {
+  (( cleaned )) && return
+  cleaned=1
+  set +e
+  [[ -n $pid ]] && vm "kill $pid" >/dev/null 2>&1
+  vm "rm -rf $REMOTE" >/dev/null 2>&1 || echo "couldn't remove $REMOTE from $VM" >&2
+  rm -rf $WORK
+}
+trap clean_up EXIT
+trap 'clean_up; exit 1' ZERR
 
 # MARK: - Build
 
