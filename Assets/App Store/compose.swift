@@ -95,6 +95,10 @@ let exportCopy = [
     "en": Copy(header: "Export to MP4 or AVI", caption: "Pick the codec, size, frame rate and quality"),
     "ja": Copy(header: "MP4にもAVIにも書き出し", caption: "コーデック・解像度・フレームレート・画質を選んで"),
 ]
+let mosaicCopy = [
+    "en": Copy(header: "Hide what shouldn't show", caption: "Pixelate, blur or cover just part of the picture"),
+    "ja": Copy(header: "映したくない所にモザイク", caption: "ピクセル化もぼかしも、マスクで一部分だけに"),
+]
 
 let iPhoneScreenshots = [
     Screenshot(name: "01-timeline", copy: timelineCopy),
@@ -114,6 +118,7 @@ let iPhoneScreenshots = [
     ),
     Screenshot(name: "04-float", copy: floatCopy),
     Screenshot(name: "05-export", copy: exportCopy),
+    Screenshot(name: "06-mosaic", copy: mosaicCopy),
 ]
 
 let iPadScreenshots = [
@@ -140,6 +145,7 @@ let iPadScreenshots = [
             "ja": Copy(header: "横長も、縦長も", caption: "シェア用の縦長動画も、横長と同じように"),
         ]
     ),
+    Screenshot(name: "06-mosaic", copy: mosaicCopy),
 ]
 
 let macScreenshots = [
@@ -164,6 +170,7 @@ let macScreenshots = [
             "ja": Copy(header: "MP4にもAVIにも書き出し", caption: "H.264・HEVC・Motion JPEGを、好きなサイズと画質で"),
         ]
     ),
+    Screenshot(name: "04-mosaic", copy: mosaicCopy),
 ]
 
 // MARK: - Text
