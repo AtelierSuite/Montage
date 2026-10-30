@@ -137,7 +137,10 @@ for language in $LANGUAGES; do
     done
     copy="$REMOTE/work/$shot/$project.montage"
     send "$package/project.json" "work/$shot/$project.montage/project.json"
-    vm "mkdir -p \"$copy/Media\" \"$copy/Cache\" && cd $REMOTE/media && cp -c ${(j: :)${(q)media}} \"$copy/Media/\" \
+    # Quoted one by one out here: within the command's quotes, zsh would join
+    # the names first and quote the spaces between them too.
+    quoted=(${(q)media})
+    vm "mkdir -p \"$copy/Media\" \"$copy/Cache\" && cd $REMOTE/media && cp -c $quoted \"$copy/Media/\" \
       && touch -t 202610240915 \"$copy\""
 
     # Opened through LaunchServices, so the app belongs to the logged-in session
