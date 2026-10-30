@@ -35,7 +35,7 @@ enum ScreenshotStage {
         // Where the playhead stands: over the inset in each project.
         let playback = document.editor.playback
         switch name {
-        case "01-aquarium": playback.seek(to: CMTime(value: 3, timescale: 1))
+        case "01-aquarium", "03-export": playback.seek(to: CMTime(value: 3, timescale: 1))
         case "02-farm": playback.seek(to: CMTime(value: 6, timescale: 1))
         default: break
         }
