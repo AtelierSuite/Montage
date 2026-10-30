@@ -5,9 +5,7 @@ import XCTest
 /// Driven by `Assets/App Store/capture.sh`, which seeds the projects these
 /// open and says where to write through `SCREENSHOT_DIR` and which language to
 /// use through `SCREENSHOT_LANGUAGE`. Without them the tests skip, so they stay
-/// out of the way of an ordinary test run. The simulator only takes up a
-/// change of appearance when it restarts, so it's started light for one run
-/// and dark for another, and `SCREENSHOT_APPEARANCE` says which shots to take.
+/// out of the way of an ordinary test run.
 @MainActor
 final class AppStoreScreenshots: XCTestCase {
     private enum Stage {
@@ -19,6 +17,8 @@ final class AppStoreScreenshots: XCTestCase {
         case floatingPreview
         /// The export options.
         case export
+        /// The first clip's mosaic, in the inspector and outlined in the preview.
+        case mosaic
     }
 
     private struct Shot {
@@ -27,7 +27,6 @@ final class AppStoreScreenshots: XCTestCase {
         let project: [String: String]
         var stage = Stage.editor
         var isLandscape = false
-        var isDark = false
         /// Where the playhead is put, in seconds.
         var time = 0.0
     }
@@ -35,6 +34,7 @@ final class AppStoreScreenshots: XCTestCase {
     private static let aquarium = ["en": "Aquarium Day", "ja": "水族館の一日"]
     private static let farm = ["en": "Farm Visit", "ja": "牧場さんぽ"]
     private static let reel = ["en": "Dolphin Reel", "ja": "イルカのリール"]
+    private static let barn = ["en": "Barn Close-Up", "ja": "納屋のアップ"]
 
     private static let iPhoneShots = [
         Shot(name: "01-timeline", project: aquarium, time: 3),
@@ -42,7 +42,7 @@ final class AppStoreScreenshots: XCTestCase {
         Shot(name: "03-landscape", project: aquarium, isLandscape: true, time: 3),
         Shot(name: "04-float", project: farm, stage: .floatingPreview, time: 3),
         Shot(name: "05-export", project: aquarium, stage: .export),
-        Shot(name: "06-dark", project: reel, isDark: true, time: 2),
+        Shot(name: "06-mosaic", project: barn, stage: .mosaic, time: 3),
     ]
 
     private static let iPadShots = [
@@ -51,12 +51,11 @@ final class AppStoreScreenshots: XCTestCase {
         Shot(name: "03-float", project: aquarium, stage: .floatingPreview),
         Shot(name: "04-export", project: farm, stage: .export),
         Shot(name: "05-portrait", project: reel, time: 2),
-        Shot(name: "06-dark", project: aquarium, isDark: true, time: 3),
+        Shot(name: "06-mosaic", project: barn, stage: .mosaic, time: 3),
     ]
 
     private var directory: URL!
     private var language = "en"
-    private var isDark = false
     private var app: XCUIApplication!
 
     override func setUp() async throws {
@@ -67,14 +66,13 @@ final class AppStoreScreenshots: XCTestCase {
         }
         directory = URL(fileURLWithPath: path)
         language = environment["SCREENSHOT_LANGUAGE"] ?? "en"
-        isDark = environment["SCREENSHOT_APPEARANCE"] == "dark"
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
     func testScreens() throws {
         defer { XCUIDevice.shared.orientation = .portrait }
         let shots = UIDevice.current.userInterfaceIdiom == .pad ? Self.iPadShots : Self.iPhoneShots
-        for shot in shots where shot.isDark == isDark {
+        for shot in shots {
             XCUIDevice.shared.orientation = shot.isLandscape ? .landscapeLeft : .portrait
             launch(at: shot.time)
             open(try XCTUnwrap(shot.project[language]))
@@ -140,6 +138,56 @@ final class AppStoreScreenshots: XCTestCase {
             // With the formats open: MP4 and AVI.
             let format = localized("Format", "フォーマット")
             tap(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", format)))
+        case .mosaic:
+            // On the iPad, the library out of the way, leaving the preview
+            // room beside the inspector.
+            let hideSidebar = app.buttons.matching(
+                NSPredicate(format: "label IN %@", ["Hide Sidebar", "サイドバーを非表示", "サイドバーを隠す"])
+            ).firstMatch
+            if hideSidebar.exists {
+                hideSidebar.tap()
+            }
+            // The clips aren't elements of their own, so the first is tapped
+            // where it starts, just past the first track's header.
+            let header = app.staticTexts[localized("Video", "ビデオ")].firstMatch
+            XCTAssertTrue(header.waitForExistence(timeout: 5), "no video track")
+            header.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: 60, dy: 0)).tap()
+            tap(app.buttons["slider.horizontal.3"])
+            // Down the inspector, whose rows come into being as they scroll
+            // into view, to the mosaic's mask, to edit it in the preview.
+            let inspector = app.collectionViews.containing(
+                NSPredicate(format: "label == %@", localized("Keyframes", "キーフレーム"))
+            ).firstMatch
+            XCTAssertTrue(inspector.waitForExistence(timeout: 5), "no inspector")
+            let editInPreview = app.switches[localized("Edit in Preview", "プレビューで編集")].firstMatch
+            inspector.swipeUp(velocity: .slow)
+            for _ in 0..<8 where !(editInPreview.exists && editInPreview.isHittable) {
+                inspector.swipeUp(velocity: .slow)
+            }
+            // On the switch itself, at the row's end: a tap on its label
+            // doesn't turn it.
+            XCTAssertTrue(editInPreview.exists, "no mask to edit")
+            editInPreview.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+            // On the iPhone, where the inspector is a sheet the swipes pulled
+            // up over the preview, back down to half the screen, by its top
+            // edge, just below the status bar.
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                // First the mosaic's heading up to the sheet's top, so it's
+                // what shows once the sheet is down: dragged slowly and held,
+                // not swiped, so it scrolls that far and no further.
+                let heading = app.staticTexts[localized("Mosaic", "モザイク")].firstMatch
+                let distance = (heading.frame.minY - app.frame.height * 0.09) / app.frame.height
+                let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+                start.press(
+                    forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85 - distance)),
+                    withVelocity: .slow, thenHoldForDuration: 0.5
+                )
+                let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.075))
+                top.press(
+                    forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55)),
+                    withVelocity: .slow, thenHoldForDuration: 0.3
+                )
+            }
         }
     }
 

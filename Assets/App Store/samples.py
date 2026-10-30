@@ -193,6 +193,15 @@ def reverb(name):
             "kind": {"type": "reverb", "parameters": {"room": "largeHall", "mix": animatable(0.2)}}}
 
 
+def mosaic(name, center, size, scale=0.008):
+    """A pixelated patch, limited to a rectangle with a slightly soft edge."""
+    return {"id": ident("effect", name), "isEnabled": True,
+            "kind": {"type": "mosaic", "parameters": {
+                "style": "pixelate", "scale": animatable(scale), "strength": animatable(1.0)}},
+            "mask": {"shape": "rectangle", "center": animatable(list(center)), "size": animatable(list(size)),
+                     "rotation": animatable(0.0), "feather": animatable(0.003), "isInverted": False}}
+
+
 # MARK: - Projects
 
 def aquarium():
@@ -269,7 +278,26 @@ def reel():
     p.write()
 
 
+def barn():
+    """The barn up close, the gas cylinders' supplier label pixelated: the
+    mosaic covers a rectangle around it, as one would a name or a number plate.
+    The camera barely moves, so the mask needs no keyframes."""
+    p = Package(t("Barn Close-Up", "納屋のアップ"))
+    barn = p.add_media("IMG_1813.MOV", "Barn", "納屋")
+    yard = p.add_media("IMG_1841.MOV", "Farmyard", "牧場の庭")
+
+    warm = dict(temperature=5600, saturation=1.1)
+    p.track("video", [
+        # Grown to frame the horse and the cylinders.
+        dict(media=barn, source=3, duration=10, scale=animatable(1.6), position=animatable([0.34, 0.42]),
+             effects=[mosaic("barn-label", center=(0.668, 0.655), size=(0.12, 0.16))]),
+        dict(media=yard, source=4, duration=8, effects=[color("yard-close", **warm)]),
+    ])
+    p.write()
+
+
 aquarium()
 farm()
 reel()
+barn()
 print(OUT)
