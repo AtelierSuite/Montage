@@ -53,27 +53,28 @@ vm() {
 }
 
 # Copies a file into the VM a megabyte at a time, then checks it arrived whole.
+# Each piece goes to a file of its own, so a piece sent again, after the channel
+# reported a failure that wasn't, only writes the same bytes over itself.
 # Usage: send <file> <path under $REMOTE>
 send() {
-  local pieces=$(mktemp -d $WORK/pieces.XXXXXX) piece index=0 try
+  local pieces=$(mktemp -d $WORK/pieces.XXXXXX) piece try attempt
+  local remote="$REMOTE/$2" checksum=$(shasum -a 256 "$1" | cut -d' ' -f1)
   split -b 1m "$1" "$pieces/"
-  vm "mkdir -p \"\$(dirname \"$REMOTE/$2\")\" && : > \"$REMOTE/$2\""
-  for piece in $pieces/*(N); do
-    for try in 1 2 3 4 5 6; do
-      prlctl exec $VM --current-user "cat >> \"$REMOTE/$2\" && echo __sent" < $piece 2>/dev/null \
-        | grep -q __sent && break
-      (( try < 6 )) || { echo "couldn't send $1" >&2; return 1; }
-      sleep 2
-      # Back to where this piece starts, should some of it have got there.
-      vm "truncate -s $(( index * 1048576 )) \"$REMOTE/$2\""
+  vm "mkdir -p \"$remote.pieces\""
+  for try in 1 2 3 4 5; do
+    for piece in $pieces/*(N); do
+      for attempt in 1 2 3; do
+        prlctl exec $VM --current-user "cat > \"$remote.pieces/${piece:t}\"" < $piece >/dev/null 2>&1 && break
+        sleep 2
+      done
     done
-    (( index += 1 ))
+    # Joined, in order, once they're all there and the whole is right.
+    [[ $(vm "cd \"$remote.pieces\" && cat * > \"$remote\" && shasum -a 256 \"$remote\"" | cut -d' ' -f1) == $checksum ]] \
+      && break
+    (( try < 5 )) || { echo "$1 arrived damaged" >&2; return 1; }
   done
+  vm "rm -r \"$remote.pieces\""
   rm -r $pieces
-  if [[ $(vm "shasum -a 256 \"$REMOTE/$2\"" | cut -d' ' -f1) != $(shasum -a 256 "$1" | cut -d' ' -f1) ]]; then
-    echo "$1 arrived damaged" >&2
-    return 1
-  fi
 }
 
 pid=""
