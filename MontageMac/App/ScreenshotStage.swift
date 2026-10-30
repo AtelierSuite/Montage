@@ -54,15 +54,27 @@ enum ScreenshotStage {
             window.makeFirstResponder(nil)
             // Titled as on a Mac that hides extensions, which is how most are
             // set, whatever this one's Finder shows. Without its represented
-            // file, as the title bar shows that file's name in place of the title.
+            // file, as the title bar shows that file's name in place of the
+            // title, and kept so, as the document now and then sets both again.
             if let url = document.fileURL {
-                window.representedURL = nil
-                window.title = url.deletingPathExtension().lastPathComponent
+                let title = url.deletingPathExtension().lastPathComponent
+                retitle(window, title)
+                titleObservation = window.observe(\.title) { window, _ in
+                    MainActor.assumeIsolated { retitle(window, title) }
+                }
             }
             if name == "03-export" {
                 windowController.exportMovie(nil)
             }
         }
+    }
+
+    private static var titleObservation: NSKeyValueObservation?
+
+    private static func retitle(_ window: NSWindow, _ title: String) {
+        guard window.title != title || window.representedURL != nil else { return }
+        window.representedURL = nil
+        window.title = title
     }
 }
 #endif
