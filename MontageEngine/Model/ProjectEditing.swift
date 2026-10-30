@@ -48,6 +48,14 @@ extension Project {
         tracks[index].update(id, change)
     }
 
+    /// Names a track. A name that's blank once trimmed takes the name away,
+    /// leaving the track known by its kind.
+    public mutating func renameTrack(_ id: Track.ID, to name: String) {
+        guard let index = tracks.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        tracks[index].name = trimmed.isEmpty ? nil : trimmed
+    }
+
     /// The first track of a kind, made if there's none. Video tracks come
     /// before audio tracks, so a new video track goes after the last video
     /// track and a new audio track at the end.
