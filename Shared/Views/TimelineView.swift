@@ -161,6 +161,9 @@ struct TimelineView: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+        // On one line, shrunk to fit where a translation runs long.
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
         .padding(.leading, 12)
     }
 
