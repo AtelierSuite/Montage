@@ -39,6 +39,12 @@ enum ScreenshotStage {
         case "02-farm": playback.seek(to: CMTime(value: 6, timescale: 1))
         default: break
         }
+        // The inset selected, so the inspector shows its settings rather
+        // than standing empty. It is the one clip on the second track.
+        let tracks = document.editor.project.tracks
+        if tracks.count > 1, let inset = tracks[1].clips.first {
+            document.editor.select(inset.id)
+        }
 
         // In front, so the window is drawn active, once the media has loaded.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
