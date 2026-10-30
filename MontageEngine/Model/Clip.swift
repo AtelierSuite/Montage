@@ -6,8 +6,8 @@ import Foundation
 /// image, text or a shape.
 ///
 /// The clip takes `sourceRange` out of its media and plays it from
-/// `timelineStart`. Content with no time of its own (a still, text, a
-/// shape) only uses the range's duration. Its parameters' keyframes are timed from the clip's own
+/// `timelineStart`, at its `speed`. Content with no time of its own (a
+/// still, text, a shape) only uses the range's duration. Its parameters' keyframes are timed from the clip's own
 /// start, so moving the clip takes them with it.
 public struct Clip: Identifiable, Equatable, Sendable {
     public var id: UUID
@@ -33,6 +33,9 @@ public struct Clip: Identifiable, Equatable, Sendable {
     public var fit: FrameFit
     /// Set while the clip pans and zooms (see `applyKenBurns`).
     public var kenBurns: KenBurnsMotion?
+    /// How fast the media plays: the clip lasts `sourceRange` at this speed.
+    /// Only media with time of its own plays at another speed than normal.
+    public var speed = ClipSpeed.normal
 
     /// A clip of a media item: a stretch of a video or a sound, or a still.
     public init(
@@ -69,11 +72,12 @@ public struct Clip: Identifiable, Equatable, Sendable {
     /// The library item the clip is made from; nil for text and shapes.
     public var mediaID: MediaItem.ID? { content.mediaID }
 
-    public var duration: CMTime { sourceRange.duration }
+    /// How long the clip lasts on the timeline.
+    public var duration: CMTime { speed.timelineDuration(ofMedia: sourceRange.duration) }
 
     /// Where the clip sits on the timeline.
     public var timelineRange: CMTimeRange {
-        CMTimeRange(start: timelineStart, duration: sourceRange.duration)
+        CMTimeRange(start: timelineStart, duration: duration)
     }
 
     /// A time on the timeline, as a time from the clip's start: the time its
@@ -84,14 +88,14 @@ public struct Clip: Identifiable, Equatable, Sendable {
 
     /// A time on the timeline, as a time in the clip's media.
     public func sourceTime(_ timelineTime: CMTime) -> CMTime {
-        sourceRange.start + localTime(timelineTime)
+        sourceRange.start + speed.mediaDuration(ofTimeline: localTime(timelineTime))
     }
 }
 
 extension Clip: Codable {
     private enum CodingKeys: String, CodingKey {
         case id, content, mediaID, sourceRange, timelineStart, volume, opacity, transform, blendMode, isAudioDetached,
-             effects, fit, kenBurns
+             effects, fit, kenBurns, speed
     }
 
     public init(from decoder: Decoder) throws {
@@ -110,6 +114,7 @@ extension Clip: Codable {
         effects = try container.decodeIfPresent([Effect].self, forKey: .effects) ?? []
         fit = try container.decodeIfPresent(FrameFit.self, forKey: .fit) ?? .fit
         kenBurns = try container.decodeIfPresent(KenBurnsMotion.self, forKey: .kenBurns)
+        speed = try container.decodeIfPresent(ClipSpeed.self, forKey: .speed) ?? .normal
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -129,6 +134,7 @@ extension Clip: Codable {
         try container.encode(effects, forKey: .effects)
         try container.encode(fit, forKey: .fit)
         try container.encodeIfPresent(kenBurns, forKey: .kenBurns)
+        if !speed.isNormal { try container.encode(speed, forKey: .speed) }
     }
 }
 

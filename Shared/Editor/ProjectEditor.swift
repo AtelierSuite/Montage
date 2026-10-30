@@ -101,6 +101,16 @@ final class ProjectEditor {
     /// The control whose changes `perform` is making, inside
     /// `coalescingChanges`.
     @ObservationIgnored private var coalescingKey: AnyHashable?
+    /// Whether a control's changes are held as a gesture until it's been
+    /// still for `coalescingInterval`, rather than joining the last undo
+    /// step as they're made: for a document that registers an undo step of
+    /// its own for every change put in it, as SwiftUI's do on iOS, so a
+    /// change joining the last step would still be a step.
+    @ObservationIgnored var holdsCoalescedChanges = false
+    /// The control whose changes the gesture under way is holding.
+    @ObservationIgnored private var heldKey: AnyHashable?
+    /// Ends the held changes once the control's been still.
+    @ObservationIgnored private var heldChangesEnd: Task<Void, Never>?
 
     /// Where undo steps go: the document's undo manager.
     @ObservationIgnored weak var undoManager: UndoManager?
@@ -144,9 +154,12 @@ final class ProjectEditor {
     /// Makes a change as one undo step, named for the Edit menu. A change
     /// that leaves the project as it was isn't recorded.
     func perform(_ actionName: String, _ change: (inout Project) -> Void) {
+        if let coalescingKey, holdsCoalescedChanges { return hold(actionName, from: coalescingKey, change) }
         if gesture != nil { endGesture() }
         var project = self.project
         change(&project)
+        // Transitions go with their cut once the clips no longer meet.
+        project.removeStaleTransitions()
         guard project != self.project else { return }
         if let coalescingKey {
             let now = Date()
@@ -184,6 +197,34 @@ final class ProjectEditor {
         body()
     }
 
+    /// Makes a control's change part of a gesture, which ends as one undo
+    /// step once the control's been still for `coalescingInterval`, or when
+    /// anything else is done first.
+    private func hold(_ actionName: String, from key: AnyHashable, _ change: (inout Project) -> Void) {
+        if heldKey != key || gestureActionName != actionName {
+            beginGesture(actionName)
+            heldKey = key
+        }
+        var project = self.project
+        change(&project)
+        if project != self.project { self.project = project }
+        heldChangesEnd?.cancel()
+        heldChangesEnd = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.coalescingInterval))
+            guard !Task.isCancelled, let self, self.heldKey == key else { return }
+            self.endGesture()
+        }
+    }
+
+    /// Ends what Undo or Redo should take as done first: typing, in the
+    /// preview or the inspector, and a control's held changes. Each is then
+    /// undone or redone as the one step it is.
+    func endPendingChanges() {
+        endEditingText()
+        endTypingWords()
+        if heldKey != nil { endGesture() }
+    }
+
     // MARK: - Gestures
 
     /// The project as it was when the gesture under way began, or nil when
@@ -198,6 +239,7 @@ final class ProjectEditor {
     func beginGesture(_ actionName: String) {
         if gesture != nil { endGesture() }
         gesture = (project, actionName)
+        heldKey = nil
     }
 
     /// Changes the project during a gesture. Each change starts again from
@@ -207,6 +249,7 @@ final class ProjectEditor {
         guard let gesture else { return }
         var project = gesture.baseline
         change(&project)
+        project.removeStaleTransitions()
         if project != self.project { self.project = project }
     }
 
@@ -215,6 +258,7 @@ final class ProjectEditor {
     func endGesture() {
         guard let gesture else { return }
         self.gesture = nil
+        stopHolding()
         defer { makeDerivedMedia() }
         guard project != gesture.baseline else { return }
         apply(project, undoName: gesture.actionName, from: gesture.baseline)
@@ -224,6 +268,7 @@ final class ProjectEditor {
     func cancelGesture() {
         guard let gesture else { return }
         self.gesture = nil
+        stopHolding()
         if project != gesture.baseline { project = gesture.baseline }
     }
 
@@ -231,6 +276,7 @@ final class ProjectEditor {
     /// undo step: the history it would undo to is gone.
     func replace(with project: Project) {
         gesture = nil
+        stopHolding()
         lastCoalescedStep = nil
         guard project != self.project else { return }
         self.project = project
@@ -254,6 +300,12 @@ final class ProjectEditor {
         mediaCheck?.cancel()
         if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }
         settingsObserver = nil
+    }
+
+    private func stopHolding() {
+        heldKey = nil
+        heldChangesEnd?.cancel()
+        heldChangesEnd = nil
     }
 
     /// Puts in a changed project, undone back to `previous`: the project as

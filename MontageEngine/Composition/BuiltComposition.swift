@@ -76,6 +76,8 @@ public struct BuiltComposition: @unchecked Sendable {
     @MainActor
     public func makePlayerItem() -> AVPlayerItem {
         let item = AVPlayerItem(asset: composition)
+        // Clips at another speed keep their pitch.
+        item.audioTimePitchAlgorithm = .spectral
         item.videoComposition = videoComposition
         item.audioMix = audioMix
         return item
@@ -105,7 +107,8 @@ public struct CompositionLayer: Equatable, Sendable {
         public var mediaID: MediaItem.ID?
         /// Where it plays, in composition (timeline) time.
         public var timelineRange: CMTimeRange
-        /// What of the media plays there, in the media's own time.
+        /// What of the media plays there, in the media's own time: longer or
+        /// shorter than `timelineRange` for a clip at another speed.
         public var sourceRange: CMTimeRange
     }
 

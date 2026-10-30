@@ -8,6 +8,10 @@ import SwiftUI
 struct ShapeInspector: View {
     let editing: ClipEditing
 
+    /// Whose changes join one undo step: the sides stepper's, so a burst of
+    /// clicks, or holding it down, is one step.
+    @State private var sidesKey = UUID()
+
     var body: some View {
         let shape = editing.clip.shapeContent
         let size = editing.parameter(\.shapeContent.size)
@@ -35,7 +39,11 @@ struct ShapeInspector: View {
                                 format: ParameterFormat.whole)
             }
             if shape.kind == .polygon || shape.kind == .star {
-                Stepper(value: editing.binding(\.shapeContent.sides), in: 3...24) {
+                Stepper(value: Binding {
+                    shape.sides
+                } set: { sides in
+                    editing.editor.coalescingChanges(sidesKey) { editing.change { $0.shapeContent.sides = sides } }
+                }, in: 3...24) {
                     LabeledContent(shape.kind == .star ? "Inspector.Shape.Points" : "Inspector.Shape.Sides") {
                         Text(verbatim: shape.sides.formatted())
                     }

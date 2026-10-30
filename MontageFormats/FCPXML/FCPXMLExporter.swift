@@ -313,8 +313,9 @@ struct FCPXMLExporter {
                 uid: isBlur ? EffectMapping.fcpGaussianBlurUID : EffectMapping.fcpPixellateUID
             )
             let width = project.settings.renderSize.width
-            let amount = MarkupElement("param", [("name", "Amount"), ("value", Self.decimal(mosaic.scale.value * width))],
-                                       children: param("Amount", mosaic.scale, local: local) { Self.decimal($0 * width) }
+            let written = { EffectMapping.fcpAmount(for: mosaic.style, scale: $0, frameWidth: width) }
+            let amount = MarkupElement("param", [("name", "Amount"), ("value", Self.decimal(written(mosaic.scale.value)))],
+                                       children: param("Amount", mosaic.scale, local: local) { Self.decimal(written($0)) }
                                            .first?.children ?? [])
             return MarkupElement("filter-video", [("ref", ref), ("name", isBlur ? "Gaussian Blur" : "Pixellate"), ("enabled", enabled)],
                                  children: [amount])

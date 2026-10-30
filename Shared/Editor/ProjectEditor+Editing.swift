@@ -48,6 +48,7 @@ extension ProjectEditor {
 
     func deselectAll() {
         timeline.selectedClipIDs = []
+        timeline.selectedTransitionID = nil
     }
 
     // MARK: - Splitting
@@ -83,13 +84,17 @@ extension ProjectEditor {
 
     // MARK: - Deleting
 
-    var canDelete: Bool { !selectedClipIDs.isEmpty }
+    var canDelete: Bool { !selectedClipIDs.isEmpty || selectedTransition != nil }
 
     /// Takes the selected clips off the timeline; `ripple` closes up the
-    /// gaps they leave.
+    /// gaps they leave. With no clips selected, takes off the selected
+    /// transition.
     func deleteSelection(ripple: Bool = false) {
         let ids = selectedClipIDs
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty else {
+            removeSelectedTransition()
+            return
+        }
         let name = String(localized: ripple ? "Action.RippleDelete" : "Action.Delete")
         perform(name) { project in
             if ripple { project.rippleDeleteClips(ids) } else { project.removeClips(ids) }

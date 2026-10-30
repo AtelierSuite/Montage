@@ -64,6 +64,10 @@ struct ProjectEditorView: View {
                 // Every edit goes back into the document, which marks it
                 // as changed so it's saved.
                 editor.onChange = { [$document] project in $document.wrappedValue.project = project }
+                // Each change put in the document is an undo step of SwiftUI's
+                // own, so a control's changes are held until it's still, then
+                // put in as one.
+                editor.holdsCoalescedChanges = true
                 editor.takeRefreshedBookmarks = { [media = document.media] in media.bookmarks.takeRefreshedBookmarks() }
                 locateMedia(at: fileURL)
             }
@@ -252,17 +256,17 @@ struct ProjectEditorView: View {
         // Pinned to the trailing edge: as primary actions the bar would fold
         // Redo into its own overflow menu once it ran short of room.
         ToolbarItemGroup(placement: .topBarTrailing) {
-            // Typing in the preview stops first, so it's undone or redone
-            // as the one step it is.
+            // Typing, or a control's held changes, end first, so they're
+            // undone or redone as the one step they are.
             Button("Toolbar.Undo", systemImage: "arrow.uturn.backward") {
-                editor.endEditingText()
+                editor.endPendingChanges()
                 history.undo()
             }
                 .disabled(!history.canUndo && editor.timeline.editedTextClipID == nil)
                 .keyboardShortcut("z", modifiers: .command)
                 .accessibilityIdentifier("undo")
             Button("Toolbar.Redo", systemImage: "arrow.uturn.forward") {
-                editor.endEditingText()
+                editor.endPendingChanges()
                 history.redo()
             }
                 .disabled(!history.canRedo)

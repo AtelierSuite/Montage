@@ -61,14 +61,25 @@ struct ResolveFCPXMLImportTests {
         #expect(title?.timelineRange == CMTimeRange(start: frames(192), duration: frames(48)))
     }
 
+    @Test func dissolvesAcrossTheCut() throws {
+        let opening = try #require(imported.clip("A001_C001.mov", on: .video))
+        let clips = imported.project.tracks[opening.track].clips
+        let transition = try #require(imported.project.transitions.first)
+        #expect(imported.project.transitions.count == 1)
+        #expect(transition.outgoingClipID == opening.clip.id)
+        #expect(transition.incomingClipID == clips[1].id)
+        #expect(transition.beforeCut == frames(12))
+        #expect(transition.afterCut == frames(12))
+        #expect(imported.project.placedTransitions().first?.transition.timelineRange == CMTimeRange(start: frames(108), duration: frames(24)))
+    }
+
     @Test func reportsWhatDidntComeAcross() {
         let issues = imported.report.items.map(\.issue)
-        #expect(issues.contains(.transition(name: "Cross Dissolve")))
+        #expect(!issues.contains(.transition(name: "Cross Dissolve")))
         #expect(issues.contains(.disabledClip))
-        // A marker on the primary storyline is the timeline's own.
         #expect(!issues.contains(.marker(name: "Check focus")))
+        #expect(imported.project.markers.map(\.time) == [frames(48)])
         #expect(imported.project.markers.map(\.name) == ["Check focus"])
-        #expect(imported.project.markers.first?.time == frames(48))
         // A rate conformed without scaling isn't a speed change.
         #expect(!issues.contains(.speedChange))
         #expect(!issues.contains(.movedToNewTrack))
@@ -115,6 +126,11 @@ struct ResolveXMEMLImportTests {
         #expect(try #require(imported.clip("B-Roll.mov")).clip.isAudioDetached)
     }
 
+    @Test func importsTheMarker() {
+        #expect(imported.project.markers.map(\.time) == [frames(50)])
+        #expect(imported.project.markers.map(\.name) == ["Marker 1"])
+    }
+
     @Test func readsDefaultMotionAsNoChange() throws {
         let interview = try #require(imported.clip("Interview A.mov", on: .video)).clip
         #expect(interview.transform.scale.value == 1)
@@ -127,7 +143,7 @@ struct ResolveXMEMLImportTests {
     @Test func reportsWhatDidntComeAcross() {
         let issues = imported.report.items.map(\.issue)
         #expect(issues.contains(.transition(name: "Cross Dissolve")))
-        #expect(imported.report.items.first { $0.issue == .marker(name: "Marker 1") }?.time == frames(50))
+        #expect(!issues.contains { if case .marker = $0 { true } else { false } })
         #expect(!issues.contains { if case .setting = $0 { true } else { false } })
         #expect(imported.issues(.unsupportedEffect).isEmpty)
         #expect(!issues.contains(.movedToNewTrack))
