@@ -53,10 +53,11 @@ enum ScreenshotStage {
             // Out of the library's search field, which takes focus on opening.
             window.makeFirstResponder(nil)
             // Titled as on a Mac that hides extensions, which is how most are
-            // set, whatever this one's Finder shows. Named on the document,
-            // as the window's title is set from its name again later.
+            // set, whatever this one's Finder shows. Without its represented
+            // file, as the title bar shows that file's name in place of the title.
             if let url = document.fileURL {
-                document.displayName = url.deletingPathExtension().lastPathComponent
+                window.representedURL = nil
+                window.title = url.deletingPathExtension().lastPathComponent
             }
             if name == "03-export" {
                 windowController.exportMovie(nil)
