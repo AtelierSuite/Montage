@@ -2,26 +2,26 @@ import MontageEngine
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The app's exports, with the Files exporter for those rendered for Files:
-/// it comes up by itself when one is ready, or from its Save button.
-struct ExportsSheet: View {
+/// The app's exports, a page of the Export sheet, with the Files exporter
+/// for those rendered for Files: it comes up by itself when one is ready, or
+/// from its Save button.
+struct ExportsView: View {
     let queue: ExportQueue
+    /// Closes the sheet.
+    let done: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @State private var saving: SavingFile?
     @State private var isShowingExporter = false
 
     var body: some View {
-        NavigationStack {
-            ExportProgressView(queue: queue) { job, url in save(job, url) }
-                .navigationTitle("Export.Progress.Title")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Export.Progress.Done", systemImage: "checkmark") { dismiss() }
-                    }
+        ExportProgressView(queue: queue) { job, url in save(job, url) }
+            .navigationTitle("Export.Progress.Title")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Export.Progress.Done", systemImage: "checkmark") { done() }
                 }
-        }
+            }
         .fileExporter(
             isPresented: $isShowingExporter, document: saving.map { ExportedFile(url: $0.url) },
             contentTypes: [saving?.job.settings.format.contentType ?? .mpeg4Movie],

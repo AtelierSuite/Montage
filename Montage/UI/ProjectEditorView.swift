@@ -34,11 +34,7 @@ struct ProjectEditorView: View {
     @Namespace private var previewTransition
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
     @State private var isShowingExport = false
-    @State private var isShowingExports = false
     @State private var isImportingProject = false
-    @State private var isExportingFCPXML = false
-    @State private var isExportingEDL = false
-    @State private var isExportingOTIO = false
     /// The document's location while it's being read from, for media in it.
     @State private var accessedURL: URL?
 
@@ -181,17 +177,9 @@ struct ProjectEditorView: View {
         }
         .toolbar { editorToolbar }
         .sheet(isPresented: $isShowingExport) {
-            ExportSheet(editor: editor, title: projectTitle) { isShowingExports = true }
+            ExportSheet(editor: editor, title: projectTitle)
         }
-        .sheet(isPresented: $isShowingExports) {
-            ExportsSheet(queue: ExportCenter.queue)
-                .presentationDetents([.medium, .large])
-        }
-        .projectInterchange(
-            editor: editor, importer: importer, title: projectTitle,
-            isImporting: $isImportingProject, isExporting: $isExportingFCPXML, isExportingEDL: $isExportingEDL,
-            isExportingOTIO: $isExportingOTIO
-        )
+        .projectInterchange(editor: editor, importer: importer, title: projectTitle, isImporting: $isImportingProject)
     }
 
     /// The floating preview, in a window over the whole app, while it
@@ -282,22 +270,12 @@ struct ProjectEditorView: View {
     private var moreMenu: some View {
         Menu("Toolbar.More", systemImage: "ellipsis") {
             Section {
-                // Nothing to export until there's a timeline to render.
+                // Nothing to export until there's a timeline to render, but
+                // the exports already under way can still be seen.
                 Button("Toolbar.Export", systemImage: "square.and.arrow.up") { isShowingExport = true }
-                    .disabled(!editor.canExport)
+                    .disabled(!editor.canExport && ExportCenter.queue.jobs.isEmpty)
                     .keyboardShortcut("e", modifiers: .command)
-                if !ExportCenter.queue.jobs.isEmpty {
-                    Button("Toolbar.Exports", systemImage: "list.bullet") { isShowingExports = true }
-                }
-            }
-            Section {
                 Button("Toolbar.ImportProject", systemImage: "square.and.arrow.down") { isImportingProject = true }
-                Button("Toolbar.ExportFCPXML", systemImage: "film.stack") { isExportingFCPXML = true }
-                    .disabled(!editor.canExport)
-                Button("Toolbar.ExportEDL", systemImage: "list.bullet.rectangle") { isExportingEDL = true }
-                    .disabled(!editor.canExport)
-                Button("Toolbar.ExportOTIO", systemImage: "square.stack.3d.up") { isExportingOTIO = true }
-                    .disabled(!editor.canExport)
             }
         }
         .accessibilityIdentifier("more")
