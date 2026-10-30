@@ -301,7 +301,9 @@ struct OTIOImporter {
         var clip = saved ?? Clip(content: content, sourceRange: range)
         clip.id = UUID()
         clip.content = content
-        clip.sourceRange = CMTimeRange(start: mediaStart, duration: range.duration)
+        // The range is the clip's length on the timeline: at another speed,
+        // the media it plays is longer or shorter.
+        clip.sourceRange = CMTimeRange(start: mediaStart, duration: clip.speed.mediaDuration(ofTimeline: range.duration))
         clip.timelineStart = timelineStart
         if saved == nil {
             importEffects(of: item, to: &clip, isVideo: placement.kind == .video, clipName: clipName)

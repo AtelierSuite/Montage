@@ -300,6 +300,25 @@ struct OTIOExportTests {
         #expect(markers.map { $0["OTIO_SCHEMA"] as? String } == ["Marker.2", "Marker.2"])
     }
 
+    /// A project with a clip at half speed.
+    private func retimedProject() -> Project {
+        let media = video("IMG_1805.MOV")
+        var slow = Clip(mediaID: media.id, sourceRange: CMTimeRange(start: seconds(4), duration: seconds(1)), timelineStart: seconds(1))
+        slow.speed = ClipSpeed(media: 1, timeline: 2)!
+        return Project(
+            settings: ProjectSettings(renderSize: CGSize(width: 1920, height: 1080), frameDuration: seconds(1, 30)),
+            media: [media], tracks: [Track(kind: .video, clips: [slow])]
+        )
+    }
+
+    @Test func roundTripsAClipAtAnotherSpeed() throws {
+        let imported = try ProjectInterchange.read(export(retimedProject()))
+        let slow = try #require(imported.clip("IMG_1805.MOV")?.clip)
+        #expect(slow.speed == ClipSpeed(media: 1, timeline: 2))
+        #expect(slow.sourceRange == CMTimeRange(start: seconds(4), duration: seconds(1)))
+        #expect(slow.timelineRange == CMTimeRange(start: seconds(1), duration: seconds(2)))
+    }
+
     /// Read by another app that keeps none of Montage's metadata, the
     /// clips still come back where they were, playing what they did.
     @Test func roundTripsWithoutMontagesMetadata() throws {
