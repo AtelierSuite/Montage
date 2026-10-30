@@ -16,6 +16,7 @@ struct TimelineCanvas: View {
     let media: [MediaItem.ID: MediaItem]
     let frames: FrameTime
     var selected: Set<Clip.ID> = []
+    var selectedTransition: ClipTransition.ID?
     var hovered: Clip.ID?
     var markers: [Marker] = []
     var markedIn: CMTime?
@@ -71,7 +72,34 @@ struct TimelineCanvas: View {
                 if isOff { clipContext.opacity = 0.4 }
                 drawClip(clip, on: track, row: index, in: &clipContext, visible: visible)
             }
+            for transition in row.transitions {
+                let rect = layout.rect(of: transition, inRow: index)
+                guard rect.maxX >= visible.lowerBound, rect.minX <= visible.upperBound else { continue }
+                var transitionContext = context
+                if isOff { transitionContext.opacity = 0.4 }
+                drawTransition(transition, in: rect, context: &transitionContext)
+            }
         }
+    }
+
+    /// A transition as a box over its cut, crossed from corner to corner the
+    /// way the two pictures cross.
+    private func drawTransition(_ transition: PlacedTransition, in rect: CGRect, context: inout GraphicsContext) {
+        let isSelected = transition.id == selectedTransition
+        let shape = RoundedRectangle(cornerRadius: 4).path(in: rect)
+        context.fill(shape, with: .color(.black.opacity(0.55)))
+        context.fill(shape, with: .linearGradient(
+            Gradient(colors: [.white.opacity(0.5), .white.opacity(0.1)]),
+            startPoint: CGPoint(x: rect.minX, y: rect.midY), endPoint: CGPoint(x: rect.maxX, y: rect.midY)
+        ))
+        var cross = Path()
+        let inner = rect.insetBy(dx: 3, dy: 3)
+        cross.move(to: CGPoint(x: inner.minX, y: inner.maxY))
+        cross.addLine(to: CGPoint(x: inner.maxX, y: inner.minY))
+        cross.move(to: CGPoint(x: inner.minX, y: inner.minY))
+        cross.addLine(to: CGPoint(x: inner.maxX, y: inner.maxY))
+        context.stroke(cross, with: .color(.white.opacity(0.7)), lineWidth: 1)
+        context.stroke(shape, with: .color(isSelected ? .yellow : .white.opacity(0.85)), lineWidth: isSelected ? 2.5 : 1)
     }
 
     private func drawEmptyLane(_ index: Int, in context: inout GraphicsContext, isFirst: Bool) {
@@ -218,9 +246,10 @@ struct TimelineCanvas: View {
         // covers, so nothing is lost however far out the timeline is zoomed.
         let first = start.rounded(.down)
         let count = Int((end - first).rounded(.up))
+        let rate = clip.speed.rate
         let source = CMTimeRange(
-            start: clip.sourceRange.start + CMTime(seconds: layout.seconds(atX: first - rect.minX), preferredTimescale: 6000),
-            duration: CMTime(seconds: layout.seconds(atX: Double(count)), preferredTimescale: 6000)
+            start: clip.sourceRange.start + CMTime(seconds: layout.seconds(atX: first - rect.minX) * rate, preferredTimescale: 6000),
+            duration: CMTime(seconds: layout.seconds(atX: Double(count)) * rate, preferredTimescale: 6000)
         )
         var bars = Path()
         for (index, peak) in peaks.peaks(in: source, count: count).enumerated() {

@@ -12,6 +12,8 @@ struct TimelineLayout {
         var id: String
         var kind: Track.Kind
         var track: Track?
+        /// The transitions that play on the track, in timeline order.
+        var transitions: [PlacedTransition] = []
     }
 
     var pointsPerSecond: Double
@@ -32,7 +34,9 @@ struct TimelineLayout {
         } else {
             let video = tracks.filter { $0.kind == .video }.reversed()
             let audio = tracks.filter { $0.kind == .audio }
-            rows = (video + audio).map { Row(id: $0.id.uuidString, kind: $0.kind, track: $0) }
+            rows = (video + audio).map {
+                Row(id: $0.id.uuidString, kind: $0.kind, track: $0, transitions: project.placedTransitions(on: $0))
+            }
         }
     }
 
@@ -72,7 +76,27 @@ struct TimelineLayout {
         )
     }
 
+    /// Where a transition is drawn in a row: over the cut, across the time
+    /// it plays, and at least wide enough to tap.
+    func rect(of transition: PlacedTransition, inRow index: Int) -> CGRect {
+        let range = transition.timelineRange
+        let width = max(Self.minimumTransitionWidth, range.duration.seconds * pointsPerSecond)
+        let centre = (x(range.start) + x(range.end)) / 2
+        let inset = Self.laneInset + 12
+        return CGRect(x: centre - width / 2, y: rowTop(index) + inset, width: width, height: Self.trackHeight - inset * 2)
+    }
+
+    static let minimumTransitionWidth = 14.0
+
     // MARK: - Hit testing
+
+    /// The transition at a point, and the row it's in. Transitions are over
+    /// the clips, so they're hit first.
+    func transition(at point: CGPoint) -> (transition: PlacedTransition, row: Int)? {
+        let index = rowIndex(atY: point.y)
+        guard rows.indices.contains(index) else { return nil }
+        return rows[index].transitions.first { rect(of: $0, inRow: index).contains(point) }.map { ($0, index) }
+    }
 
     /// The clip at a point, and the row it's in.
     func clip(at point: CGPoint) -> (clip: Clip, row: Int)? {

@@ -151,6 +151,7 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     @objc func splitClips(_ sender: Any?) { editor.splitAtPlayhead() }
     @objc func detachAudio(_ sender: Any?) { editor.detachAudio() }
     @objc func addMarker(_ sender: Any?) { editor.addMarkerAtPlayhead() }
+    @objc func addCrossDissolve(_ sender: Any?) { editor.addCrossDissolve() }
     @objc func goToPreviousKeyframe(_ sender: Any?) { editor.goToPreviousKeyframe() }
     @objc func goToNextKeyframe(_ sender: Any?) { editor.goToNextKeyframe() }
     @objc func toggleSnapping(_ sender: Any?) { editor.timeline.isSnapping.toggle() }
@@ -163,6 +164,7 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
     private static let unavailableWhileTyping: Set<Selector> = [
         #selector(splitClips(_:)), #selector(detachAudio(_:)), #selector(rippleDelete(_:)), #selector(delete(_:)),
         #selector(addMarker(_:)), #selector(goToPreviousKeyframe(_:)), #selector(goToNextKeyframe(_:)),
+        #selector(addCrossDissolve(_:)),
     ]
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -176,6 +178,7 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate, NSToo
         case #selector(splitClips(_:)): return editor.canSplit
         case #selector(detachAudio(_:)): return editor.canDetachAudio
         case #selector(addMarker(_:)): return editor.playback.hasContent
+        case #selector(addCrossDissolve(_:)): return editor.canAddTransition
         case #selector(goToPreviousKeyframe(_:)): return editor.previousKeyframeTime != nil
         case #selector(goToNextKeyframe(_:)): return editor.nextKeyframeTime != nil
         case #selector(toggleSnapping(_:)):

@@ -61,11 +61,25 @@ struct ResolveFCPXMLImportTests {
         #expect(title?.timelineRange == CMTimeRange(start: frames(192), duration: frames(48)))
     }
 
+    @Test func dissolvesAcrossTheCut() throws {
+        let opening = try #require(imported.clip("A001_C001.mov", on: .video))
+        let clips = imported.project.tracks[opening.track].clips
+        let transition = try #require(imported.project.transitions.first)
+        #expect(imported.project.transitions.count == 1)
+        #expect(transition.outgoingClipID == opening.clip.id)
+        #expect(transition.incomingClipID == clips[1].id)
+        #expect(transition.beforeCut == frames(12))
+        #expect(transition.afterCut == frames(12))
+        #expect(imported.project.placedTransitions().first?.transition.timelineRange == CMTimeRange(start: frames(108), duration: frames(24)))
+    }
+
     @Test func reportsWhatDidntComeAcross() {
         let issues = imported.report.items.map(\.issue)
-        #expect(issues.contains(.transition(name: "Cross Dissolve")))
+        #expect(!issues.contains(.transition(name: "Cross Dissolve")))
         #expect(issues.contains(.disabledClip))
-        #expect(imported.report.items.first { $0.issue == .marker(name: "Check focus") }?.time == frames(48))
+        #expect(!issues.contains(.marker(name: "Check focus")))
+        #expect(imported.project.markers.map(\.time) == [frames(48)])
+        #expect(imported.project.markers.map(\.name) == ["Check focus"])
         // A rate conformed without scaling isn't a speed change.
         #expect(!issues.contains(.speedChange))
         #expect(!issues.contains(.movedToNewTrack))

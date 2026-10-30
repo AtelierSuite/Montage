@@ -31,22 +31,69 @@ enum FrameComposer {
     /// The frame at a time on the timeline. `renderSize` is the project's frame
     /// size, which clip transforms and effects work in; `outputSize` the size
     /// of the buffer it's drawn into, which may be smaller for a quick preview.
+    ///
+    /// The two layers of a transition, which come one after the other, are
+    /// mixed into one first, and that's laid over the layers under them with
+    /// the blend mode of the clip that shows more.
     static func compose(_ layers: [Layer], at time: CMTime, renderSize: CGSize, outputSize: CGSize) -> CIImage {
         let frame = CGRect(origin: .zero, size: outputSize)
         var result = CIImage(color: .black).cropped(to: frame)
-        for layer in layers {
-            let clipTime = layer.layer.clip.localTime(time)
-            let opacity = min(max(layer.clip.opacity.value(at: clipTime), 0), 1)
-            guard opacity > 0 else { continue }
-            var picture = self.picture(layer, at: clipTime, renderSize: renderSize, outputSize: outputSize)
-            if opacity < 1 {
-                picture = picture.applyingFilter("CIColorMatrix", parameters: [
-                    "inputAVector": CIVector(x: 0, y: 0, z: 0, w: opacity),
-                ])
+        var index = layers.startIndex
+        while index < layers.endIndex {
+            let layer = layers[index]
+            index += 1
+            guard let transition = layer.layer.transition else {
+                if let picture = fadedPicture(layer, at: time, renderSize: renderSize, outputSize: outputSize) {
+                    result = blend(picture, over: result, mode: layer.clip.blendMode).cropped(to: frame)
+                }
+                continue
             }
-            result = blend(picture, over: result, mode: layer.clip.blendMode).cropped(to: frame)
+            var pair = [layer]
+            if index < layers.endIndex, layers[index].layer.transition?.id == transition.id {
+                pair.append(layers[index])
+                index += 1
+            }
+            let incoming = pair.first { $0.layer.clip.id == transition.incomingClipID }
+            let outgoing = pair.first { $0.layer.clip.id != transition.incomingClipID }
+            let progress = transition.progress(at: time)
+            let clear = CIImage(color: .clear).cropped(to: frame)
+            func picture(_ layer: Layer?) -> CIImage {
+                guard let layer, let picture = fadedPicture(layer, at: time, renderSize: renderSize, outputSize: outputSize) else {
+                    return clear
+                }
+                return picture.composited(over: clear)
+            }
+            let mixed = mix(from: picture(outgoing), to: picture(incoming), kind: transition.kind, progress: progress)
+            guard let shown = progress < 0.5 ? outgoing ?? incoming : incoming ?? outgoing else { continue }
+            result = blend(mixed, over: result, mode: shown.clip.blendMode).cropped(to: frame)
         }
         return result
+    }
+
+    /// A layer's picture faded by its clip's opacity, or nil when it's
+    /// clear.
+    private static func fadedPicture(_ layer: Layer, at time: CMTime, renderSize: CGSize, outputSize: CGSize) -> CIImage? {
+        let clipTime = layer.layer.clip.localTime(time)
+        let opacity = min(max(layer.clip.opacity.value(at: clipTime), 0), 1)
+        guard opacity > 0 else { return nil }
+        var picture = self.picture(layer, at: clipTime, renderSize: renderSize, outputSize: outputSize)
+        if opacity < 1 {
+            picture = picture.applyingFilter("CIColorMatrix", parameters: [
+                "inputAVector": CIVector(x: 0, y: 0, z: 0, w: opacity),
+            ])
+        }
+        return picture
+    }
+
+    /// Two pictures of the same extent, part way through a transition from
+    /// one to the other.
+    static func mix(from outgoing: CIImage, to incoming: CIImage, kind: ClipTransition.Kind, progress: Double) -> CIImage {
+        switch kind {
+        case .crossDissolve:
+            outgoing.applyingFilter("CIDissolveTransition", parameters: [
+                kCIInputTargetImageKey: incoming, kCIInputTimeKey: progress,
+            ])
+        }
     }
 
     /// One layer's picture, where it goes in a frame of `outputSize`, with

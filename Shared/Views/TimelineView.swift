@@ -11,8 +11,8 @@ import SwiftUI
 /// the gestures over it working out what's under them through
 /// `TimelineLayout`:
 /// - A tap or click selects a clip, or with `selectsMultiple`, Command or
-///   Shift, adds it to the selection or takes it out. Elsewhere it clears
-///   the selection.
+///   Shift, adds it to the selection or takes it out. On a transition, it
+///   selects the transition. Elsewhere it clears the selection.
 /// - A long press then a drag moves clips, along their tracks and onto
 ///   others; on a Mac, a drag does.
 /// - The same from empty space draws a rectangle that selects the clips it
@@ -23,8 +23,9 @@ import SwiftUI
 /// - Pinching zooms about where the pinch is.
 /// - Media dragged from the library goes where it's dropped.
 /// - With the timeline focused, keys edit: J, K and L shuttle, I and O mark
-///   a range, M adds a marker, B splits, Delete deletes and Shift-Delete
-///   ripple deletes, N turns snapping on and off, and + and - zoom.
+///   a range, M adds a marker, B splits, T adds a cross dissolve, Delete
+///   deletes and Shift-Delete ripple deletes, N turns snapping on and off,
+///   and + and - zoom.
 ///
 /// Drags snap to the playhead, markers and clip edges, showing a line where
 /// they've snapped. Taken near either end of the part in sight, a move, trim
@@ -180,7 +181,8 @@ struct TimelineView: View {
                 .gesture(moving(layout))
             TimelineCanvas(
                 layout: layout, origin: origin, media: mediaByID, frames: editor.playback.frames,
-                selected: editor.timeline.selectedClipIDs, hovered: hoveredClipID,
+                selected: editor.timeline.selectedClipIDs, selectedTransition: editor.timeline.selectedTransitionID,
+                hovered: hoveredClipID,
                 markers: editor.project.markers, markedIn: editor.timeline.markedIn, markedOut: editor.timeline.markedOut,
                 snapTime: drag?.snap?.point.time, thumbnails: thumbnails, waveforms: waveforms,
                 showsEmptyMessage: editor.project.tracks.allSatisfy(\.clips.isEmpty), viewportWidth: viewport.width
@@ -241,7 +243,9 @@ struct TimelineView: View {
     private func tapped(at location: CGPoint, layout: TimelineLayout) {
         focus()
         let extending = editor.timeline.selectsMultiple || Self.isExtendingSelection
-        if let (clip, _) = layout.clip(at: location) {
+        if !extending, let (transition, _) = layout.transition(at: location) {
+            editor.selectTransition(transition.id)
+        } else if let (clip, _) = layout.clip(at: location) {
             editor.select(clip.id, extending: extending)
         } else if !extending {
             editor.deselectAll()
@@ -599,6 +603,8 @@ struct TimelineView: View {
             editor.addMarkerAtPlayhead()
         case "b":
             editor.splitAtPlayhead()
+        case "t" where modifiers.isEmpty:
+            editor.addCrossDissolve()
         case "n":
             timeline.isSnapping.toggle()
         case "=", "+":

@@ -92,6 +92,40 @@ struct CompositorTests {
         }
     }
 
+    @Test func aCrossDissolveMixesTheTwoClips() async throws {
+        // A 2-second dissolve over the cut at 3s, between the landscape
+        // from 2s and the portrait from 2s.
+        let outgoing = clip(landscape)
+        let incoming = clip(portrait) { $0.timelineStart = seconds(3) }
+        var project = Project(media: [landscape, portrait], tracks: [Track(kind: .video, clips: [outgoing, incoming])])
+        project.addTransition(from: outgoing.id, to: incoming.id, duration: seconds(2))
+        let built = try await CompositionBuilder(project: project, mediaResolver: resolver).build()
+        #expect(built.skippedClips.isEmpty, "\(built.skippedClips)")
+
+        // At the cut, halfway: the landscape at 5s, past its end, and the
+        // portrait at its start.
+        let mixed = try await render(built, at: seconds(3))
+        let after = try await frame([Clip(mediaID: landscape.id, sourceRange: range(4, 3))])
+        let start = try await frame([Clip(mediaID: portrait.id, sourceRange: range(1, 3))])
+        for point in points {
+            #expect(mixed.isClose(mixed[point], (after[point] + start[point]) / 2, within: 0.05), "\(point)")
+        }
+        // A quarter of the way in: the landscape at 4.5s, the portrait at 1.5s from before its start.
+        let early = try await render(built, at: seconds(2.5))
+        let landscapeEarly = try await frame([Clip(mediaID: landscape.id, sourceRange: range(3.5, 3))])
+        let portraitEarly = try await frame([Clip(mediaID: portrait.id, sourceRange: range(0.5, 3))])
+        for point in points {
+            let expected = landscapeEarly[point] * 0.75 + portraitEarly[point] * 0.25
+            #expect(early.isClose(early[point], expected, within: 0.05), "\(point)")
+        }
+        // Past it, only the portrait.
+        let past = try await render(built, at: seconds(4.5))
+        let portraitLater = try await frame([Clip(mediaID: portrait.id, sourceRange: range(2.5, 3))])
+        for point in points {
+            #expect(past.isClose(past[point], portraitLater[point], within: 0.03), "\(point)")
+        }
+    }
+
     @Test func theTransformScalesAndMovesTheLayer() async throws {
         let full = try await frame([clip(landscape)])
         // Half size, in the top-left quarter.

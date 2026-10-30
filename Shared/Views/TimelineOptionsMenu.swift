@@ -28,6 +28,8 @@ struct TimelineOptionsMenu<Label: View>: View {
                     .disabled(!editor.canDelete)
                 Button("Edit.AddMarker", systemImage: "bookmark") { editor.addMarkerAtPlayhead() }
                     .disabled(!editor.playback.hasContent)
+                Button("Edit.AddCrossDissolve", systemImage: "square.split.diagonal") { editor.addCrossDissolve() }
+                    .disabled(!editor.canAddTransition)
                 Button("Edit.SelectAll", systemImage: "checklist") { editor.selectAllClips() }
             }
             Section {

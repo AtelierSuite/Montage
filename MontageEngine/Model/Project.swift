@@ -25,10 +25,13 @@ public struct Project: Equatable, Sendable {
     public var tracks: [Track]
     /// Points marked on the timeline, in time order.
     public var markers: [Marker]
+    /// The transitions at cuts between clips, in no particular order (see
+    /// `placedTransitions(on:)` for where they play).
+    public var transitions: [ClipTransition]
 
     public init(
         settings: ProjectSettings = ProjectSettings(), media: [MediaItem] = [], bins: [MediaBin] = [], tracks: [Track] = [],
-        markers: [Marker] = []
+        markers: [Marker] = [], transitions: [ClipTransition] = []
     ) {
         formatVersion = Self.currentFormatVersion
         self.settings = settings
@@ -36,6 +39,7 @@ public struct Project: Equatable, Sendable {
         self.bins = bins
         self.tracks = tracks
         self.markers = markers
+        self.transitions = transitions
     }
 
     /// How long the project runs: to the end of its last clip.
@@ -67,7 +71,7 @@ public struct Project: Equatable, Sendable {
 
 extension Project: Codable {
     private enum CodingKeys: String, CodingKey {
-        case formatVersion, settings, media, bins, tracks, markers
+        case formatVersion, settings, media, bins, tracks, markers, transitions
     }
 
     // Everything but the version is optional to read, so a project saved
@@ -80,6 +84,7 @@ extension Project: Codable {
         bins = try container.decodeIfPresent([MediaBin].self, forKey: .bins) ?? []
         tracks = try container.decodeIfPresent([Track].self, forKey: .tracks) ?? []
         markers = try container.decodeIfPresent([Marker].self, forKey: .markers) ?? []
+        transitions = try container.decodeIfPresent([ClipTransition].self, forKey: .transitions) ?? []
         markStillImageClips()
     }
 
@@ -104,6 +109,7 @@ extension Project: Codable {
         try container.encode(bins, forKey: .bins)
         try container.encode(tracks, forKey: .tracks)
         try container.encode(markers, forKey: .markers)
+        try container.encode(transitions, forKey: .transitions)
     }
 }
 

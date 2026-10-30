@@ -133,6 +133,17 @@ struct FCPXMLImportTests {
         #expect(clips[2].timelineRange == CMTimeRange(start: seconds(13, 2), duration: seconds(1)))
     }
 
+    @Test func dissolvesWhereTheClipsOverlap() throws {
+        let clips = imported.project.tracks[try #require(imported.clip("IMG_1805.MOV", on: .video)).track].clips
+        let transition = try #require(imported.project.transitions.first)
+        #expect(imported.project.transitions.count == 1)
+        #expect(transition.kind == .crossDissolve)
+        #expect(transition.outgoingClipID == clips[0].id)
+        #expect(transition.incomingClipID == clips[1].id)
+        #expect(transition.beforeCut == seconds(1, 2))
+        #expect(transition.afterCut == seconds(1, 2))
+    }
+
     @Test func connectsClipsOnLanesAsTracks() throws {
         let primary = try #require(imported.clip("IMG_1805.MOV", on: .video)).track
         let above = imported.project.tracks[primary + 1].clips
@@ -210,16 +221,14 @@ struct FCPXMLImportTests {
     @Test func reportsWhatDidntComeAcross() {
         let issues = imported.report.items.map(\.issue)
         #expect(issues.contains(.unsupportedEffect(name: "Glow")))
-        #expect(issues.contains(.transition(name: "Cross Dissolve")))
-        #expect(issues.contains(.marker(name: "Look here")))
+        #expect(!issues.contains(.transition(name: "Cross Dissolve")))
+        #expect(!issues.contains(.marker(name: "Look here")))
         // The title comes in as text, so it isn't in the report.
         #expect(!issues.contains { $0 == .title })
         #expect(imported.project.tracks.flatMap(\.clips).contains { $0.content.text?.string == "Hello" })
         #expect(issues.contains(.auditionAlternatives(count: 1)))
-        #expect(issues.contains(.speedChange))
+        #expect(!issues.contains(.speedChange))
         #expect(issues.contains(.disabledClip))
-        // The marker is placed on the timeline: 2s into a clip starting at 1s.
-        #expect(imported.report.items.first { $0.issue == .marker(name: "Look here") }?.time == seconds(1))
         #expect(imported.report.items.first { $0.issue == .unsupportedEffect(name: "Glow") }?.clipName == "Opening")
         #expect(imported.issues(.missingMedia).isEmpty)
     }

@@ -82,6 +82,7 @@ extension Project {
                 after.moveStart(to: range.end, isStill: isStill)
                 tracks[index].update(clip.id) { $0.moveEnd(to: range.start) }
                 tracks[index].insert(after)
+                moveOutgoingTransition(from: clip.id, to: after.id)
             } else if clipRange.start < range.start {
                 tracks[index].update(clip.id) { $0.moveEnd(to: range.start) }
             } else {
@@ -134,10 +135,11 @@ extension Project {
     @discardableResult
     public mutating func detachAudio(from id: Clip.ID) -> Clip.ID? {
         guard canDetachAudio(from: id), let (trackIndex, clip) = location(of: id) else { return nil }
-        let audio = Clip(
+        var audio = Clip(
             content: clip.content, sourceRange: clip.sourceRange, timelineStart: clip.timelineStart,
             volume: clip.volume, effects: clip.effects.filter { !$0.kind.isVideo }
         )
+        audio.speed = clip.speed
         tracks[trackIndex].update(id) { clip in
             clip.isAudioDetached = true
             clip.volume = Animatable(1)
