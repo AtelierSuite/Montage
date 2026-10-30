@@ -38,13 +38,15 @@ case "windows":
     }
 case "covered":
     // Front to back, so whatever comes before the process's first window and
-    // overlaps one of them is over it. The menu bar and Dock levels are left
-    // out: the windows sit below the menu bar, and the Dock is hidden or clear.
+    // overlaps one of them is over it, up to the Dock's level, which shows
+    // over the window when it doesn't hide. The menu bar's is left out: the
+    // windows sit below it.
     let windows = onScreen()
     let ours = windows.filter { owner($0) == pid && layer($0) == 0 }.map(frame)
     for window in windows {
         if owner(window) == pid { break }
-        guard (0..<20).contains(layer(window)), ours.contains(where: { $0.intersects(frame(window)) }) else { continue }
+        guard (0...Int(CGWindowLevelForKey(.dockWindow))).contains(layer(window)),
+              ours.contains(where: { $0.intersects(frame(window)) }) else { continue }
         print("\(window[kCGWindowOwnerName as String] ?? "?")\t\(frame(window))")
     }
 case "park-pointer":
