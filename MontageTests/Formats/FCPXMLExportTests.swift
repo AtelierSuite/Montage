@@ -247,6 +247,36 @@ struct FCPXMLExportTests {
         #expect(abs(correction.saturation.value - 0.5) < 0.00001)
     }
 
+    /// A project with a clip at half speed, after one at its own speed.
+    private func retimedProject() -> Project {
+        let media = video("IMG_1805.MOV")
+        let first = Clip(mediaID: media.id, sourceRange: CMTimeRange(start: seconds(1), duration: seconds(2)))
+        var slow = Clip(mediaID: media.id, sourceRange: CMTimeRange(start: seconds(4), duration: seconds(1)), timelineStart: seconds(2))
+        slow.speed = ClipSpeed(media: 1, timeline: 2)!
+        return Project(
+            settings: ProjectSettings(renderSize: CGSize(width: 1920, height: 1080), frameDuration: seconds(1, 30)),
+            media: [media], tracks: [Track(kind: .video, clips: [first, slow])]
+        )
+    }
+
+    @Test func writesAConstantSpeedAsATimeMap() throws {
+        let project = retimedProject()
+        let root = try MarkupElement.parse(export(project))
+        let clips = root.allDescendants.filter { $0.name == "asset-clip" }
+        #expect(clips.first?.child("timeMap") == nil)
+        let points = clips.last?.child("timeMap")?.children("timept") ?? []
+        #expect(points.map { $0["time"] } == ["4s", "6s"])
+        #expect(points.map { $0["value"] } == ["4s", "5s"])
+        #expect(clips.last?["duration"] == "2s")
+
+        let back = try ProjectInterchange.read(export(project))
+        #expect(!back.report.items.contains { $0.issue == .speedChange })
+        let slow = try #require(back.project.tracks.first?.clips.last)
+        #expect(slow.speed == ClipSpeed(media: 1, timeline: 2))
+        #expect(slow.sourceRange == CMTimeRange(start: seconds(4), duration: seconds(1)))
+        #expect(slow.timelineRange == CMTimeRange(start: seconds(2), duration: seconds(2)))
+    }
+
     @Test func foldsGainIntoTheVolume() throws {
         var project = sampleProject()
         project.tracks[3].update(project.tracks[3].clips[0].id) { clip in
@@ -296,9 +326,11 @@ struct FCPXMLExportTests {
         try export(sampleProject()).write(to: file)
         let titles = folder.appending(path: "Titles.fcpxml")
         try export(FCPXMLTitleTests.project()).write(to: titles)
+        let retimed = folder.appending(path: "Retimed.fcpxml")
+        try export(retimedProject()).write(to: retimed)
         let fixture = InterchangeFixtures.directory.appending(path: "Storylines.fcpxml")
 
-        for document in [file, titles, fixture] {
+        for document in [file, titles, retimed, fixture] {
             let process = Process()
             process.executableURL = Self.xmllint
             process.arguments = ["--noout", "--dtdvalid", dtd.path, document.path]

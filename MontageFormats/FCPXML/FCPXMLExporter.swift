@@ -176,6 +176,17 @@ struct FCPXMLExporter {
         // Keyframes are timed in the element's local time, from `start`.
         let local: (CMTime) -> CMTime = { start + $0 }
         var children: [MarkupElement] = []
+        if !isImage && !clip.speed.isNormal {
+            // A constant speed, as Final Cut writes one: from the clip's
+            // local time, which runs with the timeline, to its media's.
+            children.append(MarkupElement("timeMap", children: [
+                MarkupElement("timept", [("time", InterchangeTime.string(start)), ("value", InterchangeTime.string(start)),
+                                         ("interp", "linear")]),
+                MarkupElement("timept", [("time", InterchangeTime.string(start + range.duration)),
+                                         ("value", InterchangeTime.string(start + clip.speed.mediaDuration(ofTimeline: range.duration))),
+                                         ("interp", "linear")]),
+            ]))
+        }
         if !isAudioTrack && item.kind != .audio {
             if let transform = transformElement(clip.transform, local: local) { children.append(transform) }
             if clip.opacity.isAnimated || clip.opacity.value != 1 {
