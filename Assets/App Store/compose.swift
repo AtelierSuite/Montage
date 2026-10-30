@@ -24,6 +24,27 @@ enum Device: String {
 
     var isRequested: Bool { requestedDevices.isEmpty || requestedDevices.contains(rawValue) }
 
+    var textStyle: TextStyle {
+        switch self {
+        case .iPhone, .iPad:
+            TextStyle(headerSize: 84 * scale, captionSize: 44 * scale, gap: 4 * scale, width: canvasSize.width - 96 * scale)
+        case .mac: TextStyle(headerSize: 120, captionSize: 60, gap: 8, width: canvasSize.width - 240)
+        }
+    }
+
+    /// The height of the band across the top that holds the text: the tallest
+    /// of the languages' text, with room above and below it. It's the same for
+    /// every shot, so the device sits in the same place in all of them. The
+    /// iPad, which runs off the bottom of the canvas, leaves a band of its own.
+    func textBand(_ sets: [TextSet]) -> CGFloat {
+        let inkHeight = sets.map(\.inkHeight).max() ?? 0
+        return switch self {
+        case .iPhone: inkHeight + 2 * 88 * scale
+        case .iPad: 300 * scale
+        case .mac: inkHeight + 2 * 90
+        }
+    }
+
     /// Text and margins are laid out for the iPhone canvas and scaled up by width.
     var scale: CGFloat { canvasSize.width / Device.iPhone.canvasSize.width }
 
@@ -185,84 +206,92 @@ func isJapanese(_ unit: UTF16.CodeUnit) -> Bool {
     }
 }
 
-/// One line of text at the largest size up to `size` that fits `maxWidth`.
+/// One line of text, centred across the canvas on a baseline.
 struct Line {
-    let string: NSAttributedString
-    let size: NSSize
+    let line: CTLine
+    let width: CGFloat
+    /// How far the glyphs reach above and below the baseline. Measured from the
+    /// glyphs themselves, as the line's ascent and descent leave space above
+    /// the capitals and below the letters that sit on the baseline.
+    let inkAbove: CGFloat
+    let inkBelow: CGFloat
 
-    init(_ text: String, size: CGFloat, weight: NSFont.Weight, color: NSColor, maxWidth: CGFloat) {
+    init(_ text: String, size: CGFloat, weight: NSFont.Weight, color: NSColor) {
+        line = CTLineCreateWithAttributedString(styled(text, size: size, weight: weight, color: color))
+        width = CTLineGetTypographicBounds(line, nil, nil, nil)
+        let ink = CTLineGetBoundsWithOptions(line, .useGlyphPathBounds)
+        inkAbove = ink.maxY
+        inkBelow = -ink.minY
+    }
+
+    /// The largest size up to `size`, in steps of 2, at which `text` fits `maxWidth`.
+    static func fittingSize(_ text: String, size: CGFloat, weight: NSFont.Weight, maxWidth: CGFloat) -> CGFloat {
         var fontSize = size
-        var string = styled(text, size: fontSize, weight: weight, color: color)
-        while string.size().width > maxWidth, fontSize > 10 {
+        while fontSize > 10, Line(text, size: fontSize, weight: weight, color: .white).width > maxWidth {
             fontSize -= 2
-            string = styled(text, size: fontSize, weight: weight, color: color)
         }
-        self.string = string
-        self.size = string.size()
-        (inkTop, inkBottom) = Line.inkInsets(of: string, size: self.size)
+        return fontSize
     }
 
-    /// How far below the top of the line box the glyphs actually start and end.
-    let inkTop: CGFloat
-    let inkBottom: CGFloat
-
-    /// Centering by font metrics leaves the text looking off, since the line box carries
-    /// space above the capitals and below the baseline. So the line is rendered once and
-    /// the rows its glyphs cover are measured.
-    private static func inkInsets(of string: NSAttributedString, size: NSSize) -> (CGFloat, CGFloat) {
-        let width = Int(size.width.rounded(.up))
-        let height = Int(size.height.rounded(.up))
-        guard width > 0, height > 0, let bitmap = NSBitmapImageRep(
-            bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height,
-            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-            colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0
-        ) else { return (0, size.height) }
-        bitmap.size = NSSize(width: width, height: height)
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
-        let opaque = NSMutableAttributedString(attributedString: string)
-        opaque.addAttribute(.foregroundColor, value: NSColor.black, range: NSRange(location: 0, length: opaque.length))
-        opaque.draw(at: .zero)
-        NSGraphicsContext.restoreGraphicsState()
-
-        // Bitmap rows run top to bottom.
-        let inked = (0..<height).filter { y in
-            (0..<width).contains { x in (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 }
-        }
-        guard let first = inked.first, let last = inked.last else { return (0, size.height) }
-        return (CGFloat(first), CGFloat(last + 1))
-    }
-
-    /// Draws the line centered across `canvasWidth`, with the top of its line box at `top`.
-    func draw(top: CGFloat, canvasWidth: CGFloat) {
-        string.draw(at: NSPoint(x: (canvasWidth - size.width) / 2, y: top - size.height))
+    func draw(baseline: CGFloat, canvasWidth: CGFloat) {
+        let context = NSGraphicsContext.current!.cgContext
+        context.textMatrix = .identity
+        context.textPosition = CGPoint(x: ((canvasWidth - width) / 2).rounded(), y: baseline)
+        CTLineDraw(line, context)
     }
 }
 
-/// The header over the caption, both one line, shrunk to fit `width`.
-struct TextBlock {
-    let header: Line
-    let caption: Line
+/// How a device's header and caption are set: their largest sizes, the space
+/// between the header's line and the caption's, and the width they fit in.
+struct TextStyle {
+    let headerSize: CGFloat
+    let captionSize: CGFloat
     let gap: CGFloat
+    let width: CGFloat
+}
 
-    init(_ copy: Copy, headerSize: CGFloat, captionSize: CGFloat, gap: CGFloat, width: CGFloat) {
-        header = Line(copy.header, size: headerSize, weight: .bold, color: .white, maxWidth: width)
-        caption = Line(
-            copy.caption, size: captionSize, weight: .medium,
-            color: NSColor.white.withAlphaComponent(0.92), maxWidth: width
-        )
-        self.gap = gap
+/// The header over the caption, for every shot of a device in one language.
+/// They're all set at the same sizes, the largest at which every one fits, and on
+/// the same baselines, centred on the ink of all of them together, so the text
+/// stays in place from one shot to the next.
+struct TextSet {
+    let headerSize: CGFloat
+    let captionSize: CGFloat
+    /// From the header's baseline down to the caption's.
+    let baselineGap: CGFloat
+    /// How far the ink of any header reaches above its baseline, and of any
+    /// caption below its own.
+    let inkAbove: CGFloat
+    let inkBelow: CGFloat
+
+    /// From the top of the highest header's ink to the bottom of the lowest caption's.
+    var inkHeight: CGFloat { inkAbove + baselineGap + inkBelow }
+
+    init(_ copies: [Copy], style: TextStyle) {
+        headerSize = copies.map {
+            Line.fittingSize($0.header, size: style.headerSize, weight: .bold, maxWidth: style.width)
+        }.min() ?? style.headerSize
+        captionSize = copies.map {
+            Line.fittingSize($0.caption, size: style.captionSize, weight: .medium, maxWidth: style.width)
+        }.min() ?? style.captionSize
+        // The caption's line `gap` below the header's.
+        let header = NSFont.systemFont(ofSize: headerSize, weight: .bold)
+        let caption = NSFont.systemFont(ofSize: captionSize, weight: .medium)
+        baselineGap = -header.descender + style.gap + caption.ascender
+        let (headerSize, captionSize) = (headerSize, captionSize)
+        inkAbove = copies.map { Line($0.header, size: headerSize, weight: .bold, color: .white).inkAbove }.max() ?? 0
+        inkBelow = copies.map {
+            Line($0.caption, size: captionSize, weight: .medium, color: .white).inkBelow
+        }.max() ?? 0
     }
 
-    /// From the top of the header's ink to the bottom of the caption's.
-    var inkHeight: CGFloat { header.size.height + gap + caption.inkBottom - header.inkTop }
-
-    /// Draws the block with its ink centred between `top` and `bottom`.
-    func draw(between top: CGFloat, and bottom: CGFloat, canvasWidth: CGFloat) {
-        let inkTop = (top + bottom + inkHeight) / 2
-        let headerTop = (inkTop + header.inkTop).rounded()
-        header.draw(top: headerTop, canvasWidth: canvasWidth)
-        caption.draw(top: headerTop - header.size.height - gap, canvasWidth: canvasWidth)
+    /// Draws `copy` with the set's ink centred between `top` and `bottom`.
+    func draw(_ copy: Copy, between top: CGFloat, and bottom: CGFloat, canvasWidth: CGFloat) {
+        let headerBaseline = ((top + bottom + inkHeight) / 2 - inkAbove).rounded()
+        Line(copy.header, size: headerSize, weight: .bold, color: .white)
+            .draw(baseline: headerBaseline, canvasWidth: canvasWidth)
+        Line(copy.caption, size: captionSize, weight: .medium, color: NSColor.white.withAlphaComponent(0.92))
+            .draw(baseline: headerBaseline - baselineGap, canvasWidth: canvasWidth)
     }
 }
 
@@ -374,10 +403,8 @@ func drawiPad(raw: NSImage, in rect: NSRect) {
 
 /// An iPhone held upright fills what is left below a band that holds the
 /// text. One held sideways is turned across the canvas, under the text.
-func drawiPhone(copy: Copy, raw: NSImage, canvasSize: NSSize) {
+func drawiPhone(copy: Copy, text: TextSet, band: CGFloat, raw: NSImage, canvasSize: NSSize) {
     let s = Device.iPhone.scale
-    let text = TextBlock(copy, headerSize: 84 * s, captionSize: 44 * s, gap: 4 * s, width: canvasSize.width - 96 * s)
-    let textPadding = 88 * s
     let rawCG = cgImage(of: raw)
     let isLandscape = rawCG.width > rawCG.height
     let device = framediPhone(raw: isLandscape ? turnedClockwise(rawCG) : rawCG)
@@ -387,8 +414,8 @@ func drawiPhone(copy: Copy, raw: NSImage, canvasSize: NSSize) {
         // Turned, the device is as wide as the margins allow, under the text.
         let deviceWidth = canvasSize.width - 80 * s
         let deviceHeight = deviceWidth * aspect
-        let textBottom = canvasSize.height - text.inkHeight - 2 * textPadding
-        text.draw(between: canvasSize.height, and: textBottom, canvasWidth: canvasSize.width)
+        let textBottom = canvasSize.height - band
+        text.draw(copy, between: canvasSize.height, and: textBottom, canvasWidth: canvasSize.width)
         let rect = NSRect(
             x: ((canvasSize.width - deviceWidth) / 2).rounded(),
             y: (textBottom - 60 * s - deviceHeight).rounded(),
@@ -406,13 +433,13 @@ func drawiPhone(copy: Copy, raw: NSImage, canvasSize: NSSize) {
         return
     }
 
-    let deviceTop = canvasSize.height - text.inkHeight - 2 * textPadding
+    let deviceTop = canvasSize.height - band
     var deviceSize = NSSize(width: (deviceTop - 88 * s) * aspect, height: deviceTop - 88 * s)
     if deviceSize.width > canvasSize.width - 120 * s {
         deviceSize.width = canvasSize.width - 120 * s
         deviceSize.height = deviceSize.width / aspect
     }
-    text.draw(between: canvasSize.height, and: deviceTop, canvasWidth: canvasSize.width)
+    text.draw(copy, between: canvasSize.height, and: deviceTop, canvasWidth: canvasSize.width)
     let rect = NSRect(
         x: ((canvasSize.width - deviceSize.width) / 2).rounded(), y: (deviceTop - deviceSize.height).rounded(),
         width: deviceSize.width, height: deviceSize.height
@@ -422,15 +449,14 @@ func drawiPhone(copy: Copy, raw: NSImage, canvasSize: NSSize) {
 
 /// The iPad is drawn as wide as the margins allow and runs off the bottom of
 /// the canvas, leaving a band above it for the text.
-func drawiPadShot(copy: Copy, raw: NSImage, canvasSize: NSSize) {
+func drawiPadShot(copy: Copy, text: TextSet, band: CGFloat, raw: NSImage, canvasSize: NSSize) {
     let s = Device.iPad.scale
-    let text = TextBlock(copy, headerSize: 84 * s, captionSize: 44 * s, gap: 4 * s, width: canvasSize.width - 96 * s)
     let screenHeight = (1 - 2 * iPadBezel) / iPadScreenAspect
     let aspect = 1 / (screenHeight + 2 * iPadBezel)
     let deviceWidth = canvasSize.width - 140 * s
-    let deviceTop = canvasSize.height - 300 * s
+    let deviceTop = canvasSize.height - band
     let deviceHeight = deviceWidth / aspect
-    text.draw(between: canvasSize.height, and: deviceTop, canvasWidth: canvasSize.width)
+    text.draw(copy, between: canvasSize.height, and: deviceTop, canvasWidth: canvasSize.width)
     drawiPad(raw: raw, in: NSRect(
         x: ((canvasSize.width - deviceWidth) / 2).rounded(), y: (deviceTop - deviceHeight).rounded(),
         width: deviceWidth, height: deviceHeight
@@ -456,20 +482,18 @@ struct Sheet {
 
 /// The header and caption across the top, and the window below them, with
 /// the shadow macOS gives a window in front, and its sheet, if it has one.
-func drawMac(copy: Copy, raw: NSImage, sheet: Sheet?, canvasSize: NSSize) {
-    let text = TextBlock(copy, headerSize: 120, captionSize: 60, gap: 8, width: canvasSize.width - 240)
-    let textBand = text.inkHeight + 2 * 90
+func drawMac(copy: Copy, text: TextSet, band: CGFloat, raw: NSImage, sheet: Sheet?, canvasSize: NSSize) {
     let bottomMargin: CGFloat = 100
 
     // Captures are 2880 × 1800, a window of 1440 × 900 points at 2x.
-    let windowHeight = canvasSize.height - textBand - bottomMargin
+    let windowHeight = canvasSize.height - band - bottomMargin
     let scale = windowHeight / raw.size.height
     let windowSize = NSSize(width: raw.size.width * scale, height: windowHeight)
     let windowRect = NSRect(
         x: ((canvasSize.width - windowSize.width) / 2).rounded(), y: bottomMargin,
         width: windowSize.width, height: windowSize.height
     )
-    text.draw(between: canvasSize.height, and: windowRect.maxY, canvasWidth: canvasSize.width)
+    text.draw(copy, between: canvasSize.height, and: windowRect.maxY, canvasWidth: canvasSize.width)
     withShadow(radius: 70, offset: 30, opacity: 0.4) { raw.draw(in: windowRect) }
 
     if let sheet {
@@ -490,7 +514,7 @@ func drawMac(copy: Copy, raw: NSImage, sheet: Sheet?, canvasSize: NSSize) {
 
 // MARK: - Composition
 
-func compose(_ shot: Screenshot, language: String, device: Device) -> Bool {
+func compose(_ shot: Screenshot, language: String, device: Device, text: TextSet, band: CGFloat) -> Bool {
     guard let copy = shot.copy[language] else { return true }
     let rawURL = device.rawDir(language).appendingPathComponent("\(shot.name).png")
     guard let raw = NSImage(contentsOf: rawURL) else {
@@ -504,11 +528,11 @@ func compose(_ shot: Screenshot, language: String, device: Device) -> Bool {
     NSGradient(starting: gradientTop, ending: gradientBottom)?
         .draw(in: NSRect(origin: .zero, size: canvasSize), angle: -90)
     switch device {
-    case .iPhone: drawiPhone(copy: copy, raw: raw, canvasSize: canvasSize)
-    case .iPad: drawiPadShot(copy: copy, raw: raw, canvasSize: canvasSize)
+    case .iPhone: drawiPhone(copy: copy, text: text, band: band, raw: raw, canvasSize: canvasSize)
+    case .iPad: drawiPadShot(copy: copy, text: text, band: band, raw: raw, canvasSize: canvasSize)
     case .mac:
         let sheet = Sheet(shot: shot.name, in: device.rawDir(language))
-        drawMac(copy: copy, raw: raw, sheet: sheet, canvasSize: canvasSize)
+        drawMac(copy: copy, text: text, band: band, raw: raw, sheet: sheet, canvasSize: canvasSize)
     }
     image.unlockFocus()
     return write(image, canvasSize: canvasSize, shot: shot, language: language, device: device)
@@ -544,10 +568,12 @@ func write(_ image: NSImage, canvasSize: NSSize, shot: Screenshot, language: Str
 
 var allOK = true
 let sets: [(Device, [Screenshot])] = [(.iPhone, iPhoneScreenshots), (.iPad, iPadScreenshots), (.mac, macScreenshots)]
-for language in languages {
-    for (device, shots) in sets where device.isRequested {
+for (device, shots) in sets where device.isRequested {
+    let textSets = languages.map { language in TextSet(shots.compactMap { $0.copy[language] }, style: device.textStyle) }
+    let band = device.textBand(textSets)
+    for (language, text) in zip(languages, textSets) {
         for shot in shots {
-            allOK = compose(shot, language: language, device: device) && allOK
+            allOK = compose(shot, language: language, device: device, text: text, band: band) && allOK
         }
     }
 }
