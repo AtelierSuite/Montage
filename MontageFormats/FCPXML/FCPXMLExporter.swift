@@ -10,7 +10,8 @@ import MontageEngine
 /// storyline, with gaps where it has none, running to the end of the
 /// project. Every other track's clips are connected to it: video tracks on
 /// lanes above, in order, and audio tracks on lanes below. Each connected
-/// clip hangs off the storyline element it starts over.
+/// clip hangs off the storyline element it starts over, as do the
+/// project's markers.
 ///
 /// Times go onto the project's frames, as Final Cut expects cuts to.
 struct FCPXMLExporter {
@@ -67,6 +68,18 @@ struct FCPXMLExporter {
                 child.attributes.insert(("offset", InterchangeTime.string(offset)), at: 0)
                 elements[index].insertAnchored(child)
             }
+        }
+        // Final Cut's markers belong to clips, so the timeline's go on the
+        // primary storyline's element under each, after what's connected
+        // to it. One at the very end goes on the last frame.
+        for marker in project.markers {
+            let time = min(max(conform(marker.time), .zero), max(.zero, cursor - frameDuration))
+            guard let index = spine.lastIndex(where: { $0.range.start <= time }) else { continue }
+            let start = localStart(of: spine[index]) + (time - spine[index].range.start)
+            elements[index].insertAnchored(MarkupElement("marker", [
+                ("start", InterchangeTime.string(start)), ("duration", InterchangeTime.string(frameDuration)),
+                ("value", marker.name),
+            ]))
         }
         for index in elements.indices { elements[index].removeAnchorMarkers() }
 
@@ -194,7 +207,8 @@ struct FCPXMLExporter {
     }
 
     /// A text clip as an instance of Final Cut's Basic Title, with its words,
-    /// their formatting, its transform, opacity and video effects.
+    /// their formatting, its transform, opacity and video effects, and
+    /// Montage's own text in its metadata.
     private func titleElement(_ clip: Clip, text: TextContent, range: CMTimeRange, lane: Int?, resources: inout Resources) -> MarkupElement {
         let effect = resources.add(effect: FCPXMLTitles.basicTitleName, uid: FCPXMLTitles.basicTitleUID)
         let words = FCPXMLTitles.textElements(for: text) { resources.nextTextStyleID() }
@@ -214,6 +228,7 @@ struct FCPXMLExporter {
         }
         children.append(MarkupElement(Self.anchorMarker))
         children += clip.effects.filter(\.kind.isVideo).compactMap { filterElement(for: $0, local: local, resources: &resources) }
+        if let metadata = FCPXMLTitles.metadata(for: text) { children.append(metadata) }
         return MarkupElement("title", attributes, children: children)
     }
 
@@ -253,7 +268,7 @@ struct FCPXMLExporter {
         return [MarkupElement("param", [("name", name)], children: [MarkupElement("keyframeAnimation", children: keyframes)])]
     }
 
-    private static func interp(_ interpolation: Interpolation) -> String? {
+    static func interp(_ interpolation: Interpolation) -> String? {
         switch interpolation {
         case .linear, .hold: nil
         case .easeIn: "easeIn"
@@ -275,8 +290,8 @@ struct FCPXMLExporter {
     // MARK: - Effects
 
     /// An effect as a Final Cut filter: its built-in blur and pixellate for a
-    /// mosaic, an effect brought from Final Cut as it was, and Montage's own
-    /// for the rest, which Final Cut lists as missing but which come back
+    /// mosaic, its Color Adjustments for colour correction, an effect
+    /// brought from Final Cut as it was, and Montage's own for the rest, which Final Cut lists as missing but which come back
     /// into Montage whole. Gain and pan are clip settings in Final Cut, and
     /// effects from other formats are left out.
     private func filterElement(for effect: Effect, local: @escaping (CMTime) -> CMTime, resources: inout Resources) -> MarkupElement? {
@@ -304,6 +319,20 @@ struct FCPXMLExporter {
                                            .first?.children ?? [])
             return MarkupElement("filter-video", [("ref", ref), ("name", isBlur ? "Gaussian Blur" : "Pixellate"), ("enabled", enabled)],
                                  children: [amount])
+        case .colorCorrection(let correction):
+            // Final Cut's Color Adjustments, with the sliders it shares with
+            // Montage, and Montage's own correction beside them for the rest.
+            let ref = resources.add(effect: "Color Adjustments", uid: EffectMapping.fcpColorAdjustmentsUID)
+            var children = [MarkupElement("data", [("key", "effectConfig")], text: EffectMapping.fcpColorAdjustmentsConfig)]
+            if let data = EffectMapping.montageData(for: effect.kind) {
+                children.append(MarkupElement("data", [("key", EffectMapping.montageDataKey)], text: data))
+            }
+            children += EffectMapping.fcpColorAdjustments(for: correction).map { slider in
+                MarkupElement("param", [("name", slider.name), ("key", slider.key), ("value", Self.decimal(slider.value.value))],
+                              children: param(slider.name, slider.value, local: local) { Self.decimal($0) }.first?.children ?? [])
+            }
+            return MarkupElement("filter-video", [("ref", ref), ("name", "Color Adjustments"), ("enabled", enabled)],
+                                 children: children)
         default:
             guard let data = EffectMapping.montageData(for: effect.kind) else { return nil }
             let type = Self.typeName(effect.kind)

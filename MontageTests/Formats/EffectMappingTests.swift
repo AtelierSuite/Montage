@@ -111,6 +111,20 @@ struct EffectMappingTests {
         #expect(abs(adjusted.saturation.value - 1.648) < 0.0001)
     }
 
+    @Test func writesSlidersFinalCutReadsBackAsTheSameLook() {
+        for stops in [-0.4, -0.1, 0.2, 0.5] {
+            let slider = EffectMapping.FCPColorAdjustments.exposureSlider(stops: stops)
+            let gain = EffectMapping.FCPColorAdjustments.liftAndGain(blackPoint: 0, exposure: slider).gain
+            #expect(abs(gain - pow(2, stops)) < 0.0001)
+        }
+        for contrast in [0.75, 1, 1.2, 1.4] {
+            let slider = EffectMapping.FCPColorAdjustments.contrastSlider(contrast)
+            #expect(abs(EffectMapping.FCPColorAdjustments.contrast(slider) - contrast) < 0.0001)
+        }
+        // Past the slider's ends, it's held there.
+        #expect(EffectMapping.FCPColorAdjustments.contrastSlider(3) == 100)
+    }
+
     @Test func makesContrastSteeperAsFinalCutDoes() throws {
         let more = try correction(fcpxml("Color Adjustments", ["Contrast": Animatable(100)]))
         #expect(abs(more.contrast.value - 1 / 0.7) < 0.0001)

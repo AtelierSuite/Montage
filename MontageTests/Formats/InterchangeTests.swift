@@ -229,6 +229,9 @@ struct FCPXMLImportTests {
         #expect(issues.contains(.auditionAlternatives(count: 1)))
         #expect(!issues.contains(.speedChange))
         #expect(issues.contains(.disabledClip))
+        // The marker is placed on the timeline: 2s into a clip starting at 1s.
+        #expect(imported.project.markers.map(\.name) == ["Look here"])
+        #expect(imported.project.markers.first?.time == seconds(1))
         #expect(imported.report.items.first { $0.issue == .unsupportedEffect(name: "Glow") }?.clipName == "Opening")
         #expect(imported.issues(.missingMedia).isEmpty)
     }

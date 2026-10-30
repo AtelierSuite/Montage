@@ -42,7 +42,8 @@ enum FCPXMLTitles {
                 id = nextID()
                 ids[run.formatting] = id
                 definitions.append(MarkupElement("text-style-def", [("id", id)], children: [
-                    MarkupElement("text-style", attributes(of: text.style, formatting: run.formatting)),
+                    MarkupElement("text-style", attributes(of: text.style, formatting: run.formatting),
+                                  children: parameters(of: text.style, formatting: run.formatting)),
                 ]))
             }
             pieces.append(MarkupElement("text-style", [("ref", id)], text: run.text))
@@ -76,6 +77,10 @@ enum FCPXMLTitles {
                 ("shadowBlurRadius", decimal(shadow.blur)),
             ]
         }
+        // Final Cut draws a background only behind captions' words.
+        if let background = style.background.resolved(at: .zero) {
+            attributes.append(("backgroundColor", color(background.color)))
+        }
         let spacing = style.letterSpacing.value(at: .zero)
         let lineSpacing = style.lineSpacing.value(at: .zero)
         attributes += [
@@ -84,6 +89,106 @@ enum FCPXMLTitles {
             ("lineSpacing", lineSpacing == 0 ? nil : decimal(lineSpacing)),
         ]
         return attributes
+    }
+
+    /// What the attributes can't say about a piece's formatting, as the
+    /// settings of the Motion text style Final Cut makes from them, found by
+    /// their keys among the style's own: a gradient fill, and keyframes of
+    /// the size, fill, outline and shadow. Values are as the attributes
+    /// give them, with angles in radians.
+    static func parameters(of style: TextStyle, formatting: TextRun.Formatting) -> [MarkupElement] {
+        var parameters: [MarkupElement] = []
+        if style.fontSize.isAnimated { parameters.append(param("Size", key: "3", style.fontSize, decimal)) }
+
+        let fill = style.fill
+        if fill.isGradient && formatting.color == nil {
+            let isRadial = fill.style == .radialGradient
+            parameters.append(group("Face", key: "14", [
+                MarkupElement("param", [("name", "Fill with"), ("key", "15"), ("value", "1 (Gradient)")]),
+                group("Gradient", key: "17", [
+                    // The ends of the Basic Title's gradient, by its IDs for them.
+                    group("RGB", key: "1", [
+                        group("RGB1", key: "999140132", [param("Color", key: "3", fill.color, rgb)]),
+                        group("RGB2", key: "999140133", [param("Color", key: "3", fill.endColor, rgb)]),
+                    ]),
+                    MarkupElement("param", [("name", "Type"), ("key", "3"), ("value", isRadial ? "1 (Radial)" : "0 (Linear)")]),
+                    // Anticlockwise with y running up, where Montage's turns clockwise.
+                    param("Angle", key: "4", fill.angle) { decimal(-$0 * .pi / 180) },
+                ]),
+            ]))
+        } else if fill.style == .solid && formatting.color == nil && fill.color.isAnimated {
+            parameters.append(group("Face", key: "14", [
+                param("Color", key: "16", fill.color, rgb), param("Opacity", key: "19", fill.color) { decimal($0.alpha) },
+            ]))
+        }
+
+        let outline = style.outline
+        if outline.isEnabled && (outline.color.isAnimated || outline.width.isAnimated) {
+            parameters.append(group("Outline", key: "30", [
+                param("Color", key: "32", outline.color, rgb), param("Opacity", key: "35", outline.color) { decimal($0.alpha) },
+                param("Width", key: "36", outline.width, decimal),
+            ]))
+        }
+
+        let shadow = style.shadow
+        if shadow.isEnabled && (shadow.color.isAnimated || shadow.blur.isAnimated || shadow.offset.isAnimated) {
+            parameters.append(group("Drop Shadow", key: "21", [
+                param("Color", key: "23", shadow.color, rgb), param("Opacity", key: "26", shadow.color) { decimal($0.alpha) },
+                param("Blur", key: "28", shadow.blur, decimal),
+                param("Distance", key: "27", shadow.offset) { decimal(hypot($0.width, $0.height)) },
+                param("Angle", key: "29", shadow.offset) { offset in
+                    var angle = atan2(-offset.height, offset.width)
+                    if angle < 0 { angle += 2 * .pi }
+                    return decimal(offset == .zero ? 0 : angle)
+                },
+            ]))
+        }
+        return parameters
+    }
+
+    /// A setting as a `param`: its value at the start, and its keyframes,
+    /// in the title's own time, which starts with the clip.
+    private static func param<Value>(_ name: String, key: String, _ animatable: Animatable<Value>,
+                                     _ format: (Value) -> String) -> MarkupElement {
+        let keyframes = animatable.keyframes.map { keyframe in
+            MarkupElement("keyframe", [
+                ("time", InterchangeTime.string(keyframe.time)), ("value", format(keyframe.value)),
+                ("interp", FCPXMLExporter.interp(keyframe.interpolation)),
+            ])
+        }
+        return MarkupElement("param", [("name", name), ("key", key), ("value", format(animatable.value(at: .zero)))],
+                             children: keyframes.isEmpty ? [] : [MarkupElement("keyframeAnimation", children: keyframes)])
+    }
+
+    private static func group(_ name: String, key: String, _ children: [MarkupElement]) -> MarkupElement {
+        MarkupElement("param", [("name", name), ("key", key)], children: children)
+    }
+
+    /// The metadata key a title keeps Montage's own text under, as Montage
+    /// saves it, so it comes back exactly with what Final Cut has no
+    /// setting for, such as the background's padding.
+    static let montageTextKey = "com.tsubuzaki.Montage.text"
+
+    static func metadata(for text: TextContent) -> MarkupElement? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode(text) else { return nil }
+        return MarkupElement("metadata", children: [
+            MarkupElement("md", [("key", montageTextKey), ("value", data.base64EncodedString())]),
+        ])
+    }
+
+    /// Montage's own text kept in a title, if what Final Cut wrote of it
+    /// still agrees: the same words, in the same font, size and alignment.
+    private static func montageText(in title: MarkupElement, matching text: TextContent) -> TextContent? {
+        guard let value = title.child("metadata")?.children("md").first(where: { $0["key"] == montageTextKey })?["value"],
+              let data = Data(base64Encoded: value),
+              let stored = try? JSONDecoder().decode(TextContent.self, from: data),
+              stored.string == text.string else { return nil }
+        let style = stored.style, read = text.style
+        guard style.fontFamily == read.fontFamily, style.alignment == read.alignment,
+              abs(style.fontSize.value(at: .zero) - read.fontSize.value(at: .zero)) < 0.001 else { return nil }
+        return stored
     }
 
     /// The name of a font's face, as Final Cut gives it: "Bold Italic".
@@ -115,6 +220,12 @@ enum FCPXMLTitles {
         [color.red, color.green, color.blue, color.alpha].map(decimal).joined(separator: " ")
     }
 
+    /// A colour as a Motion colour setting holds it, without its alpha,
+    /// which is an opacity of its own.
+    private static func rgb(_ color: RGBAColor) -> String {
+        [color.red, color.green, color.blue].map(decimal).joined(separator: " ")
+    }
+
     private static func decimal(_ value: Double) -> String { FCPXMLExporter.decimal(value) }
 
     // MARK: - Reading
@@ -140,7 +251,9 @@ enum FCPXMLTitles {
                 var attributes: [String: String] = [:]
                 for attribute in definition?.attributes ?? [] { attributes[attribute.name] = attribute.value }
                 for attribute in style.attributes where attribute.name != "ref" { attributes[attribute.name] = attribute.value }
-                let isAnimated = !(definition?.children("param").isEmpty ?? true) || !style.children("param").isEmpty
+                let isAnimated = [definition, style].compactMap { $0 }.contains { element in
+                    element.allDescendants.contains { $0.name == "keyframeAnimation" }
+                }
                 pieces.append((style.text, attributes, isAnimated))
             }
             // Words written straight into the text, with no style of their own.
@@ -156,7 +269,7 @@ enum FCPXMLTitles {
         for piece in pieces {
             let attributes = piece.attributes
             if piece.isAnimated { note("Text style animation") }
-            for name in ["baseline", "baselineOffset", "tabStops", "underline", "backgroundColor"] where attributes[name] != nil {
+            for name in ["baseline", "baselineOffset", "tabStops", "underline"] where attributes[name] != nil {
                 if name == "underline", attributes[name] == "0" { continue }
                 note(settingName(name))
             }
@@ -169,13 +282,15 @@ enum FCPXMLTitles {
             if color != style.fill.color.value { formatting.color = color }
             // What can't.
             for name in ["font", "fontSize", "strokeColor", "strokeWidth", "shadowColor", "shadowOffset",
-                         "shadowBlurRadius", "kerning", "lineSpacing", "alignment"] where attributes[name] != base[name] {
+                         "shadowBlurRadius", "kerning", "lineSpacing", "alignment", "backgroundColor"] where attributes[name] != base[name] {
                 note("Text style per word")
                 break
             }
             runs.append(TextRun(piece.text, formatting: formatting))
         }
-        return Reading(text: TextContent(runs: runs, style: style), unsupported: unsupported)
+        let text = TextContent(runs: runs, style: style)
+        if let stored = montageText(in: title, matching: text) { return Reading(text: stored) }
+        return Reading(text: text, unsupported: unsupported)
     }
 
     /// A text style's attributes as Montage's style for a whole clip.
@@ -200,6 +315,10 @@ enum FCPXMLTitles {
                 isEnabled: true, color: color, blur: attributes["shadowBlurRadius"].flatMap(Double.init) ?? 0,
                 offset: CGSize(width: distance * cos(angle), height: -distance * sin(angle))
             )
+        }
+        if let color = attributes["backgroundColor"].flatMap(color) {
+            style.background.isEnabled = true
+            style.background.color = Animatable(color)
         }
         if let kerning = attributes["kerning"].flatMap(Double.init) { style.letterSpacing = Animatable(kerning) }
         if let spacing = attributes["lineSpacing"].flatMap(Double.init) { style.lineSpacing = Animatable(spacing) }
@@ -235,7 +354,6 @@ enum FCPXMLTitles {
     /// "tabStops" as "Tab stops".
     private static func settingName(_ attribute: String) -> String {
         switch attribute {
-        case "backgroundColor": return "Text background"
         case "baselineOffset": return "Baseline offset"
         case "tabStops": return "Tab stops"
         default: return attribute.prefix(1).uppercased() + attribute.dropFirst()

@@ -77,7 +77,8 @@ struct FCPXMLExportTests {
             tracks: [
                 Track(kind: .video, clips: [first, later]), Track(kind: .video, clips: [still]),
                 Track(kind: .audio, clips: [music]), Track(kind: .audio, clips: [echo]),
-            ]
+            ],
+            markers: [Marker(time: seconds(1), name: "Look here"), Marker(time: seconds(4), name: "In the gap")]
         )
     }
 
@@ -131,6 +132,8 @@ struct FCPXMLExportTests {
                 }
             }
         }
+        #expect(imported.project.markers.map(\.name) == project.markers.map(\.name))
+        #expect(imported.project.markers.map(\.time) == project.markers.map(\.time))
         // Nothing went missing on the way, other than the Glow it never had.
         #expect(imported.report.items.map(\.issue) == [.unsupportedEffect(name: "Glow")])
     }
@@ -160,6 +163,88 @@ struct FCPXMLExportTests {
         #expect(echo["offset"] == "1s")
         let source = try #require(root.allDescendants.first { $0.name == "media-rep" })
         #expect(source["src"] == "file:///Volumes/Media/IMG_1805.MOV")
+    }
+
+    @Test func putsMarkersOnThePrimaryStoryline() throws {
+        var project = sampleProject()
+        project.markers.append(Marker(time: seconds(7), name: "The end"))
+        let spine = try #require(try MarkupElement.parse(export(project)).allDescendants.first { $0.name == "spine" })
+        let markers = spine.children.map { $0.children("marker") }
+        // In each element's own time: the first clip's starts at 1s, the gap's at 0s.
+        #expect(markers[0].map { $0["start"] } == ["2s"])
+        #expect(markers[0].first?["value"] == "Look here")
+        #expect(markers[0].first?["duration"] == "1/30s")
+        #expect(markers[1].map { $0["start"] } == ["1s"])
+        // One at the very end goes on the last frame.
+        #expect(markers[2].map { $0["start"] } == ["59/30s"])
+        // After the connected clips, as Final Cut's DTD has it.
+        let first = spine.children[0].children.map(\.name)
+        #expect(first.firstIndex(of: "marker")! > first.lastIndex(of: "asset-clip")!)
+        #expect(first.firstIndex(of: "marker")! < first.firstIndex(of: "filter-video")!)
+    }
+
+    @Test func writesColorCorrectionAsColorAdjustments() throws {
+        let root = try MarkupElement.parse(export(sampleProject()))
+        let effect = try #require(root.allDescendants.first { $0.name == "effect" && $0["name"] == "Color Adjustments" })
+        #expect(effect["uid"] == "FxPlug:7E2022A5-202B-4EEB-A311-AC2B585D01B0")
+        let filter = try #require(root.allDescendants.first { $0.name == "filter-video" && $0["ref"] == effect["id"] })
+        #expect(filter["enabled"] == "0")
+        // Final Cut's own settings, as it writes them: its plug-in's version.
+        let config = try #require(filter.children("data").first { $0["key"] == "effectConfig" }?.text)
+        let archived = try #require(Data(base64Encoded: config))
+        let settings = try NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSDictionary.self, NSNumber.self, NSString.self], from: archived)
+        #expect((settings as? NSDictionary)?["pluginVersion"] as? Int == 2)
+        #expect(filter.children("data").contains { $0["key"] == "com.tsubuzaki.Montage.effect" })
+
+        let params = filter.children("param")
+        #expect(params.map { $0["key"] } == ["3", "17", "16"])
+        #expect(params.map { $0["value"] } == ["94.48", "0", "0"])
+        // Half a stop to a stop, in the clip's own time, which starts at 1s.
+        // A stop is past what Final Cut's Exposure can raise white by.
+        let keyframes = params[0].child("keyframeAnimation")?.children("keyframe") ?? []
+        #expect(keyframes.map { $0["time"] } == ["2s", "3s"])
+        #expect(keyframes.map { $0["value"] } == ["94.48", "100"])
+    }
+
+    @Test func readsFinalCutsColorAdjustments() throws {
+        let xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE fcpxml>
+        <fcpxml version="1.11">
+            <resources>
+                <format id="r1" frameDuration="1/30s" width="1920" height="1080"/>
+                <asset id="r2" name="Clip" start="0s" duration="10s" hasVideo="1" format="r1">
+                    <media-rep kind="original-media" src="file:///Volumes/Media/Clip.mov"/>
+                </asset>
+                <effect id="r3" name="Farbanpassungen" uid="FxPlug:7E2022A5-202B-4EEB-A311-AC2B585D01B0"/>
+            </resources>
+            <library><event name="Event"><project name="Colour">
+                <sequence format="r1" duration="2s" tcStart="0s">
+                    <spine>
+                        <asset-clip ref="r2" offset="0s" name="Clip" duration="2s">
+                            <filter-video ref="r3" name="Farbanpassungen">
+                                <param name="Control Range" key="19" value="0 (SDR)"/>
+                                <param name="Exposure" key="3" value="-19"/>
+                                <param name="Contrast" key="17" value="20"/>
+                                <param name="Saturation" key="16" value="-50"/>
+                            </filter-video>
+                        </asset-clip>
+                    </spine>
+                </sequence>
+            </project></event></library>
+        </fcpxml>
+        """
+        let imported = try ProjectInterchange.read(Data(xml.utf8))
+        let clip = try #require(imported.project.tracks.first?.clips.first)
+        guard case .colorCorrection(let correction) = clip.effects.first?.kind else {
+            Issue.record("No colour correction")
+            return
+        }
+        // Exposure lowers white by 0.31 × 0.19, as a gain.
+        #expect(correction.exposure.value == 0)
+        #expect(abs(correction.gain.value.red - 0.9411) < 0.00001)
+        #expect(abs(correction.contrast.value - EffectMapping.FCPColorAdjustments.contrast(20)) < 0.00001)
+        #expect(abs(correction.saturation.value - 0.5) < 0.00001)
     }
 
     @Test func foldsGainIntoTheVolume() throws {

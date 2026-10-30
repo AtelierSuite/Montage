@@ -723,6 +723,11 @@ struct FCPXMLImporter {
            let kind = EffectMapping.montageEffect(fromData: data) {
             return Effect(isEnabled: isEnabled, kind)
         }
+        // One of Final Cut's filters with Montage's own copy of the effect.
+        if let data = inner.children("data").first(where: { $0["key"] == EffectMapping.montageDataKey })?.text,
+           let kind = EffectMapping.montageEffect(fromData: data) {
+            return Effect(isEnabled: isEnabled, kind)
+        }
         if filter.name != "filter-video-mask" {
             let lookup = ImportedParameters { [self] wanted in
                 guard let param = parameters.first(where: { $0.name.lowercased() == wanted.lowercased() })?.element else {
