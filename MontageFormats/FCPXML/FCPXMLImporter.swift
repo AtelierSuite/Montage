@@ -229,7 +229,7 @@ struct FCPXMLImporter {
 
     /// Final Cut's Cross Dissolve, by its effect's ID, or by name as other
     /// apps write it.
-    private static let crossDissolveUID = "FxPlug:4731E73A-8DAC-4113-9A30-AE85B1761265"
+    static let crossDissolveUID = "FxPlug:4731E73A-8DAC-4113-9A30-AE85B1761265"
 
     /// What a transition becomes in Montage: a dissolve, if it's a cross
     /// dissolve, or nil to cut.

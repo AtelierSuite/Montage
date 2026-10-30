@@ -83,10 +83,31 @@ struct FCPXMLExporter {
         }
         for index in elements.indices { elements[index].removeAnchorMarkers() }
 
+        // Dissolves between clips that meet on the primary storyline, laid
+        // over the cut as Final Cut lays them, the clips left end to end.
+        let dissolves = primary.map { project.placedTransitions(on: $0) } ?? []
+        var storyline: [MarkupElement] = []
+        for (index, element) in elements.enumerated() {
+            storyline.append(element)
+            guard index + 1 < spine.count, case .clip(let outgoing, let range) = spine[index],
+                  case .clip(let incoming, let next) = spine[index + 1], range.end == next.start,
+                  !Self.isLeftOut(outgoing), !Self.isLeftOut(incoming),
+                  let dissolve = dissolves.first(where: { $0.outgoing.id == outgoing.id && $0.incoming.id == incoming.id })
+            else { continue }
+            let start = max(conform(range.end - dissolve.beforeCut), range.start)
+            let end = min(conform(range.end + dissolve.afterCut), next.end)
+            guard end > start else { continue }
+            let ref = resources.add(effect: "Cross Dissolve", uid: FCPXMLImporter.crossDissolveUID)
+            storyline.append(MarkupElement("transition", [
+                ("name", "Cross Dissolve"), ("offset", InterchangeTime.string(start)),
+                ("duration", InterchangeTime.string(end - start)),
+            ], children: [MarkupElement("filter-video", [("ref", ref), ("name", "Cross Dissolve")])]))
+        }
+
         let sequence = MarkupElement("sequence", [
             ("format", sequenceFormat), ("duration", InterchangeTime.string(duration)), ("tcStart", "0s"),
             ("tcFormat", "NDF"), ("audioLayout", "stereo"), ("audioRate", "48k"),
-        ], children: [MarkupElement("spine", children: elements)])
+        ], children: [MarkupElement("spine", children: storyline)])
         let root = MarkupElement("fcpxml", [("version", Self.version)], children: [
             MarkupElement("resources", children: resources.elements),
             MarkupElement("library", children: [

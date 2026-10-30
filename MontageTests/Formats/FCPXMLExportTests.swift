@@ -277,6 +277,25 @@ struct FCPXMLExportTests {
         #expect(slow.timelineRange == CMTimeRange(start: seconds(2), duration: seconds(2)))
     }
 
+    @Test func laysADissolveOverTheCut() throws {
+        var project = retimedProject()
+        let clips = try #require(project.tracks.first).clips
+        project.transitions = [ClipTransition(from: clips[0].id, to: clips[1].id, beforeCut: seconds(1, 2), afterCut: seconds(1, 2))]
+        let root = try MarkupElement.parse(export(project))
+        let spine = try #require(root.allDescendants.first { $0.name == "spine" })
+        #expect(spine.children.map(\.name) == ["asset-clip", "transition", "asset-clip"])
+        let transition = spine.children[1]
+        #expect(transition["offset"] == "3/2s" && transition["duration"] == "1s")
+        let effect = root.allDescendants.first { $0.name == "effect" && $0["id"] == transition.child("filter-video")?["ref"] }
+        #expect(effect?["uid"] == "FxPlug:4731E73A-8DAC-4113-9A30-AE85B1761265")
+
+        let back = try ProjectInterchange.read(export(project))
+        #expect(back.report.isEmpty, "\(back.report.items.map(\.issue))")
+        let placed = try #require(back.project.placedTransitions().first?.transition)
+        #expect(placed.beforeCut == seconds(1, 2) && placed.afterCut == seconds(1, 2))
+        #expect(back.project.tracks.first?.clips.map(\.timelineRange) == clips.map(\.timelineRange))
+    }
+
     @Test func foldsGainIntoTheVolume() throws {
         var project = sampleProject()
         project.tracks[3].update(project.tracks[3].clips[0].id) { clip in
@@ -327,7 +346,10 @@ struct FCPXMLExportTests {
         let titles = folder.appending(path: "Titles.fcpxml")
         try export(FCPXMLTitleTests.project()).write(to: titles)
         let retimed = folder.appending(path: "Retimed.fcpxml")
-        try export(retimedProject()).write(to: retimed)
+        var dissolving = retimedProject()
+        let clips = dissolving.tracks[0].clips
+        dissolving.transitions = [ClipTransition(from: clips[0].id, to: clips[1].id, duration: seconds(1))]
+        try export(dissolving).write(to: retimed)
         let fixture = InterchangeFixtures.directory.appending(path: "Storylines.fcpxml")
 
         for document in [file, titles, retimed, fixture] {
