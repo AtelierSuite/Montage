@@ -23,9 +23,9 @@ pid="" samples=""
 trap '[[ -n $pid ]] && kill $pid 2>/dev/null; [[ -n $samples ]] && rm -rf "$samples"; rm -rf $WORK' EXIT
 
 # Each shot: name, then the sample it opens, by language.
-typeset -A EN_PROJECTS=(01-aquarium "Aquarium Day" 02-farm "Farm Visit" 03-export "Aquarium Day")
-typeset -A JA_PROJECTS=(01-aquarium "水族館の一日" 02-farm "牧場さんぽ" 03-export "水族館の一日")
-SHOTS=(01-aquarium 02-farm 03-export)
+typeset -A EN_PROJECTS=(01-aquarium "Aquarium Day" 02-farm "Farm Visit" 03-export "Aquarium Day" 04-mosaic "Barn Close-Up")
+typeset -A JA_PROJECTS=(01-aquarium "水族館の一日" 02-farm "牧場さんぽ" 03-export "水族館の一日" 04-mosaic "納屋のアップ")
+SHOTS=(01-aquarium 02-farm 03-export 04-mosaic)
 
 # MARK: - Build
 

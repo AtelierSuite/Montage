@@ -35,14 +35,21 @@ enum ScreenshotStage {
         // Where the playhead stands: over the inset in each project.
         let playback = document.editor.playback
         switch name {
-        case "01-aquarium", "03-export": playback.seek(to: CMTime(value: 3, timescale: 1))
+        case "01-aquarium", "03-export", "04-mosaic": playback.seek(to: CMTime(value: 3, timescale: 1))
         case "02-farm": playback.seek(to: CMTime(value: 6, timescale: 1))
         default: break
         }
         // The inset selected, so the inspector shows its settings rather
         // than standing empty. It is the one clip on the second track.
         let tracks = document.editor.project.tracks
-        if tracks.count > 1, let inset = tracks[1].clips.first {
+        if name == "04-mosaic" {
+            // The clip with the mosaic, its mask outlined in the preview.
+            if let clip = tracks.first?.clips.first,
+               let mosaic = clip.effects.first(where: { if case .mosaic = $0.kind { true } else { false } }) {
+                document.editor.select(clip.id)
+                document.editor.timeline.editedMaskEffectID = mosaic.id
+            }
+        } else if tracks.count > 1, let inset = tracks[1].clips.first {
             document.editor.select(inset.id)
         }
 
@@ -66,6 +73,9 @@ enum ScreenshotStage {
             if name == "03-export" {
                 windowController.exportMovie(nil)
             }
+            if name == "04-mosaic", let content = window.contentView {
+                scrollInspectorToEnd(in: content)
+            }
         }
     }
 
@@ -75,6 +85,21 @@ enum ScreenshotStage {
         guard window.title != title || window.representedURL != nil else { return }
         window.representedURL = nil
         window.title = title
+    }
+
+    /// Scrolls the inspector, the rightmost scroll view, to its end, where the
+    /// clip's last effect and its mask are, past the layer's settings.
+    private static func scrollInspectorToEnd(in view: NSView) {
+        let inspector = scrollViews(in: view).max {
+            $0.convert($0.bounds, to: nil).minX < $1.convert($1.bounds, to: nil).minX
+        }
+        guard let inspector, let document = inspector.documentView else { return }
+        let visible = inspector.contentView.bounds.height
+        document.scroll(NSPoint(x: 0, y: document.isFlipped ? document.bounds.height - visible : 0))
+    }
+
+    private static func scrollViews(in view: NSView) -> [NSScrollView] {
+        view.subviews.flatMap { subview in (subview as? NSScrollView).map { [$0] } ?? scrollViews(in: subview) }
     }
 }
 #endif
