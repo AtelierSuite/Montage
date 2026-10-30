@@ -198,11 +198,12 @@ struct FCPXMLExportTests {
 
         let params = filter.children("param")
         #expect(params.map { $0["key"] } == ["3", "17", "16"])
-        #expect(params.map { $0["value"] } == ["25", "0", "0"])
+        #expect(params.map { $0["value"] } == ["94.48", "0", "0"])
         // Half a stop to a stop, in the clip's own time, which starts at 1s.
+        // A stop is past what Final Cut's Exposure can raise white by.
         let keyframes = params[0].child("keyframeAnimation")?.children("keyframe") ?? []
         #expect(keyframes.map { $0["time"] } == ["2s", "3s"])
-        #expect(keyframes.map { $0["value"] } == ["25", "50"])
+        #expect(keyframes.map { $0["value"] } == ["94.48", "100"])
     }
 
     @Test func readsFinalCutsColorAdjustments() throws {
@@ -239,8 +240,10 @@ struct FCPXMLExportTests {
             Issue.record("No colour correction")
             return
         }
-        #expect(abs(correction.exposure.value + 0.38) < 0.00001)
-        #expect(abs(correction.contrast.value - 1.2) < 0.00001)
+        // Exposure lowers white by 0.31 × 0.19, as a gain.
+        #expect(correction.exposure.value == 0)
+        #expect(abs(correction.gain.value.red - 0.9411) < 0.00001)
+        #expect(abs(correction.contrast.value - EffectMapping.FCPColorAdjustments.contrast(20)) < 0.00001)
         #expect(abs(correction.saturation.value - 0.5) < 0.00001)
     }
 

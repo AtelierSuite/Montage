@@ -59,13 +59,14 @@ enum EffectMapping {
     }
 
     /// The Color Adjustments sliders a correction lines up with: their
-    /// names, FxPlug parameter keys and values, as `colorAdjustments`
-    /// reads them back. Values past the sliders' ends are held at them.
+    /// names, FxPlug parameter keys and values, on the scale Final Cut
+    /// works them out on, as `colorAdjustments` reads them back. Values
+    /// past the sliders' ends are held at them.
     static func fcpColorAdjustments(for correction: ColorCorrection) -> [(name: String, key: String, value: Animatable<Double>)] {
-        let slider: (Double) -> Double = { min(100, max(-100, $0)) }
+        let slider: (Double) -> Double = { (min(100, max(-100, $0)) * 100).rounded() / 100 }
         return [
-            ("Exposure", "3", correction.exposure.mapped { slider($0 * 50) }),
-            ("Contrast", "17", correction.contrast.mapped { slider(($0 - 1) * 100) }),
+            ("Exposure", "3", correction.exposure.mapped { slider(FCPColorAdjustments.exposureSlider(stops: $0)) }),
+            ("Contrast", "17", correction.contrast.mapped { slider(FCPColorAdjustments.contrastSlider($0)) }),
             ("Saturation", "16", correction.saturation.mapped { slider(($0 - 1) * 100) }),
         ]
     }
@@ -289,6 +290,27 @@ enum EffectMapping {
         static func contrast(_ value: Double) -> Double {
             let (lift, gain) = liftAndGain(blackPoint: 0, exposure: 0, contrast: value)
             return max(0, gain * (1 - lift))
+        }
+
+        /// The Exposure slider whose gain is closest to an exposure in stops:
+        /// above 0 it raises white by a stretch, below 0 it lowers it.
+        static func exposureSlider(stops: Double) -> Double {
+            let gain = pow(2, stops)
+            let scale = exposureScale / 100
+            return gain >= 1 ? (1 - 1 / gain) / scale : (gain - 1) / scale
+        }
+
+        /// The Contrast slider that makes `contrast`, found by halving the
+        /// range it can be in, as `contrast` only ever rises with it.
+        static func contrastSlider(_ value: Double) -> Double {
+            var low = -100.0, high = 100.0
+            guard value > contrast(low) else { return low }
+            guard value < contrast(high) else { return high }
+            for _ in 0..<50 {
+                let middle = (low + high) / 2
+                if contrast(middle) < value { low = middle } else { high = middle }
+            }
+            return (low + high) / 2
         }
     }
 
