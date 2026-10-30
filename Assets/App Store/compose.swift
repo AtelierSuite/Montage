@@ -153,47 +153,53 @@ let macScreenshots = [
 
 // MARK: - Text
 
-/// SF Pro Rounded. It has no Japanese, so that falls back to Tsukushi A Round
-/// Gothic, which unlike Hiragino Maru Gothic comes in a bold to match the header.
-/// Its kana are set proportionally: full-width, they look spaced out.
-func roundedFont(ofSize size: CGFloat, weight: NSFont.Weight) -> NSFont {
-    let system = NSFont.systemFont(ofSize: size, weight: weight).fontDescriptor
-    let japanese = NSFontDescriptor(
-        name: weight >= .semibold ? "TsukuARdGothic-Bold" : "TsukuARdGothic-Regular", size: size
-    ).addingAttributes([.featureSettings: [[
-        NSFontDescriptor.FeatureKey.typeIdentifier: kTextSpacingType,
-        .selectorIdentifier: kAltProportionalTextSelector,
-    ]]])
-    let rounded = (system.withDesign(.rounded) ?? system).addingAttributes([
-        .cascadeList: [japanese],
-    ])
-    return NSFont(descriptor: rounded, size: size) ?? NSFont.systemFont(ofSize: size, weight: weight)
+/// SF Pro Rounded, with its Japanese in Tsukushi A Round Gothic, which unlike
+/// Hiragino Maru Gothic comes in a bold to match the header. That's set on the
+/// Japanese runs itself rather than left to a cascade list: a font reached through
+/// one sets its kana proportionally but leaves 、 and 。 full width, with a gap
+/// after them. Full-width kana look spaced out too.
+func styled(_ text: String, size: CGFloat, weight: NSFont.Weight, color: NSColor) -> NSAttributedString {
+    let system = NSFont.systemFont(ofSize: size, weight: weight)
+    let rounded = system.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? system
+    let japanese = NSFont(
+        descriptor: NSFontDescriptor(
+            name: weight >= .semibold ? "TsukuARdGothic-Bold" : "TsukuARdGothic-Regular", size: size
+        ).addingAttributes([.featureSettings: [[
+            NSFontDescriptor.FeatureKey.typeIdentifier: kTextSpacingType,
+            .selectorIdentifier: kAltProportionalTextSelector,
+        ]]]),
+        size: size
+    ) ?? rounded
+    let string = NSMutableAttributedString(string: text, attributes: [.font: rounded, .foregroundColor: color])
+    for (offset, character) in text.utf16.enumerated() where isJapanese(character) {
+        string.addAttribute(.font, value: japanese, range: NSRange(location: offset, length: 1))
+    }
+    return string
+}
+
+/// Kana, kanji, and the punctuation and full-width forms set with them.
+func isJapanese(_ unit: UTF16.CodeUnit) -> Bool {
+    switch unit {
+    case 0x3000...0x30FF, 0x3400...0x9FFF, 0xFF00...0xFFEF: true
+    default: false
+    }
 }
 
 /// One line of text at the largest size up to `size` that fits `maxWidth`.
 struct Line {
-    let text: String
-    let attributes: [NSAttributedString.Key: Any]
-    let font: NSFont
+    let string: NSAttributedString
     let size: NSSize
 
     init(_ text: String, size: CGFloat, weight: NSFont.Weight, color: NSColor, maxWidth: CGFloat) {
         var fontSize = size
-        var font = roundedFont(ofSize: fontSize, weight: weight)
-        var attributes: [NSAttributedString.Key: Any] = [:]
-        var lineSize = NSSize.zero
-        while fontSize > 10 {
-            font = roundedFont(ofSize: fontSize, weight: weight)
-            attributes = [.font: font, .foregroundColor: color]
-            lineSize = (text as NSString).size(withAttributes: attributes)
-            if lineSize.width <= maxWidth { break }
+        var string = styled(text, size: fontSize, weight: weight, color: color)
+        while string.size().width > maxWidth, fontSize > 10 {
             fontSize -= 2
+            string = styled(text, size: fontSize, weight: weight, color: color)
         }
-        self.text = text
-        self.attributes = attributes
-        self.font = font
-        self.size = lineSize
-        (inkTop, inkBottom) = Line.inkInsets(of: text, attributes: attributes, size: lineSize)
+        self.string = string
+        self.size = string.size()
+        (inkTop, inkBottom) = Line.inkInsets(of: string, size: self.size)
     }
 
     /// How far below the top of the line box the glyphs actually start and end.
@@ -203,9 +209,7 @@ struct Line {
     /// Centering by font metrics leaves the text looking off, since the line box carries
     /// space above the capitals and below the baseline. So the line is rendered once and
     /// the rows its glyphs cover are measured.
-    private static func inkInsets(
-        of text: String, attributes: [NSAttributedString.Key: Any], size: NSSize
-    ) -> (CGFloat, CGFloat) {
+    private static func inkInsets(of string: NSAttributedString, size: NSSize) -> (CGFloat, CGFloat) {
         let width = Int(size.width.rounded(.up))
         let height = Int(size.height.rounded(.up))
         guard width > 0, height > 0, let bitmap = NSBitmapImageRep(
@@ -216,9 +220,9 @@ struct Line {
         bitmap.size = NSSize(width: width, height: height)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
-        var opaque = attributes
-        opaque[.foregroundColor] = NSColor.black
-        (text as NSString).draw(at: .zero, withAttributes: opaque)
+        let opaque = NSMutableAttributedString(attributedString: string)
+        opaque.addAttribute(.foregroundColor, value: NSColor.black, range: NSRange(location: 0, length: opaque.length))
+        opaque.draw(at: .zero)
         NSGraphicsContext.restoreGraphicsState()
 
         // Bitmap rows run top to bottom.
@@ -231,10 +235,7 @@ struct Line {
 
     /// Draws the line centered across `canvasWidth`, with the top of its line box at `top`.
     func draw(top: CGFloat, canvasWidth: CGFloat) {
-        (text as NSString).draw(
-            at: NSPoint(x: (canvasWidth - size.width) / 2, y: top - size.height),
-            withAttributes: attributes
-        )
+        string.draw(at: NSPoint(x: (canvasWidth - size.width) / 2, y: top - size.height))
     }
 }
 
