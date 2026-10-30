@@ -133,9 +133,20 @@ struct OTIOExporter {
             ("metadata", .object(montage.isEmpty ? [] : [(OTIOJSON.montageKey, .object(montage))])),
             ("name", .string(name)),
             ("source_range", OTIOTime.json(CMTimeRange(start: start, duration: clip.duration), frameDuration: frameDuration)),
-            ("effects", .array([])), ("markers", .array([])), ("enabled", .bool(true)),
+            ("effects", .array(Self.timeWarp(clip).map { [$0] } ?? [])), ("markers", .array([])), ("enabled", .bool(true)),
             ("media_references", .object([("DEFAULT_MEDIA", reference)])),
             ("active_media_reference_key", .string("DEFAULT_MEDIA")),
+        ])
+    }
+
+    /// A clip's speed, where it isn't its media's own, as OTIO has it: the
+    /// clip's range is its length on the timeline, and the media plays
+    /// that many times as fast.
+    private static func timeWarp(_ clip: Clip) -> OTIOJSON? {
+        guard clip.content.hasSourceTime, !clip.speed.isNormal else { return nil }
+        return .schema("LinearTimeWarp.1", [
+            ("metadata", .object([])), ("name", .string("")), ("effect_name", .string("LinearTimeWarp")),
+            ("time_scalar", .double(clip.speed.rate)),
         ])
     }
 

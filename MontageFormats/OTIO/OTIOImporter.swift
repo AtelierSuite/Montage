@@ -324,14 +324,23 @@ struct OTIOImporter {
     /// OTIO's effects have no parameters of their own, only a name and
     /// metadata, so only those whose metadata says what they do map onto
     /// Montage's: the clip settings Resolve writes as effects, and
-    /// Kdenlive's fades. Changes of speed are reported, and anything else
-    /// is kept on the clip, turned off.
+    /// Kdenlive's fades. A constant speed forward becomes the clip's, other
+    /// changes of speed are reported, and anything else is kept on the
+    /// clip, turned off.
     private mutating func importEffects(of item: Object, to clip: inout Clip, isVideo: Bool, clipName: String?) {
         for effect in (item["effects"] as? [Any] ?? []).compactMap({ $0 as? Object }) {
             switch Self.schema(of: effect)?.name {
             case "LinearTimeWarp":
+                // A constant speed forward plays the media that much faster
+                // over the clip's range; backwards isn't brought in.
                 let scalar = (effect["time_scalar"] as? NSNumber)?.doubleValue ?? 1
-                if abs(scalar - 1) > 0.000_001 { report.add(.speedChange, clipName: clipName, time: clip.timelineStart) }
+                guard abs(scalar - 1) > 0.000_001 else { continue }
+                if clip.content.hasSourceTime, let speed = ClipSpeed(rate: scalar) {
+                    clip.sourceRange.duration = speed.mediaDuration(ofTimeline: clip.duration)
+                    clip.speed = speed
+                } else {
+                    report.add(.speedChange, clipName: clipName, time: clip.timelineStart)
+                }
             case "FreezeFrame", "TimeEffect":
                 report.add(.speedChange, clipName: clipName, time: clip.timelineStart)
             default:

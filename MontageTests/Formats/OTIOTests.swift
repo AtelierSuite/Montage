@@ -338,6 +338,19 @@ struct OTIOExportTests {
         #expect(imported.project.settings.frameDuration == seconds(1001, 30000))
     }
 
+    @Test func writesAnotherSpeedAsALinearTimeWarp() throws {
+        var root = try #require(try JSONSerialization.jsonObject(with: export(retimedProject())) as? [String: Any])
+        let json = String(decoding: try JSONSerialization.data(withJSONObject: root), as: UTF8.self)
+        #expect(json.contains("LinearTimeWarp.1"))
+        root = Self.removingMontageMetadata(root) as! [String: Any]
+        let imported = try ProjectInterchange.read(JSONSerialization.data(withJSONObject: root))
+        #expect(!imported.report.items.contains { $0.issue == .speedChange })
+        let slow = try #require(imported.clip("IMG_1805.MOV")?.clip)
+        #expect(slow.speed == ClipSpeed(media: 1, timeline: 2))
+        #expect(slow.sourceRange == CMTimeRange(start: seconds(4), duration: seconds(1)))
+        #expect(slow.timelineRange == CMTimeRange(start: seconds(1), duration: seconds(2)))
+    }
+
     private static func removingMontageMetadata(_ value: Any) -> Any {
         if var object = value as? [String: Any] {
             if var metadata = object["metadata"] as? [String: Any] {
