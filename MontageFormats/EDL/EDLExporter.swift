@@ -33,6 +33,9 @@ struct EDLExporter {
         var isVideo: Bool
         var clipName: String
         var sourceFile: String
+        /// The media's speed in frames a second, for an M2 line, where it
+        /// isn't its own.
+        var speed: Double?
         var locators: [String] = []
     }
 
@@ -100,6 +103,9 @@ struct EDLExporter {
                 timecode(event.recordIn), timecode(event.recordOut),
             ]
             lines.append(fields.joined(separator: " "))
+            if let speed = event.speed {
+                lines.append("M2   \(Self.padded("AX", 8)) \(String(format: "%05.1f", speed))                \(timecode(event.sourceIn))")
+            }
             lines.append("* FROM CLIP NAME: \(event.clipName)")
             lines.append("* SOURCE FILE: \(event.sourceFile)")
             lines += event.locators
@@ -113,9 +119,12 @@ struct EDLExporter {
         let recordOut = rate.frames(clip.timelineRange.end)
         guard recordOut > recordIn else { return nil }
         let sourceIn = clip.content.hasSourceTime ? max(0, rate.frames(clip.sourceRange.start)) + sourceStart(of: item) : 0
+        // At another speed the source points still span the record's
+        // length, as CMX has them, and an M2 line gives the speed.
+        let speed = clip.content.hasSourceTime && !clip.speed.isNormal ? Double(rate.timecodeBase) * clip.speed.rate : nil
         return Event(
             recordIn: hour + recordIn, recordOut: hour + recordOut, sourceIn: sourceIn, track: track, isVideo: isVideo,
-            clipName: Self.oneLine(item.name), sourceFile: Self.oneLine(sourceFile(for: item))
+            clipName: Self.oneLine(item.name), sourceFile: Self.oneLine(sourceFile(for: item)), speed: speed
         )
     }
 

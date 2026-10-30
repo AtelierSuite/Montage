@@ -65,6 +65,23 @@ struct EDLExportTests {
         #expect(!text.contains("00:00:08:00 00:00:09:00"))
     }
 
+    @Test func givesAnotherSpeedOnAnM2Line() throws {
+        let media = video("IMG_1805.MOV")
+        var slow = Clip(mediaID: media.id, sourceRange: CMTimeRange(start: seconds(4), duration: seconds(1)))
+        slow.speed = ClipSpeed(media: 1, timeline: 2)!
+        let project = Project(
+            settings: ProjectSettings(renderSize: CGSize(width: 1920, height: 1080), frameDuration: CMTime(value: 1, timescale: 30)),
+            media: [media], tracks: [Track(kind: .video, clips: [slow])]
+        )
+        let text = export(project)
+        let lines = text.components(separatedBy: "\r\n")
+        // The source points span the record's two seconds; M2 halves the speed.
+        #expect(lines.contains("001  AX       B     C        00:00:04:00 00:00:06:00 01:00:00:00 01:00:02:00"))
+        #expect(lines.contains("M2   AX       015.0                00:00:04:00"))
+        let back = try ProjectInterchange.read(Data(text.utf8))
+        #expect(back.report.items.contains { $0.issue == .speedChange })
+    }
+
     @Test func listsWhatsLeftOut() {
         let project = sampleProject()
         let leftOut = Set(ProjectInterchange.clipsLeftOutOfEDL(in: project))
