@@ -50,6 +50,8 @@ enum ScreenshotStage {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             NSApp.activate()
             window.makeKeyAndOrderFront(nil)
+            // Out of the library's search field, which takes focus on opening.
+            window.makeFirstResponder(nil)
             if name == "03-export" {
                 windowController.exportMovie(nil)
             }
