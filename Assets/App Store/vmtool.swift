@@ -5,8 +5,9 @@
 //                                       to back: id, then x y width height in points
 //        vmtool covered <pid>           other apps' windows in front of the
 //                                       process's, which would be in its capture
-//        vmtool park-pointer            moves the pointer to the screen's
-//                                       bottom-right corner, out of the shots
+//        vmtool park-pointer            moves the pointer to the middle of the
+//                                       screen's right edge, out of the shots,
+//                                       and off the bottom, which shows the Dock
 import CoreGraphics
 import Foundation
 
@@ -47,7 +48,7 @@ case "covered":
         print("\(window[kCGWindowOwnerName as String] ?? "?")\t\(frame(window))")
     }
 case "park-pointer":
-    CGWarpMouseCursorPosition(CGPoint(x: display.maxX - 1, y: display.maxY - 1))
+    CGWarpMouseCursorPosition(CGPoint(x: display.maxX - 1, y: display.midY))
 default:
     print("usage: vmtool display | windows <pid> | covered <pid> | park-pointer")
     exit(2)
