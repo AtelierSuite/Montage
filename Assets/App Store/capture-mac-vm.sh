@@ -36,12 +36,12 @@ SHOTS=(01-aquarium 02-farm 03-export)
 # MARK: - The VM
 
 # Runs a command in the VM and prints what it printed. The channel now and then
-# fails a call before it runs ("Invalid argument"), which is tried again; a
-# command's own failure is passed on.
+# fails a call before it runs ("Invalid argument"), or hangs, which is tried
+# again after a minute; a command's own failure is passed on.
 vm() {
   local out try
   for try in 1 2 3 4 5; do
-    out=$(prlctl exec $VM --current-user "$1; echo __status=\$?" 2>&1) || true
+    out=$(timeout 60 prlctl exec $VM --current-user "$1; echo __status=\$?" 2>&1) || true
     if [[ $out == *__status=* ]]; then
       print -rn -- "${out%%__status=*}"
       return ${${out##*__status=}%%[^0-9]*}
@@ -64,7 +64,8 @@ send() {
   for try in 1 2 3 4 5; do
     for piece in $pieces/*(N); do
       for attempt in 1 2 3; do
-        prlctl exec $VM --current-user "cat > \"$remote.pieces/${piece:t}\"" < $piece >/dev/null 2>&1 && break
+        timeout 60 prlctl exec $VM --current-user "cat > \"$remote.pieces/${piece:t}\"" < $piece >/dev/null 2>&1 \
+          && break
         sleep 2
       done
     done
