@@ -28,10 +28,10 @@ struct OTIOExporter {
         let videoTracks = project.tracks.filter { $0.kind == .video }
         let audioTracks = project.tracks.filter { $0.kind == .audio }
         var children: [OTIOJSON] = videoTracks.enumerated().map { index, track in
-            trackJSON(track.clips.map { ($0, false) }, kind: track.kind, name: "V\(index + 1)", isEnabled: !track.isHidden)
+            trackJSON(track.clips.map { ($0, false) }, kind: track.kind, name: track.name ?? "V\(index + 1)", isEnabled: !track.isHidden)
         }
         children += audioTracks.enumerated().map { index, track in
-            trackJSON(track.clips.map { ($0, false) }, kind: track.kind, name: "A\(index + 1)", isEnabled: !track.isMuted)
+            trackJSON(track.clips.map { ($0, false) }, kind: track.kind, name: track.name ?? "A\(index + 1)", isEnabled: !track.isMuted)
         }
         // The sound of the video tracks' clips, a track for each.
         var audioCount = audioTracks.count

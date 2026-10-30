@@ -36,6 +36,8 @@ struct TimelineAssembler {
 
     private var clips: [Lane: [Clip]] = [:]
     private var names: [Clip.ID: String] = [:]
+    /// What the other editor called each lane's track.
+    private var laneNames: [Lane: String] = [:]
     /// Where transitions were, by the lane they joined clips on.
     private var transitions: [Int: [Join]] = [:]
 
@@ -43,6 +45,16 @@ struct TimelineAssembler {
         guard clip.duration > .zero else { return }
         clips[Lane(kind: kind, number: lane), default: []].append(clip)
         if let name { names[clip.id] = name }
+    }
+
+    /// Names the track a lane becomes. Clips moved off the lane onto tracks
+    /// of their own leave the name with the lane's own track. Names that
+    /// only number the track, such as "V1" or "Audio 2", are left out:
+    /// Montage numbers tracks itself.
+    mutating func nameLane(_ name: String?, kind: Track.Kind, lane: Int) {
+        guard let name = name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty,
+              name.wholeMatch(of: /(?i)(v|a|video|audio)\s*\d+/) == nil else { return }
+        laneNames[Lane(kind: kind, number: lane)] = name
     }
 
     /// Notes a transition joining two clips on a lane, where they're cut.
@@ -84,7 +96,9 @@ struct TimelineAssembler {
                     used.insert([lane.number, index])
                 }
             }
-            tracks += rows.filter { !$0.isEmpty }.map { Track(kind: lane.kind, clips: $0) }
+            tracks += rows.enumerated().filter { !$0.element.isEmpty }.map { index, row in
+                Track(kind: lane.kind, name: index == 0 ? laneNames[lane] : nil, clips: row)
+            }
         }
         for (lane, joins) in transitions.sorted(by: { $0.key < $1.key }) {
             for (index, join) in joins.enumerated() where join.kind != nil && !used.contains([lane, index]) {

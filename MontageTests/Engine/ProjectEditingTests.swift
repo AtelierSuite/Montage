@@ -56,4 +56,21 @@ struct ProjectEditingTests {
         #expect(project.media == [kept])
         #expect(project.tracks.flatMap(\.clips).map(\.mediaID) == [kept.id])
     }
+
+    @Test func renamesATrack() {
+        let track = Track(kind: .video)
+        var project = Project(tracks: [track, Track(kind: .audio)])
+        project.renameTrack(track.id, to: "  B-Roll ")
+        #expect(project.tracks.map(\.name) == ["B-Roll", nil])
+        project.renameTrack(track.id, to: " ")
+        #expect(project.tracks[0].name == nil)
+    }
+
+    @Test func keepsATracksNameThroughCoding() throws {
+        let named = Track(kind: .audio, name: "Dialogue")
+        let decoded = try JSONDecoder().decode(Track.self, from: JSONEncoder().encode(named))
+        #expect(decoded.name == "Dialogue")
+        let unnamed = try JSONDecoder().decode(Track.self, from: JSONEncoder().encode(Track(kind: .video)))
+        #expect(unnamed.name == nil)
+    }
 }

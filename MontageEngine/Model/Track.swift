@@ -10,15 +10,21 @@ public struct Track: Identifiable, Equatable, Sendable, Codable {
 
     public var id: UUID
     public var kind: Kind
+    /// What the editor called the track, or nil for one that's only known
+    /// by its kind.
+    public var name: String?
     public private(set) var clips: [Clip]
     /// Muted, a track's audio is left out of playback and export.
     public var isMuted: Bool
     /// Hidden, a video track's picture is left out of playback and export.
     public var isHidden: Bool
 
-    public init(id: UUID = UUID(), kind: Kind, clips: [Clip] = [], isMuted: Bool = false, isHidden: Bool = false) {
+    public init(
+        id: UUID = UUID(), kind: Kind, name: String? = nil, clips: [Clip] = [], isMuted: Bool = false, isHidden: Bool = false
+    ) {
         self.id = id
         self.kind = kind
+        self.name = name
         self.clips = clips.sorted { $0.timelineStart < $1.timelineStart }
         self.isMuted = isMuted
         self.isHidden = isHidden
@@ -84,7 +90,7 @@ public struct Track: Identifiable, Equatable, Sendable, Codable {
 
     // Decoded by hand so the clips are back in order whatever the file says.
     private enum CodingKeys: String, CodingKey {
-        case id, kind, clips, isMuted, isHidden
+        case id, kind, name, clips, isMuted, isHidden
     }
 
     public init(from decoder: Decoder) throws {
@@ -92,6 +98,7 @@ public struct Track: Identifiable, Equatable, Sendable, Codable {
         self.init(
             id: try container.decode(UUID.self, forKey: .id),
             kind: try container.decode(Kind.self, forKey: .kind),
+            name: try container.decodeIfPresent(String.self, forKey: .name),
             clips: try container.decodeIfPresent([Clip].self, forKey: .clips) ?? [],
             isMuted: try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false,
             isHidden: try container.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false

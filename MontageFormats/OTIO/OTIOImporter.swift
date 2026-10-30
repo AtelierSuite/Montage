@@ -31,6 +31,8 @@ struct OTIOImporter {
     private var settings = ProjectSettings()
     private var markers: [(time: CMTime, name: String)] = []
     private var placed: [PlacedClip] = []
+    /// The names of the top stack's tracks, by kind and lane.
+    private var laneNames: [(kind: Track.Kind, lane: Int, name: String?)] = []
     /// Clips Resolve moves by fractions of their picture, placed for now as
     /// though it were of the frame's shape.
     private var picturePlacedClips: Set<Clip.ID> = []
@@ -195,6 +197,9 @@ struct OTIOImporter {
                 inner.lane = placement.lane + (inner.kind == .video ? index : -index)
             }
             if inner.kind == .video { videoCount += 1 } else { audioCount += 1 }
+            if isTop, Self.schema(of: child)?.name == "Track" {
+                laneNames.append((inner.kind, inner.lane, child["name"] as? String))
+            }
             let range = OTIOTime.range(child["source_range"]) ?? CMTimeRange(start: .zero, duration: Self.duration(of: child))
             importItem(child, at: placement.origin, range: range, placement: inner)
         }
@@ -654,6 +659,9 @@ struct OTIOImporter {
         }
 
         var assembler = TimelineAssembler()
+        for lane in laneNames {
+            assembler.nameLane(lane.name, kind: lane.kind, lane: lane.lane)
+        }
         var disabled = Set<Clip.ID>()
         for (index, item) in placed.enumerated() where !consumed.contains(index) {
             assembler.add(item.clip, kind: item.kind, lane: item.lane, name: item.name)

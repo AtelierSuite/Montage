@@ -300,6 +300,20 @@ struct OTIOExportTests {
         #expect(markers.map { $0["OTIO_SCHEMA"] as? String } == ["Marker.2", "Marker.2"])
     }
 
+    @Test func roundTripsTrackNames() throws {
+        var project = sampleProject()
+        project.tracks[0].name = "Interviews"
+        project.tracks[2].name = "Music"
+        let data = export(project)
+        let root = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let tracks = try #require((root["tracks"] as? [String: Any])?["children"] as? [[String: Any]])
+        // Unnamed tracks are numbered, as other apps name theirs.
+        #expect(tracks.map { $0["name"] as? String } == ["Interviews", "V2", "Music", "A2"])
+        // and come back unnamed.
+        let imported = try ProjectInterchange.read(data)
+        #expect(imported.project.tracks.map(\.name) == ["Interviews", nil, "Music"])
+    }
+
     /// A project with a clip at half speed.
     private func retimedProject() -> Project {
         let media = video("IMG_1805.MOV")
