@@ -52,6 +52,11 @@ enum ScreenshotStage {
             window.makeKeyAndOrderFront(nil)
             // Out of the library's search field, which takes focus on opening.
             window.makeFirstResponder(nil)
+            // Titled as on a Mac that hides extensions, which is how most are
+            // set, whatever this one's Finder shows.
+            if let url = document.fileURL {
+                window.title = url.deletingPathExtension().lastPathComponent
+            }
             if name == "03-export" {
                 windowController.exportMovie(nil)
             }
