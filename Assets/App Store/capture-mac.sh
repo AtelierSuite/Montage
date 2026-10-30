@@ -63,9 +63,12 @@ for language in $LANGUAGES; do
     # Long enough to open, build the composition, stage and show the panel.
     sleep 8
 
+    # The window is known by the size the stage gives it: titles only come
+    # through with Screen Recording access, and then say "<project>.montage"
+    # where Finder shows extensions.
     window="" sheet=""
     while IFS=$'\t' read -r id x y width height title; do
-      if [[ $title == "$project"* ]]; then
+      if [[ -z $window && $width == 1440 && $height == 900 ]]; then
         window=$id window_x=$x window_y=$y
       elif [[ -z $sheet ]]; then
         sheet=$id sheet_x=$x sheet_y=$y
