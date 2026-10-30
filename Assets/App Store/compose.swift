@@ -401,37 +401,14 @@ func drawiPad(raw: NSImage, in rect: NSRect) {
 
 // MARK: - Layouts
 
-/// An iPhone held upright fills what is left below a band that holds the
-/// text. One held sideways is turned across the canvas, under the text.
+/// The iPhone fills what is left below a band that holds the text, upright.
+/// A capture taken sideways is turned a quarter to fit it, as the phone would
+/// be held, so it shows as large as an upright one.
 func drawiPhone(copy: Copy, text: TextSet, band: CGFloat, raw: NSImage, canvasSize: NSSize) {
     let s = Device.iPhone.scale
     let rawCG = cgImage(of: raw)
-    let isLandscape = rawCG.width > rawCG.height
-    let device = framediPhone(raw: isLandscape ? turnedClockwise(rawCG) : rawCG)
+    let device = framediPhone(raw: rawCG.width > rawCG.height ? turnedClockwise(rawCG) : rawCG)
     let aspect = hardwarePixel.width / hardwarePixel.height
-
-    if isLandscape {
-        // Turned, the device is as wide as the margins allow, under the text.
-        let deviceWidth = canvasSize.width - 80 * s
-        let deviceHeight = deviceWidth * aspect
-        let textBottom = canvasSize.height - band
-        text.draw(copy, between: canvasSize.height, and: textBottom, canvasWidth: canvasSize.width)
-        let rect = NSRect(
-            x: ((canvasSize.width - deviceWidth) / 2).rounded(),
-            y: (textBottom - 60 * s - deviceHeight).rounded(),
-            width: deviceWidth, height: deviceHeight
-        )
-        withShadow(radius: 60, offset: 24, opacity: 0.35) {
-            let transform = NSAffineTransform()
-            // About the device's centre, a quarter anticlockwise, which
-            // undoes the turn the capture was given to fit the frame.
-            transform.translateX(by: rect.midX, yBy: rect.midY)
-            transform.rotate(byDegrees: 90)
-            transform.concat()
-            device.draw(in: NSRect(x: -rect.height / 2, y: -rect.width / 2, width: rect.height, height: rect.width))
-        }
-        return
-    }
 
     let deviceTop = canvasSize.height - band
     var deviceSize = NSSize(width: (deviceTop - 88 * s) * aspect, height: deviceTop - 88 * s)
