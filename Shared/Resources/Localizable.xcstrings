@@ -6189,7 +6189,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "フレームを埋める"
+            "value" : "埋める"
           }
         },
         "zh-Hans" : {
@@ -6218,7 +6218,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "フレームに合わせる"
+            "value" : "合わせる"
           }
         },
         "zh-Hans" : {
