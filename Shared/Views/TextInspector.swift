@@ -10,6 +10,9 @@ struct TextInspector: View {
     let editing: ClipEditing
 
     @State private var selection: TextSelection?
+    /// The words the selection was made in. Once they've been changed from
+    /// elsewhere, as by an undo, its indices no longer fit them.
+    @State private var selectedWords: String?
     /// Whether the words are being typed, which is one undo step until the
     /// box is left.
     @FocusState private var isTyping: Bool
@@ -27,12 +30,9 @@ struct TextInspector: View {
     var body: some View {
         let style = editing.clip.textContent.style
         Section {
-            TextEditor(text: words, selection: $selection)
+            wordsEditor
                 .frame(minHeight: 72)
-                .focused($isTyping)
-                .onChange(of: isTyping) { _, isTyping in
-                    if !isTyping { editing.editor.endTypingWords() }
-                }
+                .onChange(of: selection) { selectedWords = editing.clip.textContent.string }
                 .onDisappear { editing.editor.endTypingWords() }
                 .accessibilityLabel(Text("Inspector.Text.Words"))
             formattingBar
@@ -110,6 +110,20 @@ struct TextInspector: View {
 
     // MARK: - Words
 
+    /// The box the words are typed in, which ends the typing as one undo
+    /// step when it's left.
+    @ViewBuilder private var wordsEditor: some View {
+        #if os(macOS)
+        InspectorTextView(text: words, selection: $selection) { editing.editor.endTypingWords() }
+        #else
+        TextEditor(text: words, selection: $selection)
+            .focused($isTyping)
+            .onChange(of: isTyping) { _, isTyping in
+                if !isTyping { editing.editor.endTypingWords() }
+            }
+        #endif
+    }
+
     /// The words, changed keeping each piece's formatting. Typing is one
     /// continuous change, from the words as they were when it began.
     private var words: Binding<String> {
@@ -126,7 +140,8 @@ struct TextInspector: View {
     private var formattedRange: Range<Int> {
         let string = editing.clip.textContent.string
         let all = 0..<string.count
-        guard let selection, case .selection(let range) = selection.indices else { return all }
+        guard let selection, selectedWords == string,
+              case .selection(let range) = selection.indices else { return all }
         func characters(before index: String.Index) -> Int {
             let offset = min(max(index.utf16Offset(in: string), 0), string.utf16.count)
             return String(decoding: Array(string.utf16.prefix(offset)), as: UTF16.self).count
