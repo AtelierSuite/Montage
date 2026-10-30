@@ -63,9 +63,13 @@ struct LibraryView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     if !editor.project.media.isEmpty {
-                        Button(isSelectingMultiple ? "Library.Select.Done" : "Library.Select") {
-                            isSelectingMultiple.toggle()
-                            if !isSelectingMultiple { selection = [] }
+                        if isSelectingMultiple {
+                            Button(role: .confirm) {
+                                isSelectingMultiple = false
+                                selection = []
+                            }
+                        } else {
+                            Button("Library.Select") { isSelectingMultiple = true }
                         }
                     }
                 }
