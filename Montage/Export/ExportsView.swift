@@ -19,7 +19,7 @@ struct ExportsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Export.Progress.Done", systemImage: "checkmark") { done() }
+                    Button(role: .confirm) { done() }
                 }
             }
         .fileExporter(

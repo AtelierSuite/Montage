@@ -3493,35 +3493,6 @@
         }
       }
     },
-    "Export.Progress.Done" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完了"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
-          }
-        }
-      }
-    },
     "Export.Progress.Empty" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4458,35 +4429,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "專案中的所有內容均已輸入。"
-          }
-        }
-      }
-    },
-    "ImportReport.Done" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完了"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
           }
         }
       }
@@ -11428,35 +11370,6 @@
         }
       }
     },
-    "Library.Select.Done" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完了"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
-          }
-        }
-      }
-    },
     "Library.SelectInTimeline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13977,35 +13890,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@，而非 %2$@"
-          }
-        }
-      }
-    },
-    "Relink.Done" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完了"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
           }
         }
       }

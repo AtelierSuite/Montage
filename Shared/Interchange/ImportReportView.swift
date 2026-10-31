@@ -47,7 +47,7 @@ struct ImportReportView: View {
             .navigationSubtitle(String(localized: "ImportReport.Title"))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("ImportReport.Done", action: dismiss)
+                    Button(role: .confirm, action: dismiss)
                 }
             }
         }
