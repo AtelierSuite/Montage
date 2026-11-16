@@ -1,3 +1,5 @@
+import MontageEngine
+import MontageFormats
 import SwiftUI
 
 /// A project open for editing. Laid out for iPhone first: the editor takes
@@ -79,7 +81,7 @@ struct ProjectEditorView: View {
             // Media is found in the package wherever it's moved to.
             .onChange(of: fileURL) { _, fileURL in locateMedia(at: fileURL) }
             .onChange(of: ObjectIdentifier(document.media)) { _, _ in locateMedia(at: fileURL) }
-            .task(id: fileURL) { await downloadMedia(at: fileURL) }
+            .task(id: mediaDownload) { await downloadMedia() }
             .onDisappear {
                 // Only the access is given up: the package is still where it is.
                 accessedURL?.stopAccessingSecurityScopedResource()
@@ -100,25 +102,32 @@ struct ProjectEditorView: View {
         importer.store = document.media
     }
 
-    /// Brings an iCloud package's media down, and builds the preview again
-    /// once it's here. The document is read before its media is, so the
-    /// media may not be on the device yet, or readable, when the editor
-    /// first builds the preview, which then plays its clips as empty time.
-    private func downloadMedia(at url: URL?) async {
-        guard let url, await Self.readCoordinated(url), !Task.isCancelled else { return }
-        editor.mediaResolver = document.media.resolver
+    /// Brings the media of a package in iCloud down to the device, and has
+    /// the editor play each file as it arrives. The project is read before
+    /// its media, which comes down only when it's asked for, so until then
+    /// the preview plays its clips as empty time.
+    private func downloadMedia() async {
+        guard fileURL != nil else { return }
+        let media = document.media
+        var items: [URL: MediaItem.ID] = [:]
+        for item in editor.project.media {
+            if let url = media.expectedURL(for: item) { items[url] = item.id }
+        }
+        for await url in UbiquitousDownload.download(Array(items.keys)) {
+            guard let id = items[url] else { continue }
+            await editor.mediaArrived([id])
+        }
     }
 
-    /// Reads the package as a file coordinator does, which downloads all of
-    /// it from iCloud first, off the main actor. False when it isn't in
-    /// iCloud, so there's nothing to wait for.
-    @concurrent
-    private nonisolated static func readCoordinated(_ url: URL) async -> Bool {
-        guard (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]))?.isUbiquitousItem == true else { return false }
-        var error: NSError?
-        var isRead = false
-        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &error) { _ in isRead = true }
-        return isRead
+    /// What `downloadMedia` is to bring down: again when the project moves or
+    /// its media changes, as when another device's changes arrive.
+    private struct MediaDownload: Equatable {
+        var fileURL: URL?
+        var media: [MediaLocation]
+    }
+
+    private var mediaDownload: MediaDownload {
+        MediaDownload(fileURL: fileURL, media: document.project.media.map(\.location))
     }
 
     private func attach(to undoManager: UndoManager?) {
