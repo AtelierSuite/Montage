@@ -37,6 +37,9 @@ final class ProjectEditor {
     /// which is what sets it once it has looked. Their clips stay on the
     /// timeline, and play as empty time, until the media is relinked.
     var missingMediaIDs: Set<MediaItem.ID> = []
+    /// Counts up each time media files arrive that weren't there before, as
+    /// from iCloud, for whatever was read from them to be read again.
+    var mediaArrivals = 0
     /// The look for the media's files under way, if one is.
     @ObservationIgnored var mediaCheck: Task<Void, Never>?
 

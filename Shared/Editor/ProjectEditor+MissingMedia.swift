@@ -30,6 +30,22 @@ extension ProjectEditor {
         return check
     }
 
+    /// Follows files arriving for media that was opened without them, as
+    /// a project's media comes down from iCloud after the project's opened:
+    /// the preview is built again to play them, and what couldn't be made
+    /// from them before is tried again.
+    func mediaArrived(_ ids: Set<MediaItem.ID>) async {
+        guard !ids.isEmpty else { return }
+        for id in ids {
+            await derivedMedia.forgetFailures(for: id)
+            forgetDerivedMedia(for: id)
+        }
+        mediaArrivals += 1
+        playbackController?.update(mediaResolver: playbackResolver)
+        checkMedia()
+        makeDerivedMedia()
+    }
+
     /// Waits for the look under way, and any started meanwhile in its place,
     /// such as for the fresh bookmarks it found.
     func mediaChecked() async {
