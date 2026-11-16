@@ -127,9 +127,11 @@ struct TimelineView: View {
         .background { shortcuts }
         #endif
         .task(id: thumbnailRequests) { await loadThumbnails() }
-        // Again once missing media turns up, to read the waveforms that
-        // couldn't be read before.
-        .task(id: WaveformRequests(media: waveformRequests, missing: editor.missingMediaIDs)) { await loadWaveforms() }
+        // Again once missing media turns up, or media files arrive, to read
+        // the waveforms that couldn't be read before.
+        .task(id: WaveformRequests(media: waveformRequests, missing: editor.missingMediaIDs, arrivals: editor.mediaArrivals)) {
+            await loadWaveforms()
+        }
         #if os(iOS)
         .sensoryFeedback(.impact(weight: .medium), trigger: pickUps)
         .sensoryFeedback(.alignment, trigger: drag?.snap?.point)
@@ -665,6 +667,8 @@ struct TimelineView: View {
     private struct ThumbnailRequests: Equatable {
         var media: [MediaItem]
         var height: Double
+        /// Again once media files arrive, for those that weren't there.
+        var arrivals: Int
     }
 
     private var thumbnailRequests: ThumbnailRequests {
@@ -672,7 +676,8 @@ struct TimelineView: View {
         let media = editor.project.media.filter { onVideo.contains($0.id) && $0.kind != .audio }
         return ThumbnailRequests(
             media: media,
-            height: ((TimelineLayout.trackHeight - TimelineLayout.laneInset * 2) * displayScale).rounded(.up)
+            height: ((TimelineLayout.trackHeight - TimelineLayout.laneInset * 2) * displayScale).rounded(.up),
+            arrivals: editor.mediaArrivals
         )
     }
 
@@ -694,6 +699,7 @@ struct TimelineView: View {
     private struct WaveformRequests: Equatable {
         var media: [MediaItem]
         var missing: Set<MediaItem.ID>
+        var arrivals: Int
     }
 
     /// The media with sound whose clips show a waveform: those on audio

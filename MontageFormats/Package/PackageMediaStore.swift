@@ -66,6 +66,19 @@ public final class PackageMediaStore: Sendable {
         return staged
     }
 
+    /// Where the file behind an item is to be, whether or not it's there:
+    /// in the package, as a file in iCloud may not be yet, or wherever it's
+    /// staged or bookmarked.
+    public func expectedURL(for item: MediaItem) -> URL? {
+        switch item.location {
+        case .package(let path):
+            let (packageURL, staged) = state.withLock { ($0.packageURL, $0.staged[path]) }
+            return staged ?? packageURL?.appending(path: path, directoryHint: .notDirectory)
+        case .bookmark(let data):
+            return bookmarks.url(for: data)
+        }
+    }
+
     /// The staged file for a path in the package, if there is one.
     public func stagedURL(forPackagePath path: String) -> URL? {
         state.withLock { $0.staged[path] }

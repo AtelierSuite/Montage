@@ -510,13 +510,16 @@ struct LibraryThumbnail: View {
             .clipped()
             .animation(.easeOut(duration: 0.2), value: image != nil)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
-            // Made again for a new size, or a new file once relinked.
-            .task(id: LoadKey(size: pixelSize, location: item.location)) { await load() }
+            // Made again for a new size, a new file once relinked, or a file
+            // that wasn't there once it arrives.
+            .task(id: LoadKey(size: pixelSize, location: item.location, arrivals: editor.mediaArrivals)) { await load() }
     }
 
     private struct LoadKey: Equatable {
         var size: CGSize
         var location: MediaLocation
+        /// Again once media files arrive, for one that wasn't there.
+        var arrivals: Int
     }
 
     private var placeholder: some View {
