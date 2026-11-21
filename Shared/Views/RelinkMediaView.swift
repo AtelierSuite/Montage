@@ -27,7 +27,10 @@ struct RelinkMediaView: View {
     /// The items whose files will be relinked: those found, and confirmed or
     /// chosen by the user.
     @State private var included = Set<MediaItem.ID>()
+    /// Kept once the importer closes, which happens before it reports what
+    /// was chosen.
     @State private var picking: Picking?
+    @State private var isPickerShown = false
     @State private var isSearching = false
     @State private var isRelinking = false
     /// Set when a search found nothing for anything.
@@ -80,7 +83,7 @@ struct RelinkMediaView: View {
         .frame(minWidth: 520, minHeight: 420)
         #endif
         .fileImporter(
-            isPresented: isPicking, allowedContentTypes: pickingTypes, allowsMultipleSelection: pickingMultiple
+            isPresented: $isPickerShown, allowedContentTypes: pickingTypes, allowsMultipleSelection: pickingMultiple
         ) { result in
             guard let picking, case .success(let urls) = result else { return }
             choose(urls, for: picking)
@@ -177,10 +180,6 @@ struct RelinkMediaView: View {
 
     // MARK: - Choosing files
 
-    private var isPicking: Binding<Bool> {
-        Binding { picking != nil } set: { if !$0 { picking = nil } }
-    }
-
     private var pickingTypes: [UTType] {
         if case .folder = picking { [.folder] } else { MediaImporter.importableTypes }
     }
@@ -191,6 +190,7 @@ struct RelinkMediaView: View {
 
     private func pick(_ what: Picking) {
         picking = what
+        isPickerShown = true
     }
 
     private func choose(_ urls: [URL], for picking: Picking) {
