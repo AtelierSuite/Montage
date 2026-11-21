@@ -45,8 +45,30 @@ extension ProjectWindowController {
             if let progress { progress.presentingViewController?.dismiss(progress) }
             self?.showImportOutcome()
         }
+        projectImport.requestFolderAccess = { [weak self, weak progress] folder in
+            await self?.requestAccess(to: folder, over: progress?.view.window)
+        }
         contentViewController?.presentAsSheet(progress)
         projectImport.start(url)
+    }
+
+    /// Asks for access to the folder the imported project's media could be
+    /// in, with the folder already open, so allowing it is one click.
+    private func requestAccess(to folder: URL, over sheet: NSWindow?) async -> URL? {
+        guard let parent = sheet ?? window else { return nil }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = folder
+        panel.message = String(format: String(localized: "ProjectImport.FolderAccess.Message"), folder.lastPathComponent)
+        panel.prompt = String(localized: "ProjectImport.FolderAccess.Allow")
+        return await withCheckedContinuation { continuation in
+            panel.beginSheetModal(for: parent) { response in
+                continuation.resume(returning: response == .OK ? panel.url : nil)
+            }
+        }
     }
 
     /// The report of what came across, or why nothing did.
