@@ -28,8 +28,9 @@ public struct TimelineSnapper: Sendable {
         self.points = points.sorted { $0.time < $1.time }
     }
 
-    /// The snap points of a project. A time that's more than one kind of
-    /// point is the kind first in `Target`'s order.
+    /// The snap points of a project, on its frame grid: the playhead at the
+    /// frame it shows, the rest at their nearest frame. A time that's more
+    /// than one kind of point is the kind first in `Target`'s order.
     public init(project: Project, playhead: CMTime?, excluding clipIDs: Set<Clip.ID> = []) {
         var points = [Point(time: .zero, target: .start)]
         if let playhead { points.append(Point(time: playhead, target: .playhead)) }
@@ -37,6 +38,11 @@ public struct TimelineSnapper: Sendable {
         for clip in project.tracks.flatMap(\.clips) where !clipIDs.contains(clip.id) {
             points.append(Point(time: clip.timelineStart, target: .clipEdge))
             points.append(Point(time: clip.timelineRange.end, target: .clipEdge))
+        }
+        let frames = project.frames
+        for index in points.indices {
+            let time = points[index].time
+            points[index].time = points[index].target == .playhead ? frames.floor(time) : frames.nearest(time)
         }
         var seen = Set<CMTime>()
         self.init(points: points.filter { seen.insert($0.time).inserted })

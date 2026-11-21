@@ -14,14 +14,15 @@ extension Project {
     /// the last track of its kind makes one new track for it there, and one
     /// moved past the first stays on the first. Clips keep their places
     /// relative to one another, and none is moved to before the timeline's
-    /// start.
+    /// start. The offset is evened out so the earliest of them starts on a
+    /// frame.
     public mutating func moveClips(_ ids: Set<Clip.ID>, by offset: CMTime, trackOffsets: [Track.Kind: Int] = [:]) {
         let moving = tracks.enumerated().flatMap { index, track in
             track.clips.filter { ids.contains($0.id) }.map { (trackIndex: index, clip: $0) }
         }
         guard !moving.isEmpty else { return }
         let earliest = moving.map(\.clip.timelineStart).min() ?? .zero
-        let offset = max(offset, .zero - earliest)
+        let offset = max(frames.nearest(earliest + offset) - earliest, .zero - earliest)
 
         // Each clip's track as a place among the tracks of its kind, moved
         // along, kept within them and at most one past the last.

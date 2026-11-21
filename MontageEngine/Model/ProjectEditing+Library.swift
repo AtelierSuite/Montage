@@ -85,12 +85,11 @@ extension Project {
     public mutating func insertClips(
         of mediaIDs: [MediaItem.ID], at time: CMTime, onTrack trackID: Track.ID? = nil
     ) -> [Clip.ID] {
-        var start = time.isNumeric ? CMTimeMaximum(time, .zero) : .zero
+        var start = time.isNumeric ? frames.nearest(CMTimeMaximum(time, .zero)) : .zero
         var added: [Clip.ID] = []
         for id in mediaIDs {
             guard let item = mediaItem(id: id) else { continue }
-            let duration = item.kind == .image ? Self.defaultImageDuration : item.metadata.duration
-            guard duration.isNumeric, duration > .zero else { continue }
+            guard let duration = newClipDuration(of: item) else { continue }
             let clip = Clip(content: item.content, sourceRange: CMTimeRange(start: .zero, duration: duration), timelineStart: start)
             let index = trackIndex(for: Self.trackKind(for: item.kind), fitting: clip.timelineRange, preferring: trackID)
             tracks[index].insert(clip)
@@ -125,7 +124,8 @@ extension Project {
     public mutating func insertClip(
         of content: ClipContent, at time: CMTime, duration: CMTime = Project.defaultImageDuration
     ) -> Clip.ID {
-        let start = time.isNumeric ? CMTimeMaximum(time, .zero) : .zero
+        let start = time.isNumeric ? frames.nearest(CMTimeMaximum(time, .zero)) : .zero
+        let duration = max(frames.nearest(duration), minimumClipDuration)
         let clip = Clip(content: content, sourceRange: CMTimeRange(start: .zero, duration: duration), timelineStart: start)
         let range = clip.timelineRange
         func isFree(_ index: Int) -> Bool {
