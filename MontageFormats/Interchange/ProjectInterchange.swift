@@ -90,23 +90,33 @@ public enum ProjectInterchange {
     /// package, as those unpacked from the archive a project came in are:
     /// they're taken ahead of looking anywhere else.
     ///
+    /// Where the app may read only what the user chose, as in a sandbox,
+    /// `requestAccess` is asked once, before looking, for a folder that could
+    /// hold media but can't be read: the folder the project was in, or the
+    /// one holding the folders its media was named in. The folder the user
+    /// chooses in its place is read, and searched by name too.
+    ///
     /// Clips placed by their picture's shape are placed once it's probed,
     /// and clips timed by their media's timecode are timed from its start.
     @concurrent
     public static func gatherMedia(
         for imported: ImportedProject, into store: PackageMediaStore, takenPaths: Set<String> = [],
-        searchFolders: [URL] = [], staged: [MediaItem.ID: String] = [:]
+        searchFolders: [URL] = [], staged: [MediaItem.ID: String] = [:], requestAccess: FolderAccessRequest? = nil
     ) async -> ImportedProject {
         var imported = imported
         var taken = takenPaths
+        var searchFolders = searchFolders
+        var granted: URL?
+        defer { granted?.stopAccessingSecurityScopedResource() }
+        if let requestAccess, let folder = folderNeedingAccess(for: imported, searchFolders: searchFolders, staged: staged),
+           let chosen = await requestAccess(folder) {
+            if chosen.startAccessingSecurityScopedResource() { granted = chosen }
+            if !searchFolders.contains(chosen) { searchFolders.append(chosen) }
+        }
         for index in imported.project.media.indices {
             let item = imported.project.media[index]
             let source = imported.mediaSources[item.id]
-            let candidates = ([source].compactMap { $0 } + searchFolders.flatMap { folder in
-                [item.name, source?.lastPathComponent].compactMap { $0 }.flatMap { name in
-                    [folder.appending(path: name), folder.appending(path: "Media").appending(path: name)]
-                }
-            }).filter(\.isFileURL)
+            let candidates = candidateFiles(for: item, source: source, searchFolders: searchFolders)
 
             var found = false
             if let path = staged[item.id] {
@@ -139,6 +149,59 @@ public enum ProjectInterchange {
         })
         if let conform = imported.conformToMedia { imported = conform(imported) }
         return imported
+    }
+
+    /// Asks the user for a folder the app can't read yet, offering `folder`,
+    /// and returns the folder they chose, or nil if they chose none.
+    public typealias FolderAccessRequest = @Sendable (_ folder: URL) async -> URL?
+
+    /// Where an item's file could be: where the project said it was, then by
+    /// name in each folder searched, and in a "Media" folder inside it.
+    static func candidateFiles(for item: MediaItem, source: URL?, searchFolders: [URL]) -> [URL] {
+        ([source].compactMap { $0 } + searchFolders.flatMap { folder in
+            [item.name, source?.lastPathComponent].compactMap { $0 }.flatMap { name in
+                [folder.appending(path: name), folder.appending(path: "Media").appending(path: name)]
+            }
+        }).filter(\.isFileURL)
+    }
+
+    /// The folder to ask for access to, if media that isn't found yet could
+    /// be in folders that are there but can't be read: the one folder that
+    /// holds them all, or, when that's no more than a disk or the folder of
+    /// users, the first of them.
+    static func folderNeedingAccess(
+        for imported: ImportedProject, searchFolders: [URL], staged: [MediaItem.ID: String] = [:]
+    ) -> URL? {
+        var blocked: [URL] = []
+        for item in imported.project.media where staged[item.id] == nil {
+            let source = imported.mediaSources[item.id]
+            let candidates = candidateFiles(for: item, source: source, searchFolders: searchFolders)
+            if candidates.contains(where: { FileManager.default.isReadableFile(atPath: $0.path) }) { continue }
+            let folders = searchFolders + [source].compactMap { $0?.isFileURL == true ? $0!.deletingLastPathComponent() : nil }
+            for folder in folders.map(\.standardizedFileURL) where !blocked.contains(folder) && isUnreadableFolder(folder) {
+                blocked.append(folder)
+            }
+        }
+        guard let first = blocked.first else { return nil }
+        let common = blocked.dropFirst().reduce(first.pathComponents) { common, folder in
+            Array(zip(common, folder.pathComponents).prefix { $0 == $1 }.map(\.0))
+        }
+        guard common.count > 2 else { return first }
+        return URL(filePath: "/" + common.dropFirst().joined(separator: "/"), directoryHint: .isDirectory)
+    }
+
+    /// Whether a folder is there but its contents can't be listed.
+    private static func isUnreadableFolder(_ folder: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            return false
+        }
+        do {
+            _ = try FileManager.default.contentsOfDirectory(atPath: folder.path)
+            return false
+        } catch {
+            return true
+        }
     }
 
     /// Points an item at a file staged for it, at `path`, with what the file

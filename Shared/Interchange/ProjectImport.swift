@@ -25,6 +25,9 @@ final class ProjectImport {
 
     /// Called when an import has finished, well or not.
     @ObservationIgnored var onFinish: () -> Void = {}
+    /// Asks the user for access to a folder the project's media could be in
+    /// that the app can't read, as when it's beside the file in a sandbox.
+    @ObservationIgnored var requestFolderAccess: (@MainActor @Sendable (URL) async -> URL?)?
 
     @ObservationIgnored private weak var editor: ProjectEditor?
     @ObservationIgnored private let store: () -> PackageMediaStore
@@ -49,13 +52,16 @@ final class ProjectImport {
             taken.formUnion(names.map(ProjectPackage.mediaPath(forFileName:)))
         }
         let takenPaths = taken
+        let requestAccess: ProjectInterchange.FolderAccessRequest? = requestFolderAccess
         Task {
             defer {
                 isImporting = false
                 onFinish()
             }
             do {
-                let imported = try await Self.read(url, store: store, takenPaths: takenPaths)
+                let imported = try await Self.read(
+                    url, store: store, takenPaths: takenPaths, requestAccess: requestAccess
+                )
                 editor.replaceContents(with: imported.project)
                 report = Report(contents: imported.report, timelineName: imported.name)
             } catch {
@@ -76,21 +82,27 @@ final class ProjectImport {
     /// Reads the file and gathers its media, off the main actor: copying in
     /// a project's worth of video takes a while.
     @concurrent
-    private nonisolated static func read(_ url: URL, store: PackageMediaStore, takenPaths: Set<String>) async throws -> ImportedProject {
+    private nonisolated static func read(
+        _ url: URL, store: PackageMediaStore, takenPaths: Set<String>, requestAccess: ProjectInterchange.FolderAccessRequest?
+    ) async throws -> ImportedProject {
         let isAccessing = url.startAccessingSecurityScopedResource()
         defer { if isAccessing { url.stopAccessingSecurityScopedResource() } }
         // An OTIO bundle is told by its name, before a LumaFusion package,
         // which may take opening the file as an archive to tell.
         if ProjectInterchange.isOTIOBundle(url) {
-            return try await ProjectInterchange.importOTIOBundle(at: url, into: store, takenPaths: takenPaths)
+            return try await ProjectInterchange.importOTIOBundle(at: url, into: store, takenPaths: takenPaths, requestAccess: requestAccess)
         }
         if ProjectInterchange.isLumaFusionPackage(url) {
-            return try await ProjectInterchange.importLumaFusionPackage(at: url, into: store, takenPaths: takenPaths)
+            return try await ProjectInterchange.importLumaFusionPackage(
+                at: url, into: store, takenPaths: takenPaths, requestAccess: requestAccess
+            )
         }
         let imported = try ProjectInterchange.read(contentsOf: url)
         // Media is looked for beside the file, and inside it if it's a bundle.
         var folders = [url.deletingLastPathComponent()]
         if url.hasDirectoryPath { folders.insert(url, at: 0) }
-        return await ProjectInterchange.gatherMedia(for: imported, into: store, takenPaths: takenPaths, searchFolders: folders)
+        return await ProjectInterchange.gatherMedia(
+            for: imported, into: store, takenPaths: takenPaths, searchFolders: folders, requestAccess: requestAccess
+        )
     }
 }
