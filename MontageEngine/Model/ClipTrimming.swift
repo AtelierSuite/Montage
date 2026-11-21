@@ -147,6 +147,21 @@ extension Project {
     /// The shortest a clip can be trimmed to: one frame.
     public var minimumClipDuration: CMTime { settings.frameDuration }
 
+    /// The project's frame grid, which edits land clips' times on.
+    public var frames: FrameTime { FrameTime(frameDuration: settings.frameDuration) }
+
+    /// How long a new clip of a whole media item lasts, in whole frames: a
+    /// still for the default length, other media for all of it but a part
+    /// frame at the end, unless it's shorter than a frame. Nil for media
+    /// with no length.
+    func newClipDuration(of item: MediaItem) -> CMTime? {
+        if item.kind == .image { return max(frames.nearest(Self.defaultImageDuration), minimumClipDuration) }
+        let duration = item.metadata.duration
+        guard duration.isNumeric, duration > .zero else { return nil }
+        let whole = frames.floor(duration)
+        return whole > .zero ? whole : duration
+    }
+
     /// Where a clip is: the index of its track, and the clip.
     public func location(of id: Clip.ID) -> (trackIndex: Int, clip: Clip)? {
         for (index, track) in tracks.enumerated() {
@@ -171,14 +186,14 @@ extension Project {
 
     /// The latest a clip's end can be moved to before it runs out of media.
     private func latestEnd(of clip: Clip) -> CMTime? {
-        mediaDuration(of: clip).map { clip.timelineStart + clip.speed.timelineDuration(ofMedia: $0 - clip.sourceRange.start) }
+        mediaDuration(of: clip).map { frames.floor(clip.timelineStart + clip.speed.timelineDuration(ofMedia: $0 - clip.sourceRange.start)) }
     }
 
     /// The earliest a clip's start can be moved to before it runs out of
     /// media, or the timeline's start.
     private func earliestStart(of clip: Clip) -> CMTime {
         guard mediaDuration(of: clip) != nil else { return .zero }
-        return max(.zero, clip.timelineStart - clip.speed.timelineDuration(ofMedia: clip.sourceRange.start))
+        return frames.ceiling(max(.zero, clip.timelineStart - clip.speed.timelineDuration(ofMedia: clip.sourceRange.start)))
     }
 
     /// The clips either side of one on its track.
@@ -194,12 +209,16 @@ extension Project {
     /// the style, not over its neighbours. Returns where the edge ended up,
     /// or nil if the clip isn't in the project.
     ///
+    /// The time is taken to the nearest frame first, so the clip's edges
+    /// stay on the project's frame grid.
+    ///
     /// Rippling the start keeps the clip where it starts and moves what
     /// comes after it instead, so the returned time is the clip's new end
     /// moved back by its old length: where the start would have gone.
     @discardableResult
     public mutating func trimClip(_ id: Clip.ID, edge: ClipEdge, to time: CMTime, style: TrimStyle = .trim) -> CMTime? {
         guard let (trackIndex, clip) = location(of: id) else { return nil }
+        let time = frames.nearest(time)
         if style == .roll, let rolled = roll(clip, onTrackAt: trackIndex, edge: edge, to: time) { return rolled }
         let minimum = minimumClipDuration
         let (before, after) = neighbours(of: clip, onTrackAt: trackIndex)
@@ -226,7 +245,7 @@ extension Project {
             // The clip stays where it starts; taking `delta` more or less of
             // its media off the front moves what follows it the other way.
             var delta = min(time - clip.timelineStart, clip.duration - minimum)
-            if !isStill { delta = max(delta, .zero - clip.speed.timelineDuration(ofMedia: clip.sourceRange.start)) }
+            if !isStill { delta = max(delta, .zero - frames.floor(clip.speed.timelineDuration(ofMedia: clip.sourceRange.start))) }
             let oldEnd = clip.timelineRange.end
             tracks[trackIndex].update(id) { clip in
                 clip.moveStart(to: clip.timelineStart + delta, isStill: isStill)
@@ -285,11 +304,12 @@ extension Project {
     /// becomes a new clip, with the same media, settings and effects, and
     /// its keyframes moved so they stay where they were, and takes over the
     /// transition out of the clip, if it has one. Returns the new
-    /// clip's ID, or nil if the time isn't inside the clip, at least a frame
-    /// from either end.
+    /// clip's ID, or nil if the time, taken to the nearest frame, isn't
+    /// inside the clip, at least a frame from either end.
     @discardableResult
     public mutating func splitClip(_ id: Clip.ID, at time: CMTime) -> Clip.ID? {
         guard let (trackIndex, clip) = location(of: id) else { return nil }
+        let time = frames.nearest(time)
         let minimum = minimumClipDuration
         guard time >= clip.timelineStart + minimum, time <= clip.timelineRange.end - minimum else { return nil }
         var after = clip

@@ -34,11 +34,13 @@ extension Project {
     @discardableResult
     public mutating func appendClip(of mediaID: MediaItem.ID) -> Clip.ID? {
         guard let item = mediaItem(id: mediaID) else { return nil }
-        let duration = item.kind == .image ? Self.defaultImageDuration : item.metadata.duration
-        guard duration.isNumeric, duration > .zero else { return nil }
-        let clip = Clip(content: item.content, sourceRange: CMTimeRange(start: .zero, duration: duration))
+        guard let duration = newClipDuration(of: item) else { return nil }
         let index = firstTrackIndex(of: Self.trackKind(for: item.kind))
-        tracks[index].append(clip)
+        let clip = Clip(
+            content: item.content, sourceRange: CMTimeRange(start: .zero, duration: duration),
+            timelineStart: frames.ceiling(tracks[index].end)
+        )
+        tracks[index].insert(clip)
         return clip.id
     }
 
