@@ -91,7 +91,7 @@ extension ProjectInterchange {
     /// `gatherMedia` does, looking in the bundle first and then beside it.
     @concurrent
     public static func importOTIOBundle(
-        at url: URL, into store: PackageMediaStore, takenPaths: Set<String> = []
+        at url: URL, into store: PackageMediaStore, takenPaths: Set<String> = [], requestAccess: FolderAccessRequest? = nil
     ) async throws -> ImportedProject {
         let unpacked = URL.temporaryDirectory.appending(path: "OTIO-\(UUID().uuidString)", directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: unpacked) }
@@ -102,7 +102,7 @@ extension ProjectInterchange {
         }
         var gathered = await gatherMedia(
             for: imported, into: store, takenPaths: takenPaths,
-            searchFolders: bundle.mediaFolders + [url.deletingLastPathComponent()]
+            searchFolders: bundle.mediaFolders + [url.deletingLastPathComponent()], requestAccess: requestAccess
         )
         // Media missing from an unpacked bundle is named as in the bundle,
         // not in the folder it was unpacked into, which is about to go.

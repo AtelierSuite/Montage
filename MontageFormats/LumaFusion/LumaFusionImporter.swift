@@ -155,7 +155,7 @@ extension ProjectInterchange {
     /// looks for the rest as `gatherMedia` does, beside the package.
     @concurrent
     public static func importLumaFusionPackage(
-        at url: URL, into store: PackageMediaStore, takenPaths: Set<String> = []
+        at url: URL, into store: PackageMediaStore, takenPaths: Set<String> = [], requestAccess: FolderAccessRequest? = nil
     ) async throws -> ImportedProject {
         let (imported, staged) = try coordinatedRead(url) { readURL in
             let package = try LumaFusionPackage(reading: readURL)
@@ -163,7 +163,8 @@ extension ProjectInterchange {
             return (imported, try LumaFusionImporter.stageMedia(for: imported, from: package, into: store, takenPaths: takenPaths))
         }
         return await gatherMedia(
-            for: imported, into: store, takenPaths: takenPaths, searchFolders: [url.deletingLastPathComponent()], staged: staged
+            for: imported, into: store, takenPaths: takenPaths, searchFolders: [url.deletingLastPathComponent()], staged: staged,
+            requestAccess: requestAccess
         )
     }
 
