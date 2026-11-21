@@ -263,6 +263,20 @@ struct LayerRenderingTests {
 
     // MARK: - Exporting
 
+    @Test func clipsOffTheFrameGridStillMakeAValidVideoComposition() async throws {
+        var offGrid = clip(.shape(shape()))
+        offGrid.timelineStart = CMTime(value: 5_166_751_603, timescale: 1_000_000_000)
+        var onGrid = clip(.shape(shape(colour: blue)))
+        onGrid.sourceRange = CMTimeRange(start: .zero, duration: CMTime(value: 236, timescale: 30))
+        let project = Project(tracks: [Track(kind: .video, clips: [onGrid]), Track(kind: .video, clips: [offGrid])])
+        let built = try await CompositionBuilder(project: project, mediaResolver: .none).build()
+        let videoComposition = try #require(built.videoComposition)
+        let whole = CMTimeRange(start: .zero, duration: built.composition.duration)
+        #expect(try await videoComposition.isValid(for: built.composition, timeRange: whole, validationDelegate: nil))
+        let pixels = try await render(built, at: seconds(6))
+        #expect(pixels.isClose(pixels[centre], SIMD3(1, 0, 0)))
+    }
+
     @Test func aTimelineOfOnlyShapesExports() async throws {
         let project = Project(tracks: [Track(kind: .video, clips: [clip(.shape(shape()))])])
         let built = try await CompositionBuilder(project: project, mediaResolver: .none).build()

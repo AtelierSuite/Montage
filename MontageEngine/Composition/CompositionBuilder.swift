@@ -251,7 +251,10 @@ public struct CompositionBuilder: Sendable {
                 cuts.insert(segment.timelineRange.end)
             }
         }
-        let times = cuts.filter { $0 <= duration }.sorted()
+        // On one timescale, or a range's end, kept as its start and a rounded
+        // duration, can overlap the next and the whole composition is refused.
+        let timescale = cuts.map(\.timescale).max() ?? project.settings.frameDuration.timescale
+        let times = Set(cuts.filter { $0 <= duration }.map { $0.convertScale(timescale, method: .roundHalfAwayFromZero) }).sorted()
         let snapshot = self.snapshot ?? ProjectSnapshot(project)
         let instructions = zip(times, times.dropFirst()).map { start, end in
             var showing = layers.compactMap { $0.placement(at: start) }
