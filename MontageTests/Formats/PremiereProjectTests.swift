@@ -79,6 +79,24 @@ struct PremiereProjectImportTests {
         #expect(imported.issues(.notImported).contains(.otherTimelines(count: 1)))
     }
 
+    @Test func prefersTheSequenceWithTheMostClips() throws {
+        // A tutorial's "Opening Title - begin" holds only the title its
+        // "end", listed after it, sets over five clips.
+        func roughCut(groups: [String]) -> String {
+            let entries = groups.enumerated().map { index, ref in
+                "\t\t\t<TrackGroup Version=\"1\" Index=\"\(index)\">\n\t\t\t\t<First>228cda18-3625-4d2d-951e-348879e4ed93</First>\n"
+                    + "\t\t\t\t<Second ObjectRef=\"\(ref)\"/>\n\t\t\t</TrackGroup>\n"
+            }.joined()
+            return PremiereFixtures.xml.replacingOccurrences(of: """
+            		<TrackGroups Version="1">
+            		</TrackGroups>
+            		<ID>3</ID>
+            """, with: "\t\t<TrackGroups Version=\"1\">\n" + entries + "\t\t</TrackGroups>\n\t\t<ID>3</ID>")
+        }
+        #expect(try PremiereFixtures.read(roughCut(groups: ["101", "100"])).name == "Main Edit")
+        #expect(try PremiereFixtures.read(roughCut(groups: ["101", "100", "102"])).name == "Rough Cut")
+    }
+
     @Test func prefersTheSequenceNamedAsTheProject() throws {
         // A CS6 feature's reel has 153 sequences, the one named as the
         // project among dozens of synced takes listed before it.

@@ -56,11 +56,11 @@ struct PremiereProjectImporter {
     private mutating func run() throws -> ImportedProject {
         // The sequence named as the project is, where there's one with
         // clips: a CS6 feature's "049-050A_mix.prproj" has 153 sequences,
-        // its "049-050A_mix" among dozens of synced takes. Otherwise, as
-        // with Final Cut 7 XML, the first sequence is the one imported,
-        // though one with nothing on it is passed over: a project lists its
-        // sequences in no order the user chose. Those only used nested in
-        // others aren't counted as others.
+        // its "049-050A_mix" among dozens of synced takes. Otherwise the one
+        // with the most clips, the first of those as with Final Cut 7 XML: a
+        // project lists its sequences in no order the user chose, and a
+        // tutorial's "begin" may hold no more than a title its "end" builds
+        // on. Those only used nested in others aren't counted as others.
         let nested = nestedSequenceUIDs()
         let topLevel = graph.sequences.filter { !nested.contains($0["ObjectUID"] ?? "") }
         let candidates = topLevel.isEmpty ? graph.sequences : topLevel
@@ -71,7 +71,10 @@ struct PremiereProjectImporter {
                     && hasClips(sequence)
             }
         }
-        guard let sequence = named ?? candidates.first(where: hasClips) ?? candidates.first else {
+        let busiest = candidates.map { ($0, clipCount($0)) }.reduce(nil as (MarkupElement, Int)?) { best, next in
+            next.1 > (best?.1 ?? 0) ? next : best
+        }?.0
+        guard let sequence = named ?? busiest ?? candidates.first else {
             throw InterchangeError.noTimeline
         }
         if candidates.count > 1 { report.add(.otherTimelines(count: candidates.count - 1)) }
@@ -172,9 +175,13 @@ struct PremiereProjectImporter {
     }
 
     private func hasClips(_ sequence: MarkupElement) -> Bool {
-        trackGroups(of: sequence).contains { group in
-            (group.group.descendant("TrackGroup", "Tracks")?.children("Track") ?? []).compactMap(graph.resolve).contains {
-                $0.descendant("ClipTrack", "ClipItems", "TrackItems")?.child("TrackItem") != nil
+        clipCount(sequence) > 0
+    }
+
+    private func clipCount(_ sequence: MarkupElement) -> Int {
+        trackGroups(of: sequence).reduce(0) { count, group in
+            count + (group.group.descendant("TrackGroup", "Tracks")?.children("Track") ?? []).compactMap(graph.resolve).reduce(0) {
+                $0 + ($1.descendant("ClipTrack", "ClipItems", "TrackItems")?.children("TrackItem").count ?? 0)
             }
         }
     }
