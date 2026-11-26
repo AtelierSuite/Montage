@@ -12,9 +12,11 @@ struct FCPXMLExportTests {
         "/Applications/Final Cut Pro.app/Contents/Frameworks/Interchange.framework/Versions/A/Resources/FCPXMLv1_11.dtd")
     private static let xmllint = URL(fileURLWithPath: "/usr/bin/xmllint")
 
-    /// Final Cut's DTD, where Final Cut is installed to read it from.
+    /// Final Cut's DTD, where Final Cut is installed to read it from, or a
+    /// copy kept with the interchange corpus.
     private static var installedDTD: URL? {
-        [dtd, alternateDTD].first { FileManager.default.fileExists(atPath: $0.path) }
+        [dtd, alternateDTD, Samples.interchange.appending(path: "_dtd/FCPXMLv1_11.dtd")]
+            .first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
     private static var canValidate: Bool {
