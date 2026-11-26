@@ -18,4 +18,12 @@ struct OpenTimelineIOFixtureTests {
         #expect(clip.sourceRange == CMTimeRange(start: .zero, duration: Self.frames(1055)))
     }
 
+    @Test func showsTracksTrimmedToMissAllTheirClipsWhole() throws {
+        let imported = try InterchangeFixtures.read("OpenTimelineIO/ScreeningExample.otio")
+        #expect(imported.project.tracks.map(\.clips.count) == [9])
+        let first = try #require(imported.project.tracks.first?.clips.first)
+        #expect(first.timelineStart == .zero)
+        #expect(first.duration == Self.frames(31))
+        #expect(imported.project.duration == Self.frames(1049))
+    }
 }

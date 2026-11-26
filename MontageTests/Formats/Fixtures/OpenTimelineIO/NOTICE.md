@@ -19,3 +19,10 @@ Pixar (http://www.pixar.com/).
 - Source: https://github.com/OpenTimelineIO/otio-fcp-adapter
 - Path in the repository: `tests/sample_data/hiero_xml_export.xml`
 - A Final Cut Pro 7 XML export from Hiero, which writes frame counts as decimals.
+
+## ScreeningExample.otio
+
+- Source: https://github.com/AcademySoftwareFoundation/OpenTimelineIO
+- Path in the repository: `tests/sample_data/screening_example.otio`
+- An EDL converted by an early OpenTimelineIO, whose track is trimmed to a
+  range by its record timecode that misses all its clips.
