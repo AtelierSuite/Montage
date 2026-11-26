@@ -335,6 +335,23 @@ struct FCPXMLExportTests {
         #expect(clip["duration"] == "1s")
     }
 
+    @Test func coversClipsOfMediaThatWasntProbed() throws {
+        let missing = MediaItem(name: "A001.mov", kind: .video, location: .package(path: "Media/A001.mov"), metadata: MediaMetadata())
+        let clip = Clip(mediaID: missing.id, sourceRange: CMTimeRange(start: seconds(3600), duration: seconds(5)))
+        let project = Project(
+            settings: ProjectSettings(renderSize: CGSize(width: 1920, height: 1080), frameDuration: seconds(1, 25)),
+            media: [missing], tracks: [Track(kind: .video, clips: [clip])]
+        )
+        let root = try MarkupElement.parse(export(project))
+        let asset = try #require(root.allDescendants.first { $0.name == "asset" })
+        #expect(asset["start"] == "0s")
+        #expect(asset["duration"] == "3605s")
+        #expect(asset["hasVideo"] == "1")
+        let format = try #require(root.allDescendants.first { $0.name == "format" && $0["id"] == asset["format"] })
+        #expect(format["frameDuration"] == "1/25s")
+        #expect(format["width"] == "1920")
+    }
+
     @Test(.enabled(if: canValidate))
     func validatesAgainstFinalCutsDTD() throws {
         let folder = URL.temporaryDirectory.appending(path: "FCPXML-\(UUID().uuidString)", directoryHint: .isDirectory)
