@@ -6,8 +6,17 @@ enum Samples {
     static let directory = URL(fileURLWithPath: NSHomeDirectory())
         .appending(path: "Developer/ClaudeDocs/Samples", directoryHint: .isDirectory)
 
+    /// Real project files from other editors, one folder per format.
+    static let interchange = directory.appending(path: "Interchange", directoryHint: .isDirectory)
+
+    /// Whether the sample media is there, not just the interchange corpus.
     static var isAvailable: Bool {
-        FileManager.default.fileExists(atPath: directory.path)
+        let contents = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        return contents.contains { $0 != "Interchange" && !$0.hasPrefix(".") }
+    }
+
+    static var isInterchangeAvailable: Bool {
+        FileManager.default.fileExists(atPath: interchange.path)
     }
 
     static func url(_ name: String) -> URL {
