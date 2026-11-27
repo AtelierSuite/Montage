@@ -200,7 +200,7 @@ struct OTIOImporter {
             if isTop, Self.schema(of: child)?.name == "Track" {
                 laneNames.append((inner.kind, inner.lane, child["name"] as? String))
             }
-            let range = OTIOTime.range(child["source_range"]) ?? CMTimeRange(start: .zero, duration: Self.duration(of: child))
+            let range = Self.shownRange(of: child)
             importItem(child, at: placement.origin, range: range, placement: inner)
         }
     }
@@ -221,7 +221,7 @@ struct OTIOImporter {
                 report.add(.transition(name: name), time: placement.timeline(cursor))
                 continue
             }
-            let range = OTIOTime.range(child["source_range"]) ?? CMTimeRange(start: .zero, duration: Self.duration(of: child))
+            let range = Self.shownRange(of: child)
             guard range.duration > .zero else { continue }
             importItem(child, at: cursor, range: range, placement: placement)
             cursor = cursor + range.duration
@@ -703,6 +703,22 @@ struct OTIOImporter {
     /// longest.
     private static func duration(of item: Object) -> CMTime {
         if let range = OTIOTime.range(item["source_range"]) { return range.duration }
+        return contentDuration(of: item)
+    }
+
+    /// The part of an item's own time it shows: its range, or all of it.
+    /// A track or stack trimmed to a range that misses all its items, as
+    /// early writers trimmed them by their record timecode, is shown whole.
+    private static func shownRange(of item: Object) -> CMTimeRange {
+        let range = OTIOTime.range(item["source_range"])
+        guard let range, ["Track", "Stack"].contains(schema(of: item)?.name) else {
+            return range ?? CMTimeRange(start: .zero, duration: duration(of: item))
+        }
+        let content = CMTimeRange(start: .zero, duration: contentDuration(of: item))
+        return content.duration > .zero && range.intersection(content).duration == .zero ? content : range
+    }
+
+    private static func contentDuration(of item: Object) -> CMTime {
         switch schema(of: item)?.name {
         case "Clip":
             return OTIOTime.range(mediaReference(of: item)?["available_range"])?.duration ?? .zero

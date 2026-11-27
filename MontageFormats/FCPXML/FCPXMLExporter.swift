@@ -175,7 +175,7 @@ struct FCPXMLExporter {
             return MarkupElement("gap", [("offset", InterchangeTime.string(range.start)),
                                          ("duration", InterchangeTime.string(range.duration))])
         }
-        let asset = resources.add(asset: item, url: url(for: item))
+        let asset = resources.add(asset: item, url: url(for: item), extent: usedExtent(of: item), settings: project.settings)
         let start = item.kind == .image ? .zero : conform(clip.sourceRange.start)
         let isImage = item.kind == .image
         let isAudioTrack = lane.map { $0 < 0 } ?? false
@@ -426,15 +426,20 @@ struct FCPXMLExporter {
             return id
         }
 
-        mutating func add(asset item: MediaItem, url: String) -> String {
+        /// An asset for a media item. Media that wasn't probed, such as
+        /// media that's missing, is given as long as its clips reach
+        /// (`extent`) and the project's frame, as Final Cut rejects clips
+        /// past the end of their asset.
+        mutating func add(asset item: MediaItem, url: String, extent: CMTime, settings: ProjectSettings) -> String {
             if let id = assets[item.id] { return id }
-            let metadata = item.metadata
+            var metadata = item.metadata
+            if item.kind == .video, !metadata.hasVideo { metadata.naturalSize = settings.renderSize }
             let size = metadata.presentationSize
             var format: String?
             if metadata.hasVideo {
                 format = add(format: [
-                    ("frameDuration", item.kind == .image || metadata.nominalFrameRate <= 0 ? nil
-                        : InterchangeTime.string(FCPXMLExporter.frameDuration(forRate: metadata.nominalFrameRate))),
+                    ("frameDuration", item.kind == .image ? nil : InterchangeTime.string(metadata.nominalFrameRate > 0
+                        ? FCPXMLExporter.frameDuration(forRate: metadata.nominalFrameRate) : settings.frameDuration)),
                     ("width", FCPXMLExporter.integer(size.width)), ("height", FCPXMLExporter.integer(size.height)),
                 ])
             }
@@ -442,7 +447,7 @@ struct FCPXMLExporter {
             let hasAudio = metadata.hasAudio && item.kind != .image
             elements.append(MarkupElement("asset", [
                 ("id", id), ("name", (item.name as NSString).deletingPathExtension), ("start", "0s"),
-                ("duration", InterchangeTime.string(metadata.duration)),
+                ("duration", InterchangeTime.string(item.kind == .image ? metadata.duration : max(metadata.duration, extent))),
                 ("hasVideo", metadata.hasVideo ? "1" : nil), ("format", format),
                 ("hasAudio", hasAudio ? "1" : nil), ("audioSources", hasAudio ? "1" : nil),
                 ("audioChannels", hasAudio ? String(metadata.audioChannelCount) : nil),
@@ -465,6 +470,12 @@ struct FCPXMLExporter {
             return InterchangeTime.time(1001, over: Int64(rounded) * 1000)
         }
         return InterchangeTime.time(1, over: max(1, Int64(rounded)))
+    }
+
+    /// How far into an item's media its clips reach.
+    private func usedExtent(of item: MediaItem) -> CMTime {
+        project.tracks.flatMap(\.clips).filter { $0.mediaID == item.id }
+            .map { conform($0.sourceRange.start) + conform($0.sourceRange.duration) }.max() ?? .zero
     }
 
     private func conform(_ time: CMTime) -> CMTime {

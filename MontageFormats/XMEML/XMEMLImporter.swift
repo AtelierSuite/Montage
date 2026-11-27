@@ -428,8 +428,6 @@ struct XMEMLImporter {
         return InterchangeTime.frameDuration(timebase: timebase, ntsc: rate?.child("ntsc")?.text.uppercased() == "TRUE")
     }
 
-    /// A count of frames as a time; nil for none, or for -1, which stands
-    /// for a time inside a transition.
     /// A marker at `time` on the timeline, named by its comment if it has
     /// no name. A range marker is marked where it starts. Those outside
     /// `window`, on media trimmed off, aren't seen in the other app either.
@@ -439,8 +437,12 @@ struct XMEMLImporter {
         markers.append(Marker(time: time, name: name.isEmpty ? marker.child("comment")?.text ?? "" : name))
     }
 
+    /// A count of frames as a time; nil for none, or for -1, which stands
+    /// for a time inside a transition. Hiero writes whole frames as decimals.
     private func frames(_ text: String?, _ frameDuration: CMTime) -> CMTime? {
-        guard let text, let count = Int64(text), count >= 0 else { return nil }
+        guard let text = text?.trimmingCharacters(in: .whitespaces) else { return nil }
+        guard let count = Int64(text) ?? Double(text).flatMap({ $0.isFinite ? Int64(exactly: $0.rounded()) : nil }),
+              count >= 0 else { return nil }
         return InterchangeTime.frames(count, frameDuration: frameDuration)
     }
 }
